@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Read(//c/Users/kavidu/AppData/Local/Temp/**)",
+      "Bash(npm install *)",
+      "Bash(node verify_signup.mjs)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"precheck@example.com\",\"password\":\"testpass123\"}')",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/ats/analyze -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Score: {d[\\\\\"overall_score\\\\\"]}/100'\\); [print\\(f'  {k}: {d[\\\\\"layers\\\\\"][k][\\\\\"score\\\\\"]}/{d[\\\\\"layers\\\\\"][k][\\\\\"max_score\\\\\"]}'\\) for k in d[\\\\\"layers\\\\\"]]\")",
+      "Skill(run)",
+      "Bash(Remove-Item \"F:\\\\zenzhire\\\\frontend\\\\test-cv-builder.mjs\" -Force)",
+      "Bash(Remove-Item \"F:\\\\zenzhire\\\\frontend\\\\test-screenshot-only.mjs\" -Force)",
+      "Bash(Write-Host \"Deleted test files\")",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "PowerShell(Get-ChildItem \"F:\\\\zenzhire\\\\frontend\\\\screenshots\" | ForEach-Object { Write-Output \"$\\($_.Name\\) \\($\\([math]::Round\\($_.Length/1KB, 1\\)\\) KB\\)\" })"
+    ]
+  }
+}

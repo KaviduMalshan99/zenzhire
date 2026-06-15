@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark theme values — always dark, no light/dark toggle */
+    --background: 216 28% 7%;
+    --foreground: 210 40% 92%;
+    --card: 216 22% 11%;
+    --card-foreground: 210 40% 92%;
+    --popover: 216 22% 11%;
+    --popover-foreground: 210 40% 92%;
+    --primary: 217 91% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 14% 15%;
+    --secondary-foreground: 210 40% 92%;
+    --muted: 215 14% 15%;
+    --muted-foreground: 215 14% 60%;
+    --accent: 215 14% 15%;
+    --accent-foreground: 210 40% 92%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 14% 20%;
+    --input: 215 14% 20%;
+    --ring: 217 91% 53%;
+    --radius: 0.5rem;
+  }
+
+  /* Match the .dark class so shadcn components using dark: variants work */
+  .dark {
+    --background: 216 28% 7%;
+    --foreground: 210 40% 92%;
+    --card: 216 22% 11%;
+    --card-foreground: 210 40% 92%;
+    --popover: 216 22% 11%;
+    --popover-foreground: 210 40% 92%;
+    --primary: 217 91% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 14% 15%;
+    --secondary-foreground: 210 40% 92%;
+    --muted: 215 14% 15%;
+    --muted-foreground: 215 14% 60%;
+    --accent: 215 14% 15%;
+    --accent-foreground: 210 40% 92%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 14% 20%;
+    --input: 215 14% 20%;
+    --ring: 217 91% 53%;
+  }
+
+  * {
+    box-sizing: border-box;
+    border-color: #30363d;
+  }
+
+  html, body {
+    background-color: #0d1117;
+    color: #e6edf3;
+    font-family: Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #161b22;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+  }
+}
+
+/* ── Rich text editor content (Tiptap ProseMirror) ─────────────────────── */
+.ProseMirror {
+  min-height: 80px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #e6edf3;
+  outline: none;
+  line-height: 1.5;
+}
+.ProseMirror p { margin: 0 0 4px; }
+.ProseMirror ul, .ProseMirror ol { padding-left: 18px; margin: 2px 0; }
+.ProseMirror li { margin-bottom: 2px; }
+.ProseMirror strong { font-weight: 700; }
+.ProseMirror em { font-style: italic; }
+.ProseMirror u { text-decoration: underline; }
+.ProseMirror a { color: #3b82f6; text-decoration: underline; }
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #8b949e;
+  pointer-events: none;
+  height: 0;
+}
+
+/* ── CV preview rich text content ──────────────────────────────────────── */
+.cv-html-content p { margin: 0 0 3px; }
+.cv-html-content ul { margin: 3px 0 3px 14px; padding: 0; list-style: disc; }
+.cv-html-content ol { margin: 3px 0 3px 14px; padding: 0; list-style: decimal; }
+.cv-html-content li { margin-bottom: 1.5px; }
+.cv-html-content strong { font-weight: bold; }
+.cv-html-content em { font-style: italic; }
+.cv-html-content u { text-decoration: underline; }
+.cv-html-content a { color: #2563eb; }
+
+/* ── CV page-break helpers ─────────────────────────────────────────────── */
+.cv-section {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+.cv-entry {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+.cv-section-header {
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+}
+.cv-entry { page-break-inside: avoid; break-inside: avoid; }
+
+/* ── Print styles ──────────────────────────────────────────────────────── */
+@media print {
+  body * { visibility: hidden; }
+  #cv-preview, #cv-preview * { visibility: visible; }
+  #cv-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    transform: none !important;
+  }
+  .cv-entry, .cv-section {
+    padding-top: 2px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue-600 text-white font-medium px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .card {
+    @apply rounded-lg p-6;
+    background-color: #161b22;
+    border: 1px solid #30363d;
+  }
+
+  .input-field {
+    @apply w-full rounded-md px-3 py-2 text-sm placeholder:text-[#8b949e] focus:outline-none transition-colors;
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+  }
+  .input-field:focus {
+    border-color: #2563eb;
+  }
+}
