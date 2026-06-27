@@ -1,11 +1,37 @@
-.env
-.env.local
-.env.production
-*.log
-*.pyc
-.DS_Store
-Thumbs.db
+# Python
 __pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+
+# Node
 node_modules/
 .next/
-venv/
+.env.local
+.env.production
+.env*.local
+npm-debug.log*
+*.log
+
+# Test files
+debug-screenshot.png
+screenshots/
+test-screenshots/
+template-test-results/
+scripts/template-test-results/
+verify-*.js
+verify-*.png
+test-visual.mjs
+tsconfig.tsbuildinfo
+*.test-output.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
