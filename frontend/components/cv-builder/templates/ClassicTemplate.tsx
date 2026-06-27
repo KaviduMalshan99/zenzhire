@@ -94,7 +94,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
                   </div>
                 </div>
                 <div style={{ fontSize: 12.5, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>
-                  {entry.employer}{entry.location ? ` · ${entry.location}` : ""}
+                  {entry.employer_link ? <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{entry.employer}</a> : entry.employer}{entry.location ? ` · ${entry.location}` : ""}
                 </div>
                 {entry.description && entry.description !== "<p></p>" ? (
                   <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 3, fontFamily: fontCSS }} />
@@ -124,8 +124,13 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
                   </div>
                 </div>
                 <div style={{ fontSize: 12.5, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>
-                  {entry.institution}{entry.location ? ` · ${entry.location}` : ""}
+                  {entry.institution_link ? <a href={entry.institution_link.startsWith("http") ? entry.institution_link : `https://${entry.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{entry.institution}</a> : entry.institution}{entry.location ? ` · ${entry.location}` : ""}
                 </div>
+                {entry.score_type && entry.score_value && (
+                  <div style={{ fontSize: 11, color: "#6b7280", fontFamily: fontCSS, marginTop: 1 }}>
+                    {entry.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}>{entry.score_value}</span>
+                  </div>
+                )}
                 {entry.description && entry.description !== "<p></p>" && (
                   <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 2, color: "#444", fontFamily: fontCSS }} />
                 )}
@@ -177,7 +182,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                  <span style={{ fontWeight: "bold", fontSize: 15, color: "#111827", fontFamily: fontCSS }}>{p.title}</span>
+                  <span style={{ fontWeight: "bold", fontSize: 15, color: "#111827", fontFamily: fontCSS }}>{p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{p.title}</a> : p.title}</span>
                   {(p.start_date || p.end_date) && (
                     <span style={dateStyle}>
                       {p.start_date}{p.start_date && p.end_date ? " – " : ""}{p.end_date}
@@ -203,7 +208,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             <SectionHeading title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 4, fontSize: 12, fontFamily: fontCSS }}>
-                <span><b>{c.certificate_name}</b>{c.issuer ? ` — ${c.issuer}` : ""}</span>
+                <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.certificate_name}</b></a> : <b>{c.certificate_name}</b>}{c.issuer ? ` — ${c.issuer}` : ""}</span>
                 <span style={{ color: "#374151", whiteSpace: "nowrap", flexShrink: 0 }}>{c.no_expiry ? `${c.date} (No expiry)` : c.date}</span>
               </div>
             ))}
@@ -237,7 +242,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 4 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontFamily: fontCSS }}>
-                  <span><b>{c.title}</b>{c.institution ? ` — ${c.institution}` : ""}</span>
+                  <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.title}</b></a> : <b>{c.title}</b>}{c.institution ? ` — ${c.institution}` : ""}</span>
                   <span style={{ color: "#374151", whiteSpace: "nowrap", flexShrink: 0 }}>{c.end_date || c.start_date}</span>
                 </div>
                 {c.description && c.description !== "<p></p>" && (
@@ -382,7 +387,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             {contactItems.map((item, i) => (
               <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                 {getContactIcon(item.type, "#444")}
-                {item.text}
+                <a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{item.text}</a>
               </span>
             ))}
           </div>
@@ -399,7 +404,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             {contactItems.map((item, i) => (
               <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
                 {getContactIcon(item.type, "#444")}
-                {item.text}
+                <a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{item.text}</a>
               </span>
             ))}
           </div>

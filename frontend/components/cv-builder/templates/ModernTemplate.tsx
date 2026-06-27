@@ -28,6 +28,14 @@ function get(sections: CVSection[], type: string) {
 // Sections that live in the sidebar regardless of order
 const SIDEBAR_TYPES = new Set(["skills", "languages", "interests", "declaration"]);
 
+function getPhotoStyle(personal: any, defaultSize = 80): React.CSSProperties {
+  const size = personal.photo_size ?? defaultSize;
+  const shape = personal.photo_shape ?? "circle";
+  const borderRadius = shape === "circle" ? "50%" : shape === "rounded" ? "12px" : "0px";
+  const clipPath = shape === "hexagon" ? "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" : "none";
+  return { width: size, height: size, borderRadius, clipPath, objectFit: "cover" as const, flexShrink: 0 };
+}
+
 export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
   const { accentColor, fontFamily, spacing, headingStyle } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
@@ -102,7 +110,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: accentColor, fontWeight: "bold", fontFamily: fontCSS }}>
-                  {entry.employer}{entry.location ? ` · ${entry.location}` : ""}
+                  {entry.employer_link ? <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{entry.employer}</a> : entry.employer}{entry.location ? ` · ${entry.location}` : ""}
                 </div>
                 {entry.description && entry.description !== "<p></p>" ? (
                   <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
@@ -131,7 +139,12 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
                     {entry.start_date}{entry.start_date && entry.end_date ? " – " : ""}{entry.end_date}
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: accentColor, fontFamily: fontCSS }}>{entry.institution}{entry.location ? ` · ${entry.location}` : ""}</div>
+                <div style={{ fontSize: 12, color: accentColor, fontFamily: fontCSS }}>{entry.institution_link ? <a href={entry.institution_link.startsWith("http") ? entry.institution_link : `https://${entry.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{entry.institution}</a> : entry.institution}{entry.location ? ` · ${entry.location}` : ""}</div>
+                {entry.score_type && entry.score_value && (
+                  <div style={{ fontSize: 11, color: "#6b7280", fontFamily: fontCSS, marginTop: 1 }}>
+                    {entry.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}>{entry.score_value}</span>
+                  </div>
+                )}
                 {entry.description && entry.description !== "<p></p>" && (
                   <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
                 )}
@@ -148,7 +161,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(6 * sp) }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                  <span style={{ fontWeight: "bold", fontSize: 13, color: "#1e3a5f", fontFamily: fontCSS }}>{p.title}</span>
+                  <span style={{ fontWeight: "bold", fontSize: 13, color: "#1e3a5f", fontFamily: fontCSS }}>{p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{p.title}</a> : p.title}</span>
                   {(p.start_date || p.end_date) && (
                     <span style={dateStyleMain}>
                       {p.start_date}{p.start_date && p.end_date ? " – " : ""}{p.end_date}
@@ -174,7 +187,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
             <SectionHeading title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS }}>
-                <span><b style={{ color: "#1e3a5f" }}>{c.certificate_name}</b>{c.issuer ? ` — ${c.issuer}` : ""}</span>
+                <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b style={{ color: "#1e3a5f" }}>{c.certificate_name}</b></a> : <b style={{ color: "#1e3a5f" }}>{c.certificate_name}</b>}{c.issuer ? ` — ${c.issuer}` : ""}</span>
                 <span style={{ color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0 }}>{c.date}</span>
               </div>
             ))}
@@ -208,7 +221,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontFamily: fontCSS }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12 }}>
-                  <span><b style={{ color: "#1e3a5f" }}>{c.title}</b>{c.institution ? ` — ${c.institution}` : ""}</span>
+                  <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b style={{ color: "#1e3a5f" }}>{c.title}</b></a> : <b style={{ color: "#1e3a5f" }}>{c.title}</b>}{c.institution ? ` — ${c.institution}` : ""}</span>
                   <span style={{ color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0 }}>{c.end_date || c.start_date}</span>
                 </div>
                 {c.description && c.description !== "<p></p>" && (
@@ -299,7 +312,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       {/* Sidebar */}
       <div className="modern-sidebar" style={{ width: "35%", backgroundColor: sidebarBg, padding: `${sidePad}px 14px`, color: "#e2e8f0", alignSelf: "stretch", position: "relative", zIndex: 1 }}>
         {(personal.photo_base64 || personal.photo_url) && (
-          <img src={personal.photo_base64 || personal.photo_url} alt="" style={{ width: 100, height: 100, borderRadius: "50%", objectFit: "cover", marginBottom: 12, border: "3px solid rgba(255,255,255,0.4)", display: "block", marginLeft: "auto", marginRight: "auto" }} />
+          <img src={personal.photo_base64 || personal.photo_url} alt="" style={{ ...getPhotoStyle(personal, 100), marginBottom: 12, border: "3px solid rgba(255,255,255,0.4)", display: "block", marginLeft: "auto", marginRight: "auto" }} />
         )}
         <div style={{ fontSize: 20, fontWeight: "bold", color: "#fff", lineHeight: 1.2, fontFamily: fontCSS, textAlign: "center" }}>
           {personal.full_name || "Your Name"}
@@ -313,13 +326,13 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
           {personal.email && (
             <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
               {getContactIcon("email", "#cbd5e1")}
-              <span>{personal.email}</span>
+              <a href={`mailto:${personal.email}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{personal.email}</a>
             </div>
           )}
           {personal.phone && (
             <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
               {getContactIcon("phone", "#cbd5e1")}
-              <span>{personal.phone}</span>
+              <a href={`tel:${personal.phone}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{personal.phone}</a>
             </div>
           )}
           {personal.location && (
@@ -338,7 +351,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
                 l.platform?.toLowerCase().includes("github") ? "github" : "website",
                 "#cbd5e1"
               )}
-              <span>{l.url}</span>
+              <a href={l.url.startsWith("http") ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{l.url}</a>
             </div>
           ))}
         </div>

@@ -75,6 +75,14 @@ function SH({ title, stype, accent, font, sp }: SHProps) {
   );
 }
 
+function getPhotoStyle(personal: any, defaultSize = 80): React.CSSProperties {
+  const size = personal.photo_size ?? defaultSize;
+  const shape = personal.photo_shape ?? "circle";
+  const borderRadius = shape === "circle" ? "50%" : shape === "rounded" ? "12px" : "0px";
+  const clipPath = shape === "hexagon" ? "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" : "none";
+  return { width: size, height: size, borderRadius, clipPath, objectFit: "cover" as const, flexShrink: 0 };
+}
+
 export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
   const { accentColor, fontFamily, spacing, skillStyle = "classic", skillColumns = 2 } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
@@ -128,7 +136,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>{e.job_title}</div>
-                  {e.employer && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.employer}</div>}
+                  {e.employer && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.employer}</a> : e.employer}</div>}
                   {e.description && e.description !== "<p></p>" ? (
                     <HtmlContent html={e.description} style={{ fontSize: 11, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
                   ) : e.bullets?.length > 0 ? (
@@ -157,7 +165,12 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>{e.degree}</div>
-                  {e.institution && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.institution}</div>}
+                  {e.institution && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.institution_link ? <a href={e.institution_link.startsWith("http") ? e.institution_link : `https://${e.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.institution}</a> : e.institution}</div>}
+                  {e.score_type && e.score_value && (
+                    <div style={{ fontSize: 10, color: "#6b7280", fontFamily: fontCSS, marginTop: 1 }}>
+                      {e.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}>{e.score_value}</span>
+                    </div>
+                  )}
                   {e.description && e.description !== "<p></p>" && (
                     <HtmlContent html={e.description} style={{ fontSize: 11, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
                   )}
@@ -211,7 +224,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: Math.round(12 * sp), ...eb }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>
-                  {p.title}{p.subtitle && <span style={{ fontWeight: 400, color: "#6b7280", fontSize: 11 }}> — {p.subtitle}</span>}
+                  {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{p.title}</a> : p.title}{p.subtitle && <span style={{ fontWeight: 400, color: "#6b7280", fontSize: 11 }}> — {p.subtitle}</span>}
                 </div>
                 {p.description && p.description !== "<p></p>" && (
                   <HtmlContent html={p.description} style={{ fontSize: 11, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
@@ -231,7 +244,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
             {sh("Certifications", "certificates")}
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
-                • <b>{c.certificate_name}</b>
+                • {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.certificate_name}</b></a> : <b>{c.certificate_name}</b>}
                 {c.issuer && <span style={{ color: "#6b7280" }}> — {c.issuer}</span>}
                 {c.date && <span style={{ color: "#9ca3af" }}> ({c.no_expiry ? `${c.date}, no expiry` : c.date})</span>}
               </div>
@@ -264,7 +277,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
             {sh("Courses & Training", "courses")}
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
-                • <b>{c.title}</b>
+                • {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.title}</b></a> : <b>{c.title}</b>}
                 {c.institution && <span style={{ color: "#6b7280" }}> — {c.institution}</span>}
                 {(c.end_date || c.start_date) && <span style={{ color: "#9ca3af" }}> ({c.end_date || c.start_date})</span>}
               </div>
@@ -381,7 +394,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
             <img
               src={personal.photo_base64 || personal.photo_url}
               alt=""
-              style={{ width: 100, height: 100, borderRadius: "50%", objectFit: "cover" as const, flexShrink: 0, border: `3px solid ${accentColor}60` }}
+              style={{ ...getPhotoStyle(personal, 100), border: `3px solid ${accentColor}60` }}
             />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -400,7 +413,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
                 {contactItems.map((item, i) => (
                   <span key={i} style={{ fontSize: 10, color: "#6b7280", fontFamily: fontCSS }}>
-                    {getContactIcon(item.type, accentColor)}{item.text}
+                    {getContactIcon(item.type, accentColor)}<a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{item.text}</a>
                   </span>
                 ))}
               </div>

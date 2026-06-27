@@ -17,6 +17,14 @@ function get(sections: CVSection[], type: string) {
 const MID = "#374151";
 const LIGHT = "#6b7280";
 
+function getPhotoStyle(personal: any, defaultSize = 80): React.CSSProperties {
+  const size = personal.photo_size ?? defaultSize;
+  const shape = personal.photo_shape ?? "circle";
+  const borderRadius = shape === "circle" ? "50%" : shape === "rounded" ? "12px" : "0px";
+  const clipPath = shape === "hexagon" ? "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" : "none";
+  return { width: size, height: size, borderRadius, clipPath, objectFit: "cover" as const, flexShrink: 0 };
+}
+
 export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
   const { accentColor, fontFamily, spacing, headingStyle, skillStyle = "classic", skillColumns = 2 } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
@@ -55,7 +63,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
                   <div style={{ fontWeight: "bold", fontSize: 13, color: accentColor, fontFamily: fontCSS }}>{entry.job_title}</div>
                   <div style={dateStyle}>{entry.start_date}{entry.start_date && (entry.end_date || entry.current) ? " – " : ""}{entry.current ? "Present" : entry.end_date}</div>
                 </div>
-                <div style={{ fontSize: 12, fontWeight: "bold", fontFamily: fontCSS, color: MID }}>{entry.employer}{entry.location ? ` · ${entry.location}` : ""}</div>
+                <div style={{ fontSize: 12, fontWeight: "bold", fontFamily: fontCSS, color: MID }}>{entry.employer_link ? <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{entry.employer}</a> : entry.employer}{entry.location ? ` · ${entry.location}` : ""}</div>
                 {entry.description && entry.description !== "<p></p>" ? (
                   <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 3, color: MID, fontFamily: fontCSS }} />
                 ) : entry.bullets?.length > 0 ? (
@@ -79,7 +87,12 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
                   <div style={{ fontWeight: "bold", fontSize: 13, color: accentColor, fontFamily: fontCSS }}>{entry.degree}</div>
                   <div style={dateStyle}>{entry.start_date}{entry.start_date && entry.end_date ? " – " : ""}{entry.end_date}</div>
                 </div>
-                <div style={{ fontSize: 12, fontFamily: fontCSS, color: MID }}>{entry.institution}{entry.location ? ` · ${entry.location}` : ""}</div>
+                <div style={{ fontSize: 12, fontFamily: fontCSS, color: MID }}>{entry.institution_link ? <a href={entry.institution_link.startsWith("http") ? entry.institution_link : `https://${entry.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{entry.institution}</a> : entry.institution}{entry.location ? ` · ${entry.location}` : ""}</div>
+                {entry.score_type && entry.score_value && (
+                  <div style={{ fontSize: 11, color: "#6b7280", fontFamily: fontCSS, marginTop: 1 }}>
+                    {entry.score_type}:{" "}<span style={{ fontWeight: 600, color: MID }}>{entry.score_value}</span>
+                  </div>
+                )}
                 {entry.description && entry.description !== "<p></p>" && <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
               </div>
             ))}
@@ -125,7 +138,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
             <SectionHeading title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(6 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <div style={{ fontWeight: "bold", fontSize: 12, color: accentColor, fontFamily: fontCSS }}>{p.title}</div>
+                <div style={{ fontWeight: "bold", fontSize: 12, color: accentColor, fontFamily: fontCSS }}>{p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{p.title}</a> : p.title}</div>
                 {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}>{p.subtitle}</div>}
                 {p.description && p.description !== "<p></p>" && <HtmlContent html={p.description} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
                 {p.tech?.length > 0 && <div style={{ fontSize: 11, color: MID, marginTop: 1, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
@@ -141,7 +154,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
             <SectionHeading title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <span><b>{c.certificate_name}</b>{c.issuer ? ` — ${c.issuer}` : ""}</span>
+                <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.certificate_name}</b></a> : <b>{c.certificate_name}</b>}{c.issuer ? ` — ${c.issuer}` : ""}</span>
                 <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}>{c.no_expiry ? `${c.date} (No expiry)` : c.date}</span>
               </div>
             ))}
@@ -172,7 +185,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
             <SectionHeading title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <span><b>{c.title}</b>{c.institution ? ` — ${c.institution}` : ""}</span>
+                <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.title}</b></a> : <b>{c.title}</b>}{c.institution ? ` — ${c.institution}` : ""}</span>
                 <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}>{c.end_date || c.start_date}</span>
               </div>
             ))}
@@ -277,15 +290,15 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
           </div>
         </div>
         {(personal.photo_base64 || personal.photo_url) && (
-          <img src={personal.photo_base64 || personal.photo_url} alt="" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(255,255,255,0.6)", flexShrink: 0, marginLeft: 20 }} />
+          <img src={personal.photo_base64 || personal.photo_url} alt="" style={{ ...getPhotoStyle(personal, 80), border: "3px solid rgba(255,255,255,0.6)", marginLeft: 20 }} />
         )}
       </div>
 
       <div style={{ backgroundColor: "#f0f4f8", borderBottom: "1px solid #dde3ea", padding: `${Math.round(8 * sp)}px 16px`, display: "flex", flexWrap: "wrap", gap: "4px 20px", fontSize: 10, color: LIGHT, fontFamily: fontCSS }}>
-        {personal.email && <span>{personal.email}</span>}
-        {personal.phone && <span>{personal.phone}</span>}
+        {personal.email && <span><a href={`mailto:${personal.email}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{personal.email}</a></span>}
+        {personal.phone && <span><a href={`tel:${personal.phone}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{personal.phone}</a></span>}
         {personal.location && <span>{personal.location}</span>}
-        {links.filter((l: any) => l.url).map((l: any, i: number) => <span key={i}>{l.url}</span>)}
+        {links.filter((l: any) => l.url).map((l: any, i: number) => <span key={i}><a href={l.url.startsWith("http") ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{l.url}</a></span>)}
       </div>
 
       <div style={{ padding: `0 16px` }}>

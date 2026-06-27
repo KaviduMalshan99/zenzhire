@@ -21,6 +21,7 @@ _DEFAULT_DATA: dict[SectionType, dict] = {
         "full_name": "", "title": "", "email": "", "phone": "",
         "location": "", "date_of_birth": "", "nationality": "",
         "visa_status": "", "gender": "", "driving_license": "",
+        "marital_status": "", "religion": "", "nic": "",
         "photo_url": "", "links": [],
     },
     SectionType.profile_summary: {"summary": ""},

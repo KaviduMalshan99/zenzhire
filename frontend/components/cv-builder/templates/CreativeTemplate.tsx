@@ -100,7 +100,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", fontFamily: fontCSS }}>{e.job_title}</div>
-                  <div style={{ fontSize: 12, fontStyle: "italic", color: accentColor, fontFamily: fontCSS }}>{e.employer}</div>
+                  <div style={{ fontSize: 12, fontStyle: "italic", color: accentColor, fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.employer}</a> : e.employer}</div>
                   {e.description && e.description !== "<p></p>" ? (
                     <HtmlContent html={e.description} style={{ fontSize: 12, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
                   ) : e.bullets?.length > 0 ? (
@@ -127,7 +127,12 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", fontFamily: fontCSS }}>{e.degree}</div>
-                  <div style={{ fontSize: 12, fontStyle: "italic", color: accentColor, fontFamily: fontCSS }}>{e.institution}</div>
+                  <div style={{ fontSize: 12, fontStyle: "italic", color: accentColor, fontFamily: fontCSS }}>{e.institution_link ? <a href={e.institution_link.startsWith("http") ? e.institution_link : `https://${e.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.institution}</a> : e.institution}</div>
+                  {e.score_type && e.score_value && (
+                    <div style={{ fontSize: 11, color: "#6b7280", fontFamily: fontCSS, marginTop: 1 }}>
+                      {e.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}>{e.score_value}</span>
+                    </div>
+                  )}
                   {e.description && e.description !== "<p></p>" && (
                     <HtmlContent html={e.description} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
                   )}
@@ -149,7 +154,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", fontFamily: fontCSS }}>
-                    {p.title}{p.subtitle && <span style={{ fontWeight: 400, color: "#4b5563", fontSize: 12 }}> — {p.subtitle}</span>}
+                    {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{p.title}</a> : p.title}{p.subtitle && <span style={{ fontWeight: 400, color: "#4b5563", fontSize: 12 }}> — {p.subtitle}</span>}
                   </div>
                   {p.description && p.description !== "<p></p>" && <HtmlContent html={p.description} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />}
                   {p.tech?.length > 0 && <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2, fontFamily: fontCSS }}>{p.tech.join(" · ")}</div>}
@@ -203,7 +208,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: 5, ...eb }}>
                 <div style={{ ...dateCol, fontSize: 11 }}>{c.no_expiry ? `${c.date} (No expiry)` : c.date}</div>
                 <div style={{ flex: 1, fontSize: 12, color: "#111827", fontFamily: fontCSS }}>
-                  {c.certificate_name}{c.issuer && <span style={{ color: "#374151" }}> — {c.issuer}</span>}
+                  {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.certificate_name}</a> : c.certificate_name}{c.issuer && <span style={{ color: "#374151" }}> — {c.issuer}</span>}
                 </div>
               </div>
             ))}
@@ -237,7 +242,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: 5, ...eb }}>
                 <div style={{ ...dateCol, fontSize: 11 }}>{c.end_date || c.start_date}</div>
                 <div style={{ flex: 1, fontSize: 12, color: "#111827", fontFamily: fontCSS }}>
-                  <b>{c.title}</b>{c.institution && <span style={{ color: "#374151" }}> — {c.institution}</span>}
+                  {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.title}</b></a> : <b>{c.title}</b>}{c.institution && <span style={{ color: "#374151" }}> — {c.institution}</span>}
                   {c.description && c.description !== "<p></p>" && <HtmlContent html={c.description} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS }} />}
                 </div>
               </div>
@@ -355,7 +360,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
             {contactItems.map((item, i) => (
               <span key={i} style={{ fontSize: 11, color: "#6b7280", fontFamily: fontCSS, display: "inline-flex", alignItems: "center", marginRight: 16 }}>
                 {getContactIcon(item.type, "#6b7280")}
-                {item.text}
+                <a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{item.text}</a>
               </span>
             ))}
           </div>

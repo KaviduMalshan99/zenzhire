@@ -67,42 +67,319 @@ function newId() {
   return Math.random().toString(36).slice(2);
 }
 
-function PhotoUpload({ value, onChange }: { value: string; onChange: (b64: string) => void }) {
+function PhotoUpload({
+  value,
+  onChange,
+  shape = "circle",
+  onShapeChange,
+  size = 80,
+  onSizeChange,
+}: {
+  value: string;
+  onChange: (b64: string) => void;
+  shape?: string;
+  onShapeChange?: (s: string) => void;
+  size?: number;
+  onSizeChange?: (s: number) => void;
+}) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [rawImage, setRawImage] = useState<string>("");
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const FRAME_SIZE = 260;
+
+  const getBorderRadius = (s: string) => {
+    switch (s) {
+      case "circle": return "50%";
+      case "rounded": return "16px";
+      case "square": return "0px";
+      case "hexagon": return "0px";
+      default: return "50%";
+    }
+  };
+
+  const getClipPath = (s: string) => {
+    if (s === "hexagon") return "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
+    return "none";
+  };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Photo must be under 2 MB"); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("Photo must be under 5 MB"); return; }
     const reader = new FileReader();
-    reader.onload = () => onChange(reader.result as string);
+    reader.onload = () => {
+      setRawImage(reader.result as string);
+      setZoom(1);
+      setPosition({ x: 0, y: 0 });
+      setShowCropper(true);
+    };
     reader.readAsDataURL(file);
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragging) return;
+    setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const handleMouseUp = () => setDragging(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setDragging(true);
+    setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!dragging) return;
+    const touch = e.touches[0];
+    setPosition({ x: touch.clientX - dragStart.x, y: touch.clientY - dragStart.y });
+  };
+
+  const handleSave = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !imgRef.current) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const outputSize = 400;
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+
+    const img = imgRef.current;
+    const scale = zoom;
+    const imgW = img.naturalWidth * scale * (FRAME_SIZE / img.naturalWidth);
+    const imgH = img.naturalHeight * scale * (FRAME_SIZE / img.naturalWidth);
+
+    ctx.clearRect(0, 0, outputSize, outputSize);
+
+    const scaleToOutput = outputSize / FRAME_SIZE;
+
+    ctx.drawImage(
+      img,
+      (position.x + FRAME_SIZE / 2 - imgW / 2) * scaleToOutput,
+      (position.y + FRAME_SIZE / 2 - imgH / 2) * scaleToOutput,
+      imgW * scaleToOutput,
+      imgH * scaleToOutput,
+    );
+
+    onChange(canvas.toDataURL("image/jpeg", 0.9));
+    setShowCropper(false);
+  };
+
+  const SHAPES = [
+    { id: "circle", label: "Circle" },
+    { id: "rounded", label: "Rounded" },
+    { id: "square", label: "Square" },
+    { id: "hexagon", label: "Hexagon" },
+  ];
+
   return (
-    <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="relative w-16 h-16 rounded-full border-2 border-dashed border-[#30363d] hover:border-blue-500 flex items-center justify-center overflow-hidden transition-colors bg-[#0d1117] flex-shrink-0"
-      >
-        {value ? (
-          <img src={value} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <Camera className="w-5 h-5 text-[#8b949e]" />
-        )}
-      </button>
-      <div className="flex flex-col gap-1">
-        <button type="button" onClick={() => fileRef.current?.click()} className="text-[11px] text-blue-400 hover:text-blue-300">
-          {value ? "Change photo" : "Upload photo"}
+    <div className="space-y-3">
+      {/* Photo preview + upload button */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="relative flex-shrink-0 border-2 border-dashed border-[#30363d] hover:border-blue-500 flex items-center justify-center overflow-hidden transition-colors bg-[#0d1117]"
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: getBorderRadius(shape),
+            clipPath: getClipPath(shape),
+          }}
+        >
+          {value ? (
+            <img src={value} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <Camera className="w-5 h-5 text-[#8b949e]" />
+          )}
         </button>
-        {value && (
-          <button type="button" onClick={() => onChange("")} className="text-[11px] text-red-400 hover:text-red-300">
-            Remove
+
+        <div className="flex flex-col gap-1.5">
+          <button type="button" onClick={() => fileRef.current?.click()} className="text-[11px] text-blue-400 hover:text-blue-300">
+            {value ? "Change photo" : "Upload photo"}
           </button>
-        )}
+          {value && (
+            <>
+              <button
+                type="button"
+                onClick={() => { setRawImage(value); setZoom(1); setPosition({ x: 0, y: 0 }); setShowCropper(true); }}
+                className="text-[11px] text-[#8b949e] hover:text-white"
+              >
+                Adjust crop
+              </button>
+              <button type="button" onClick={() => onChange("")} className="text-[11px] text-red-400 hover:text-red-300">
+                Remove
+              </button>
+            </>
+          )}
+        </div>
+
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
       </div>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
+
+      {/* Shape selection */}
+      {onShapeChange && (
+        <div>
+          <span className={labelCls}>Photo Shape</span>
+          <div className="grid grid-cols-4 gap-1 mt-1">
+            {SHAPES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => onShapeChange(s.id)}
+                className={cn(
+                  "py-1.5 px-1 rounded border text-[10px] transition-colors text-center",
+                  shape === s.id
+                    ? "border-blue-500 bg-blue-600/10 text-blue-400"
+                    : "border-[#30363d] text-[#8b949e] hover:border-[#8b949e]"
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Size slider */}
+      {onSizeChange && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className={labelCls}>Photo Size</span>
+            <span className="text-[10px] text-[#8b949e]">{size}px</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[#8b949e]">S</span>
+            <input
+              type="range"
+              min={50}
+              max={150}
+              step={5}
+              value={size}
+              onChange={(e) => onSizeChange(Number(e.target.value))}
+              className="flex-1 accent-blue-500"
+            />
+            <span className="text-[10px] text-[#8b949e]">L</span>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden canvas for cropping */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Crop Modal */}
+      {showCropper && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCropper(false); }}
+        >
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 flex flex-col items-center gap-4 shadow-2xl max-w-sm w-full mx-4">
+            <div className="flex items-center justify-between w-full">
+              <h3 className="text-white text-sm font-semibold">Adjust Photo</h3>
+              <button onClick={() => setShowCropper(false)} className="text-[#8b949e] hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Crop frame */}
+            <div
+              style={{
+                width: FRAME_SIZE,
+                height: FRAME_SIZE,
+                overflow: "hidden",
+                position: "relative",
+                cursor: dragging ? "grabbing" : "grab",
+                backgroundColor: "#0d1117",
+                borderRadius: getBorderRadius(shape),
+                clipPath: getClipPath(shape),
+                border: "2px solid #30363d",
+                userSelect: "none",
+              }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleMouseUp}
+            >
+              {rawImage && (
+                <img
+                  ref={imgRef}
+                  src={rawImage}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "50%",
+                    transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+                    transformOrigin: "center",
+                    maxWidth: "none",
+                    width: FRAME_SIZE,
+                    pointerEvents: "none",
+                    userSelect: "none",
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Zoom slider */}
+            <div className="w-full">
+              <div className="flex justify-between mb-1">
+                <span className="text-[10px] text-[#8b949e]">Zoom</span>
+                <span className="text-[10px] text-[#8b949e]">{Math.round(zoom * 100)}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-[#8b949e]">🔍-</span>
+                <input
+                  type="range"
+                  min={0.5}
+                  max={3}
+                  step={0.05}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1 accent-blue-500"
+                />
+                <span className="text-[10px] text-[#8b949e]">🔍+</span>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-[#8b949e] text-center">Drag to reposition · Scroll to zoom</p>
+
+            {/* Buttons */}
+            <div className="flex gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setShowCropper(false)}
+                className="flex-1 py-2 rounded-md border border-[#30363d] text-[#8b949e] hover:text-white text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="flex-1 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+              >
+                Save Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -124,7 +401,7 @@ function PersonalDetailsForm({ section, onChange }: FormProps) {
     update("links", (d.links ?? []).filter((_: any, i: number) => i !== idx));
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Row>
         <Field label="Full Name" required><Input value={d.full_name ?? ""} onChange={(v) => update("full_name", v)} /></Field>
         <Field label="Title / Headline"><Input value={d.title ?? ""} onChange={(v) => update("title", v)} placeholder="e.g. Software Engineer" /></Field>
@@ -143,13 +420,48 @@ function PersonalDetailsForm({ section, onChange }: FormProps) {
       </Row>
       <Row>
         <Field label="Gender"><Input value={d.gender ?? ""} onChange={(v) => update("gender", v)} /></Field>
-        <Field label="Driving License"><Input value={d.driving_license ?? ""} onChange={(v) => update("driving_license", v)} /></Field>
+        <Field label="Marital Status">
+          <select
+            value={d.marital_status ?? ""}
+            onChange={(e) => update("marital_status", e.target.value)}
+            className={inputCls}
+          >
+            <option value="">Select status</option>
+            <option value="Single">Single</option>
+            <option value="Married">Married</option>
+            <option value="Divorced">Divorced</option>
+            <option value="Widowed">Widowed</option>
+            <option value="Separated">Separated</option>
+          </select>
+        </Field>
       </Row>
+      <Row>
+        <Field label="Religion">
+          <Input value={d.religion ?? ""} onChange={(v) => update("religion", v)} placeholder="e.g. Buddhist" />
+        </Field>
+        <Field label="NIC / ID Number">
+          <Input value={d.nic ?? ""} onChange={(v) => update("nic", v)} placeholder="National ID number" />
+        </Field>
+      </Row>
+      <Row>
+        <Field label="Driving License">
+          <Input value={d.driving_license ?? ""} onChange={(v) => update("driving_license", v)} placeholder="License number" />
+        </Field>
+      </Row>
+      <div className="border-t border-[#30363d] pt-1" />
       <div>
         <span className={labelCls}>Profile Photo</span>
-        <PhotoUpload value={d.photo_base64 ?? ""} onChange={(b64) => update("photo_base64", b64)} />
-        <p className="text-[9px] text-[#8b949e] mt-1.5">Hidden in Classic template (ATS-friendly). Max 2 MB · JPG, PNG or WebP.</p>
+        <PhotoUpload
+          value={d.photo_base64 ?? ""}
+          onChange={(b64) => update("photo_base64", b64)}
+          shape={d.photo_shape ?? "circle"}
+          onShapeChange={(s) => update("photo_shape", s)}
+          size={d.photo_size ?? 80}
+          onSizeChange={(s) => update("photo_size", s)}
+        />
+        <p className="text-[9px] text-[#8b949e] mt-1.5">Hidden in Classic template (ATS-friendly). Max 5 MB · JPG, PNG or WebP.</p>
       </div>
+      <div className="border-t border-[#30363d] pt-1" />
 
       {/* Links — 2-row layout per entry */}
       <div>
@@ -246,7 +558,16 @@ function ExperienceForm({ section, onChange }: FormProps) {
                   <Field label="Employer" required><Input value={entry.employer} onChange={(v) => updateEntry(entry.id, "employer", v)} /></Field>
                 </Row>
                 <Row>
-                  <Field label="Employer URL"><Input value={entry.employer_link} onChange={(v) => updateEntry(entry.id, "employer_link", v)} placeholder="https://..." /></Field>
+                  <Field label="Employer URL">
+                    <div className="flex gap-1.5 items-center">
+                      <Input value={entry.employer_link} onChange={(v) => updateEntry(entry.id, "employer_link", v)} placeholder="https://..." />
+                      {entry.employer_link && (
+                        <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 flex-shrink-0" title="Open link">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                      )}
+                    </div>
+                  </Field>
                   <Field label="Location"><Input value={entry.location} onChange={(v) => updateEntry(entry.id, "location", v)} /></Field>
                 </Row>
                 <Row>
@@ -278,7 +599,7 @@ function EducationForm({ section, onChange }: FormProps) {
   const d = section.data;
   const entries: any[] = d.entries ?? [];
 
-  const addEntry = () => onChange({ ...d, entries: [...entries, { id: newId(), degree: "", institution: "", institution_link: "", location: "", start_date: "", end_date: "", description: "" }] });
+  const addEntry = () => onChange({ ...d, entries: [...entries, { id: newId(), degree: "", institution: "", institution_link: "", location: "", start_date: "", end_date: "", score_type: "", score_value: "", description: "" }] });
   const removeEntry = (id: string) => onChange({ ...d, entries: entries.filter((e) => e.id !== id) });
   const updateEntry = (id: string, key: string, val: any) =>
     onChange({ ...d, entries: entries.map((e) => e.id === id ? { ...e, [key]: val } : e) });
@@ -294,16 +615,60 @@ function EducationForm({ section, onChange }: FormProps) {
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           <Row>
-            <Field label="Degree" required><Input value={entry.degree} onChange={(v) => updateEntry(entry.id, "degree", v)} /></Field>
+            <Field label="Degree / Course Name" required><Input value={entry.degree} onChange={(v) => updateEntry(entry.id, "degree", v)} /></Field>
             <Field label="Institution" required><Input value={entry.institution} onChange={(v) => updateEntry(entry.id, "institution", v)} /></Field>
           </Row>
           <Row>
-            <Field label="Institution URL"><Input value={entry.institution_link} onChange={(v) => updateEntry(entry.id, "institution_link", v)} placeholder="https://..." /></Field>
+            <Field label="Institution URL">
+              <div className="flex gap-1.5 items-center">
+                <Input value={entry.institution_link} onChange={(v) => updateEntry(entry.id, "institution_link", v)} placeholder="https://..." />
+                {entry.institution_link && (
+                  <a href={entry.institution_link.startsWith("http") ? entry.institution_link : `https://${entry.institution_link}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 flex-shrink-0" title="Open link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                )}
+              </div>
+            </Field>
             <Field label="Location"><Input value={entry.location} onChange={(v) => updateEntry(entry.id, "location", v)} /></Field>
           </Row>
           <Row>
             <Field label="Start Date"><Input value={entry.start_date} onChange={(v) => updateEntry(entry.id, "start_date", v)} placeholder="Sep 2018" /></Field>
             <Field label="End Date"><Input value={entry.end_date} onChange={(v) => updateEntry(entry.id, "end_date", v)} placeholder="Jun 2022" /></Field>
+          </Row>
+          <Row>
+            <Field label="Score Type">
+              <select
+                value={entry.score_type ?? ""}
+                onChange={(e) => updateEntry(entry.id, "score_type", e.target.value)}
+                className={inputCls}
+              >
+                <option value="">Select type</option>
+                <option value="GPA">GPA</option>
+                <option value="Z-Score">Z-Score</option>
+                <option value="Percentage">Percentage</option>
+                <option value="Grade">Grade</option>
+                <option value="Results">Results</option>
+                <option value="Marks">Marks</option>
+                <option value="CGPA">CGPA</option>
+                <option value="Other">Other</option>
+              </select>
+            </Field>
+            <Field label="Score / Value">
+              <Input
+                value={entry.score_value ?? ""}
+                onChange={(v) => updateEntry(entry.id, "score_value", v)}
+                placeholder={
+                  entry.score_type === "GPA" ? "e.g. 3.8 / 4.0"
+                  : entry.score_type === "Z-Score" ? "e.g. 1.2345"
+                  : entry.score_type === "Percentage" ? "e.g. 85%"
+                  : entry.score_type === "Grade" ? "e.g. Distinction"
+                  : entry.score_type === "Results" ? "e.g. 7A 2B 1C"
+                  : entry.score_type === "Marks" ? "e.g. 450 / 500"
+                  : entry.score_type === "CGPA" ? "e.g. 3.75 / 4.00"
+                  : "Score or grade"
+                }
+              />
+            </Field>
           </Row>
           <Field label="Description">
             <RichTextEditor
@@ -319,8 +684,8 @@ function EducationForm({ section, onChange }: FormProps) {
 
 // ── 5. Skills ──────────────────────────────────────────────────────────────────
 
-const SKILL_LEVELS_TEXT = ["Beginner", "Intermediate", "Advanced"];
-const SKILL_LEVELS_NUM = ["1", "2", "3", "4", "5"];
+const SKILL_LEVELS_TEXT = ["", "Beginner", "Intermediate", "Advanced"];
+const SKILL_LEVELS_NUM = ["", "1", "2", "3", "4", "5"];
 
 function SkillsForm({ section, onChange }: FormProps) {
   const d = section.data;
@@ -328,7 +693,7 @@ function SkillsForm({ section, onChange }: FormProps) {
   const style: "text" | "numbers" = d.display_style ?? "text";
   const levels = style === "numbers" ? SKILL_LEVELS_NUM : SKILL_LEVELS_TEXT;
 
-  const addEntry = () => onChange({ ...d, entries: [...entries, { id: newId(), skill_name: "", level: levels[1], subskills: "" }] });
+  const addEntry = () => onChange({ ...d, entries: [...entries, { id: newId(), skill_name: "", level: "", subskills: "" }] });
   const removeEntry = (id: string) => onChange({ ...d, entries: entries.filter((e) => e.id !== id) });
   const updateEntry = (id: string, key: string, val: any) =>
     onChange({ ...d, entries: entries.map((e) => e.id === id ? { ...e, [key]: val } : e) });
@@ -360,11 +725,12 @@ function SkillsForm({ section, onChange }: FormProps) {
                 className={cn(inputCls, "flex-1 min-w-0")}
               />
               <select
-                value={entry.level}
+                value={entry.level ?? ""}
                 onChange={(e) => updateEntry(entry.id, "level", e.target.value)}
                 className={cn(inputCls, "w-24 flex-shrink-0")}
               >
-                {levels.map((l) => <option key={l}>{l}</option>)}
+                <option value="">No level</option>
+                {levels.filter((l) => l !== "").map((l) => <option key={l} value={l}>{l}</option>)}
               </select>
               <button onClick={() => removeEntry(entry.id)} className="text-[#8b949e] hover:text-red-400 flex-shrink-0">
                 <X className="w-3 h-3" />
@@ -476,7 +842,16 @@ function ProjectsForm({ section, onChange }: FormProps) {
               onChange={(html) => updateEntry(entry.id, "description", html)}
             />
           </Field>
-          <Field label="Link (GitHub / Demo)"><Input value={entry.link} onChange={(v) => updateEntry(entry.id, "link", v)} placeholder="https://..." /></Field>
+          <Field label="Link (GitHub / Demo)">
+            <div className="flex gap-1.5 items-center">
+              <Input value={entry.link} onChange={(v) => updateEntry(entry.id, "link", v)} placeholder="https://..." />
+              {entry.link && (
+                <a href={entry.link.startsWith("http") ? entry.link : `https://${entry.link}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 flex-shrink-0" title="Open link">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </a>
+              )}
+            </div>
+          </Field>
           <div>
             <span className={labelCls}>Technologies</span>
             <div className="flex flex-wrap gap-1 mb-1.5">
@@ -528,7 +903,16 @@ function CoursesForm({ section, onChange }: FormProps) {
           </Row>
           <Row>
             <Field label="Location"><Input value={e.location} onChange={(v) => upd(e.id, "location", v)} /></Field>
-            <Field label="Link"><Input value={e.link} onChange={(v) => upd(e.id, "link", v)} placeholder="https://..." /></Field>
+            <Field label="Link">
+              <div className="flex gap-1.5 items-center">
+                <Input value={e.link} onChange={(v) => upd(e.id, "link", v)} placeholder="https://..." />
+                {e.link && (
+                  <a href={e.link.startsWith("http") ? e.link : `https://${e.link}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 flex-shrink-0" title="Open link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                )}
+              </div>
+            </Field>
           </Row>
           <Field label="Description">
             <RichTextEditor value={e.description ?? ""} onChange={(html) => upd(e.id, "description", html)} />
@@ -579,7 +963,16 @@ function CertificatesForm({ section, onChange }: FormProps) {
           </Row>
           <Row>
             <Field label="Credential ID"><Input value={e.credential_id} onChange={(v) => upd(e.id, "credential_id", v)} /></Field>
-            <Field label="Credential URL"><Input value={e.link} onChange={(v) => upd(e.id, "link", v)} placeholder="https://..." /></Field>
+            <Field label="Credential URL">
+              <div className="flex gap-1.5 items-center">
+                <Input value={e.link} onChange={(v) => upd(e.id, "link", v)} placeholder="https://..." />
+                {e.link && (
+                  <a href={e.link.startsWith("http") ? e.link : `https://${e.link}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 flex-shrink-0" title="Open link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                )}
+              </div>
+            </Field>
           </Row>
         </div>
       ))}

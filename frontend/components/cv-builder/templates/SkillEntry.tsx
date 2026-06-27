@@ -44,12 +44,13 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
   }
 
   if (skillStyle === "progressbar") {
-    const pct = level ? levelToPercent(level) : 60;
+    if (!level) return <div style={{ ...baseStyle, fontWeight: 600, fontSize: 11 }}>{skillName}</div>;
+    const pct = levelToPercent(level);
     return (
       <div style={baseStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
           <span style={{ fontWeight: 600, fontSize: 11 }}>{skillName}</span>
-          {level && <span style={{ fontSize: 10, color: "#6b7280" }}>{level}</span>}
+          <span style={{ fontSize: 10, color: "#6b7280" }}>{level}</span>
         </div>
         <div style={{ height: 4, backgroundColor: "#e5e7eb", borderRadius: 2, overflow: "hidden" }}>
           <div style={{ height: 4, width: `${pct}%`, backgroundColor: accentColor, borderRadius: 2, WebkitPrintColorAdjust: "exact" } as React.CSSProperties} />
@@ -69,7 +70,8 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
   }
 
   if (skillStyle === "dotrating") {
-    const dots = level ? levelToDots(level) : 0;
+    if (!level) return <span style={{ fontSize: 11, color: "#111827", fontWeight: 600, fontFamily }}>{skillName}</span>;
+    const dots = levelToDots(level);
     return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily, width: "100%" }}>
         <span style={{ fontSize: 11, color: "#111827", fontWeight: 600, marginRight: 4 }}>{skillName}</span>
@@ -83,7 +85,8 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
   }
 
   if (skillStyle === "starrating") {
-    const stars = level ? levelToStars(level) : 0;
+    if (!level) return <span style={{ fontSize: 11, color: "#111827", fontWeight: 600, fontFamily }}>{skillName}</span>;
+    const stars = levelToStars(level);
     return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily, width: "100%" }}>
         <span style={{ fontSize: 11, color: "#111827", fontWeight: 600, marginRight: 4 }}>{skillName}</span>
