@@ -145,6 +145,8 @@ def update_cv(
         cv.title = payload.title
     if payload.template_id is not None:
         cv.template_id = payload.template_id
+    if payload.customization is not None:
+        cv.customization = payload.customization
     db.commit()
     db.refresh(cv)
     return cv

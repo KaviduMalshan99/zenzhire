@@ -129,6 +129,7 @@
 }
 .cv-entry { page-break-inside: avoid; break-inside: avoid; }
 
+
 /* ── Print styles ──────────────────────────────────────────────────────── */
 @media print {
   body * { visibility: hidden; }

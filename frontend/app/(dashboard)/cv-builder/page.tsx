@@ -5,7 +5,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Layers, Sparkles, X } from "lucide-react";
 import api from "@/lib/api";
-import type { CVDocument, CVSection, SectionType, TemplateId, SaveStatus } from "@/types";
+import type { CVDocument, CVSection, CVCustomization, SectionType, TemplateId, SaveStatus } from "@/types";
+import { DEFAULT_CUSTOMIZATION } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 import { LeftPanel } from "@/components/cv-builder/LeftPanel";
 import { CentrePanel } from "@/components/cv-builder/CentrePanel";
 import { RightPanel } from "@/components/cv-builder/RightPanel";
@@ -90,18 +92,24 @@ function CVBuilderInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const cvId = searchParams.get("id");
+  const { user } = useAuth();
 
   const [cv, setCV] = useState<CVDocument | null>(null);
   const [sections, setSections] = useState<CVSection[]>([]);
   const [activeSection, setActiveSection] = useState<CVSection | null>(null);
+  const [customization, setCustomizationState] = useState<CVCustomization>(DEFAULT_CUSTOMIZATION);
   const [zoom, setZoom] = useState<75 | 100 | 125>(100);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [loading, setLoading] = useState(true);
+  const [targetRole, setTargetRole] = useState("");
+  const [leftPanelTab, setLeftPanelTab] = useState<"sections" | "style">("sections");
+  const [leftPanelMode, setLeftPanelMode] = useState<"list" | "form">("list");
 
   // Mobile sheet state: 'closed' | 'sections' | 'ai'
   const [mobileSheet, setMobileSheet] = useState<"closed" | "sections" | "ai">("closed");
 
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const customizationTimer = useRef<NodeJS.Timeout | null>(null);
 
   // ── Load or create CV ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -112,6 +120,7 @@ function CVBuilderInner() {
           setCV(res.data);
           setSections(res.data.sections.sort((a, b) => a.display_order - b.display_order));
           setActiveSection(res.data.sections[0] ?? null);
+          if (res.data.customization) setCustomizationState(res.data.customization as CVCustomization);
         } else {
           const res = await api.post<CVDocument>("/cv/", { title: "My CV", template_id: "classic" });
           setCV(res.data);
@@ -216,6 +225,20 @@ function CVBuilderInner() {
     }
   }, [cv]);
 
+  // ── Update customization with debounced save ───────────────────────────────
+  const handleCustomizationChange = useCallback((next: CVCustomization) => {
+    setCustomizationState(next);
+    if (!cv) return;
+    if (customizationTimer.current) clearTimeout(customizationTimer.current);
+    customizationTimer.current = setTimeout(async () => {
+      try {
+        await api.put<CVDocument>(`/cv/${cv.id}`, { customization: next });
+      } catch {
+        // silent — customization save failure is non-critical
+      }
+    }, 1000);
+  }, [cv]);
+
   // ── Update CV title or template ────────────────────────────────────────────
   const updateCV = useCallback(async (updates: { title?: string; template_id?: TemplateId }) => {
     if (!cv) return;
@@ -226,6 +249,16 @@ function CVBuilderInner() {
       toast.error("Failed to update CV");
     }
   }, [cv]);
+
+  // ── Jump to section from Quick Fixes ──────────────────────────────────────
+  const handleJumpToSection = useCallback((sectionType: SectionType) => {
+    const section = sections.find((s) => s.section_type === sectionType);
+    if (section) {
+      setActiveSection(section);
+      setLeftPanelTab("sections");
+      setLeftPanelMode("form");
+    }
+  }, [sections]);
 
   // ── Send to ATS Checker ────────────────────────────────────────────────────
   const handleSendToATS = useCallback(() => {
@@ -246,11 +279,15 @@ function CVBuilderInner() {
 
   if (!cv) return null;
 
+  const isPro = user?.plan === "pro";
+
   const panelProps = {
     cv,
     sections,
     activeSection,
     saveStatus,
+    customization,
+    isPro,
     onSelectSection: setActiveSection,
     onToggleVisibility: toggleVisibility,
     onReorder: reorderSections,
@@ -258,30 +295,45 @@ function CVBuilderInner() {
     onDeleteSection: deleteSection,
     onUpdateCV: updateCV,
     onSectionDataChange: saveSectionData,
+    onCustomizationChange: handleCustomizationChange,
+    controlledTab: leftPanelTab,
+    onControlledTabChange: setLeftPanelTab,
+    controlledMode: leftPanelMode,
+    onControlledModeChange: setLeftPanelMode,
   };
 
   return (
     <>
       {/* Desktop three-panel layout */}
-      <div className="hidden md:flex flex-1 overflow-hidden h-[calc(100vh-64px)]">
+      <div className="hidden md:flex overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
         <LeftPanel {...panelProps} />
         <CentrePanel
           cv={cv}
           sections={sections}
           zoom={zoom}
+          customization={customization}
           onZoomChange={setZoom}
           onSendToATS={handleSendToATS}
         />
-        <RightPanel cv={cv} sections={sections} activeSection={activeSection} />
+        <RightPanel
+          cv={cv}
+          sections={sections}
+          activeSection={activeSection}
+          isPro={isPro}
+          targetRole={targetRole}
+          onTargetRoleChange={setTargetRole}
+          onJumpToSection={handleJumpToSection}
+        />
       </div>
 
       {/* Mobile layout */}
-      <div className="flex md:hidden flex-1 flex-col overflow-hidden h-[calc(100vh-64px)] relative">
+      <div className="flex md:hidden flex-col overflow-hidden relative" style={{ height: "calc(100vh - 64px)" }}>
         {/* Centre panel takes full width */}
         <CentrePanel
           cv={cv}
           sections={sections}
           zoom={zoom}
+          customization={customization}
           onZoomChange={setZoom}
           onSendToATS={handleSendToATS}
         />
@@ -336,7 +388,15 @@ function CVBuilderInner() {
                 {mobileSheet === "sections" ? (
                   <LeftPanel {...panelProps} mobile />
                 ) : (
-                  <RightPanel cv={cv} sections={sections} activeSection={activeSection} />
+                  <RightPanel
+                    cv={cv}
+                    sections={sections}
+                    activeSection={activeSection}
+                    isPro={isPro}
+                    targetRole={targetRole}
+                    onTargetRoleChange={setTargetRole}
+                    onJumpToSection={handleJumpToSection}
+                  />
                 )}
               </div>
             </div>

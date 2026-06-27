@@ -87,6 +87,7 @@ class CVDocumentCreate(BaseModel):
 class CVDocumentUpdate(BaseModel):
     title: str | None = None
     template_id: TemplateId | None = None
+    customization: Any | None = None
 
 
 class CVDocumentRead(BaseModel):
@@ -95,6 +96,7 @@ class CVDocumentRead(BaseModel):
     title: str
     template_id: TemplateId
     is_primary: bool
+    customization: Any | None = None
     created_at: datetime
     updated_at: datetime | None
     sections: list[CVSectionRead] = []

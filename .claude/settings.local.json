@@ -16,7 +16,17 @@
       "Bash(Write-Host \"Deleted test files\")",
       "Bash(npx tsc *)",
       "Bash(npx next *)",
-      "PowerShell(Get-ChildItem \"F:\\\\zenzhire\\\\frontend\\\\screenshots\" | ForEach-Object { Write-Output \"$\\($_.Name\\) \\($\\([math]::Round\\($_.Length/1KB, 1\\)\\) KB\\)\" })"
+      "PowerShell(Get-ChildItem \"F:\\\\zenzhire\\\\frontend\\\\screenshots\" | ForEach-Object { Write-Output \"$\\($_.Name\\) \\($\\([math]::Round\\($_.Length/1KB, 1\\)\\) KB\\)\" })",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(node *)",
+      "PowerShell(Get-Process *)",
+      "Bash(curl -s http://localhost:3001 --max-time 5 -o /dev/null -w \"%{http_code}\")",
+      "PowerShell($response = Invoke-WebRequest -Uri \"http://localhost:3001\" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop; $response.StatusCode)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8000/api/cv/\" -UseBasicParsing 2>&1 | Select-Object StatusCode, StatusDescription)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8000/\" -UseBasicParsing 2>&1 | Select-Object -ExpandProperty Content | Select-Object -First 1)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8000/health\" -UseBasicParsing 2>&1 | Select-Object StatusCode, StatusDescription; Invoke-WebRequest -Uri \"http://localhost:8000/docs\" -UseBasicParsing 2>&1 | Select-Object StatusCode, StatusDescription)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "PowerShell(npx playwright --version 2>$null; node -e \"require\\('playwright'\\)\" 2>$null; echo \"done\")"
     ]
   }
 }

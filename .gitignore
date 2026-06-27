@@ -1,5 +1,8 @@
 .env
+.env.local
+.env.production
 *.log
+*.pyc
 .DS_Store
 Thumbs.db
 __pycache__/

@@ -43,6 +43,7 @@ class CVDocument(Base):
     title = Column(String, nullable=False, default="My CV")
     template_id = Column(SAEnum(TemplateId), default=TemplateId.classic, nullable=False)
     is_primary = Column(Boolean, default=False)
+    customization = Column(JSONB, nullable=True, default=None)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

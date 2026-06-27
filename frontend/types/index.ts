@@ -1,5 +1,35 @@
 export type PlanType = "free" | "pro";
 
+// ── CV Customization ──────────────────────────────────────────────────────────
+
+export interface CVCustomization {
+  accentColor: string;
+  fontFamily: string;
+  spacing: "compact" | "normal" | "spacious";
+  headerStyle: "left" | "centered" | "twocolumn";
+  headingStyle: "fullline" | "underline" | "boxed" | "plain" | "doubleline" | "leftbar" | "dotted" | "accentbadge" | "centerlines";
+  skillStyle?: "classic" | "progressbar" | "dotrating" | "percentage" | "starrating" | "nameonly";
+  skillColumns?: 1 | 2 | 3;
+}
+
+export const DEFAULT_CUSTOMIZATION: CVCustomization = {
+  accentColor: "#111827",
+  fontFamily: "Arial",
+  spacing: "normal",
+  headerStyle: "centered",
+  headingStyle: "fullline",
+  skillStyle: "classic",
+  skillColumns: 2,
+};
+
+export const FONT_CSS_MAP: Record<string, string> = {
+  Arial: "Arial, Helvetica, sans-serif",
+  Georgia: "Georgia, 'Times New Roman', serif",
+  Roboto: "Roboto, sans-serif",
+  "Playfair Display": "'Playfair Display', serif",
+  Lato: "Lato, sans-serif",
+};
+
 // ── CV Builder ────────────────────────────────────────────────────────────────
 
 export type TemplateId =
@@ -60,6 +90,7 @@ export interface CVDocument {
   title: string;
   template_id: TemplateId;
   is_primary: boolean;
+  customization: CVCustomization | null;
   created_at: string;
   updated_at: string | null;
   sections: CVSection[];
@@ -253,4 +284,61 @@ export interface ATSHistoryItem {
   target_role: string | null;
   has_job_description: boolean;
   created_at: string;
+}
+
+// ── Cover Letter ───────────────────────────────────────────────────────────────
+
+export interface CoverLetterCustomization {
+  accentColor: string;
+  fontFamily: string;
+  spacing: "compact" | "normal" | "spacious";
+}
+
+export const DEFAULT_CL_CUSTOMIZATION: CoverLetterCustomization = {
+  accentColor: "#111827",
+  fontFamily: "Arial",
+  spacing: "normal",
+};
+
+export interface CLPersonalDetails {
+  full_name: string;
+  title: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+  github: string;
+  portfolio: string;
+  nationality?: string;
+  date_of_birth?: string;
+  gender?: string;
+  visa_status?: string;
+  photo_base64?: string;
+  photo_url?: string;
+}
+
+export interface CoverLetter {
+  id: number;
+  user_id: number;
+  cv_id: number | null;
+  title: string;
+  template_id: string;
+  content: string;
+  job_title: string;
+  company: string;
+  job_description: string;
+  tone: string;
+  customization: CoverLetterCustomization;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CoverLetterListItem {
+  id: number;
+  title: string;
+  template_id: string;
+  job_title: string;
+  company: string;
+  created_at: string;
+  updated_at: string;
 }

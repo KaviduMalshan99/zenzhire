@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   GripVertical, Eye, EyeOff, ChevronLeft, Plus, Trash2, Check,
-  FileText, Layers,
+  FileText, Layers, Palette,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -14,20 +14,21 @@ import {
   useSortable, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CVDocument, CVSection, SectionType, TemplateId, SaveStatus } from "@/types";
+import type { CVDocument, CVSection, CVCustomization, SectionType, TemplateId, SaveStatus } from "@/types";
 import { SECTION_LABELS, REPEATABLE_SECTION_TYPES } from "@/types";
 import { SectionForm } from "./SectionForms";
 import { AddSectionModal } from "./AddSectionModal";
+import { CustomizationPanel } from "./CustomizationPanel";
 import { cn } from "@/lib/utils";
 
 const TEMPLATE_OPTIONS: { id: TemplateId; label: string }[] = [
   { id: "classic", label: "Classic" },
   { id: "modern", label: "Modern" },
-  { id: "minimal", label: "Minimal" },
+  { id: "minimal", label: "Colorful" },
   { id: "executive", label: "Executive" },
-  { id: "tech", label: "Tech" },
-  { id: "creative", label: "Creative" },
-  { id: "academic", label: "Academic" },
+  { id: "tech", label: "Bordered" },
+  { id: "creative", label: "Timeline" },
+  { id: "academic", label: "Inline" },
   { id: "gcc", label: "GCC" },
 ];
 
@@ -36,6 +37,8 @@ interface Props {
   sections: CVSection[];
   activeSection: CVSection | null;
   saveStatus: SaveStatus;
+  customization: CVCustomization;
+  isPro: boolean;
   onSelectSection: (s: CVSection) => void;
   onToggleVisibility: (s: CVSection) => void;
   onReorder: (sections: CVSection[]) => void;
@@ -43,8 +46,15 @@ interface Props {
   onDeleteSection: (s: CVSection) => void;
   onUpdateCV: (updates: { title?: string; template_id?: TemplateId }) => void;
   onSectionDataChange: (section: CVSection, data: Record<string, any>) => void;
+  onCustomizationChange: (c: CVCustomization) => void;
   /** When true, renders without fixed width (for mobile sheet embedding) */
   mobile?: boolean;
+  /** Controlled tab — when provided overrides local state */
+  controlledTab?: "sections" | "style";
+  onControlledTabChange?: (tab: "sections" | "style") => void;
+  /** Controlled mode — when provided overrides local state */
+  controlledMode?: "list" | "form";
+  onControlledModeChange?: (mode: "list" | "form") => void;
 }
 
 function SortableSectionItem({
@@ -115,11 +125,25 @@ function SortableSectionItem({
 }
 
 export function LeftPanel({
-  cv, sections, activeSection, saveStatus,
+  cv, sections, activeSection, saveStatus, customization, isPro,
   onSelectSection, onToggleVisibility, onReorder, onAddSection,
-  onDeleteSection, onUpdateCV, onSectionDataChange, mobile,
+  onDeleteSection, onUpdateCV, onSectionDataChange, onCustomizationChange, mobile,
+  controlledTab, onControlledTabChange, controlledMode, onControlledModeChange,
 }: Props) {
-  const [mode, setMode] = useState<"list" | "form">("list");
+  const [localMode, setLocalMode] = useState<"list" | "form">("list");
+  const [localTab, setLocalTab] = useState<"sections" | "style">("sections");
+
+  const mode = controlledMode ?? localMode;
+  const tab = controlledTab ?? localTab;
+  const setMode = (m: "list" | "form") => {
+    if (onControlledModeChange) onControlledModeChange(m);
+    else setLocalMode(m);
+  };
+  const setTab = (t: "sections" | "style") => {
+    if (onControlledTabChange) onControlledTabChange(t);
+    else setLocalTab(t);
+  };
+
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(cv.title);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -181,7 +205,7 @@ export function LeftPanel({
           </div>
         </>
       ) : (
-        /* ── List mode ─────────────────────────────────────────────────────── */
+        /* ── List / Style mode ─────────────────────────────────────────────── */
         <>
           {/* Title */}
           <div className="px-4 pt-4 pb-3 border-b border-[#30363d] flex-shrink-0">
@@ -252,34 +276,74 @@ export function LeftPanel({
             </div>
           </div>
 
-          {/* Sections list */}
-          <div className="flex-1 overflow-y-auto px-2 py-2">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                {sections.map((section) => (
-                  <SortableSectionItem
-                    key={section.id}
-                    section={section}
-                    isActive={activeSection?.id === section.id}
-                    onSelect={() => handleSectionClick(section)}
-                    onToggleVisibility={() => onToggleVisibility(section)}
-                    onDelete={() => onDeleteSection(section)}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-          </div>
-
-          {/* Add section button */}
-          <div className="px-4 py-3 border-t border-[#30363d] flex-shrink-0">
+          {/* Sections / Style tabs */}
+          <div className="flex border-b border-[#30363d] flex-shrink-0">
             <button
-              onClick={() => setShowAddModal(true)}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-md border border-dashed border-[#30363d] text-[#8b949e] hover:border-blue-500/50 hover:text-blue-400 transition-colors text-sm"
+              onClick={() => setTab("sections")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2",
+                tab === "sections"
+                  ? "border-blue-500 text-blue-400"
+                  : "border-transparent text-[#8b949e] hover:text-[#e6edf3]"
+              )}
             >
-              <Plus className="w-4 h-4" />
-              Add Section
+              <Layers className="w-3.5 h-3.5" />
+              Sections
+            </button>
+            <button
+              onClick={() => setTab("style")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2",
+                tab === "style"
+                  ? "border-blue-500 text-blue-400"
+                  : "border-transparent text-[#8b949e] hover:text-[#e6edf3]"
+              )}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              Style
             </button>
           </div>
+
+          {tab === "style" ? (
+            /* ── Style tab ── */
+            <div className="flex-1 overflow-y-auto">
+              <CustomizationPanel
+                customization={customization}
+                onChange={onCustomizationChange}
+                isPro={isPro}
+              />
+            </div>
+          ) : (
+            /* ── Sections tab ── */
+            <>
+              <div className="flex-1 overflow-y-auto px-2 py-2">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                    {sections.map((section) => (
+                      <SortableSectionItem
+                        key={section.id}
+                        section={section}
+                        isActive={activeSection?.id === section.id}
+                        onSelect={() => handleSectionClick(section)}
+                        onToggleVisibility={() => onToggleVisibility(section)}
+                        onDelete={() => onDeleteSection(section)}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              </div>
+
+              <div className="px-4 py-3 border-t border-[#30363d] flex-shrink-0">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-md border border-dashed border-[#30363d] text-[#8b949e] hover:border-blue-500/50 hover:text-blue-400 transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Section
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
 

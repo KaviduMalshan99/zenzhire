@@ -1,52 +1,82 @@
 import React from "react";
-import type { CVSection } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
+import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
+import { SectionHeading } from "../SectionHeading";
+import { SkillEntry } from "./SkillEntry";
 
 interface Props {
   sections: CVSection[];
+  customization?: CVCustomization;
 }
 
 function get(sections: CVSection[], type: string) {
   return sections.find((s) => s.section_type === type)?.data ?? {};
 }
 
-const DARK = "#1a1a1a";
-const MID = "#374151";
-const LIGHT = "#6b7280";
+function levelToDots(level: string): number {
+  const l = (level ?? "").toLowerCase();
+  if (l.includes("native") || l.includes("fluent") || l === "c2") return 5;
+  if (l.includes("professional") || l === "c1" || l === "b2") return 4;
+  if (l === "b1") return 3;
+  if (l === "a2" || l.includes("basic")) return 2;
+  if (l === "a1") return 1;
+  return 3;
+}
 
-const heading = {
-  fontSize: 11,
-  fontWeight: "bold" as const,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.12em",
-  color: DARK,
-  borderBottom: `1.5px solid ${DARK}`,
-  paddingBottom: 4,
-  marginBottom: 8,
-  marginTop: 14,
-  fontFamily: "Georgia, 'Times New Roman', serif",
-  pageBreakAfter: "avoid" as const,
-  breakAfter: "avoid" as const,
-};
+function DotRating({ count, color }: { count: number; color: string }) {
+  return (
+    <>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span key={i} style={{ display: "inline-block", color: i <= count ? color : "#e5e7eb", fontSize: 13, marginRight: 1 }}>
+          &#9679;
+        </span>
+      ))}
+    </>
+  );
+}
 
-const dateStyle = {
-  fontSize: 11,
-  color: LIGHT,
-  fontFamily: "Arial, sans-serif",
-  whiteSpace: "nowrap" as const,
-  flexShrink: 0,
-};
+function getContactIcon(type: string, fill: string): React.ReactNode {
+  const s: React.CSSProperties = { display: "inline-block", verticalAlign: "middle", marginRight: 5 };
+  switch (type) {
+    case "email":
+      return <svg style={s} width="12" height="12" viewBox="0 0 24 24" fill={fill}><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>;
+    case "phone":
+      return <svg style={s} width="12" height="12" viewBox="0 0 24 24" fill={fill}><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>;
+    case "location":
+      return <svg style={s} width="12" height="12" viewBox="0 0 24 24" fill={fill}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>;
+    case "linkedin":
+      return <svg style={s} width="12" height="12" viewBox="0 0 24 24" fill={fill}><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>;
+    case "github":
+      return <svg style={s} width="12" height="12" viewBox="0 0 24 24" fill={fill}><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>;
+    default:
+      return <svg style={s} width="12" height="12" viewBox="0 0 24 24" fill={fill}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>;
+  }
+}
 
-const entryStyle = {
-  pageBreakInside: "avoid" as const,
-  breakInside: "avoid" as const,
-};
+export function AcademicTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
+  const { accentColor, fontFamily, spacing, headingStyle, skillStyle = "classic", skillColumns = 2 } = customization;
+  const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
+  const sp = spacing === "compact" ? 0.45 : spacing === "spacious" ? 1.20 : 0.72;
 
-export function AcademicTemplate({ sections }: Props) {
   const personal = get(sections, "personal_details");
   const links: any[] = personal.links ?? [];
-  const showDetails = (r: any) =>
-    r.privacy ? r.privacy === "show" : r.show_on_cv !== false;
+  const showDetails = (r: any) => (r.privacy ? r.privacy === "show" : r.show_on_cv !== false);
+  const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
+  const dateStyle: React.CSSProperties = { fontSize: 11, color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0, fontFamily: fontCSS };
+
+  const hasPhoto = !!(personal.photo_base64 || personal.photo_url);
+
+  const contactItems: { type: string; text: string }[] = [];
+  if (personal.email) contactItems.push({ type: "email", text: personal.email });
+  if (personal.phone) contactItems.push({ type: "phone", text: personal.phone });
+  if (personal.location) contactItems.push({ type: "location", text: personal.location });
+  if (personal.nationality) contactItems.push({ type: "nationality", text: personal.nationality });
+  links.filter((l: any) => l.url).forEach((l: any) => {
+    const lp = (l.platform ?? "").toLowerCase();
+    const type = lp.includes("linkedin") ? "linkedin" : lp.includes("github") ? "github" : "website";
+    contactItems.push({ type, text: l.url });
+  });
 
   const renderSection = (section: CVSection) => {
     const d = section.data;
@@ -56,26 +86,31 @@ export function AcademicTemplate({ sections }: Props) {
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Profile</div>
-            <HtmlContent html={d.summary} style={{ fontSize: 12, color: MID, lineHeight: 1.7 }} />
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp), marginBottom: Math.round(8 * sp) }}>
+            <SectionHeading title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <HtmlContent html={d.summary} style={{ fontSize: 12, color: "#374151", fontFamily: fontCSS, lineHeight: spacing === "compact" ? 1.4 : spacing === "spacious" ? 1.8 : 1.65 }} />
           </div>
         );
 
-      case "publications":
+      case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Publications</div>
-            {entries.map((p: any, i: number) => (
-              <div key={i} style={{ marginBottom: 8, paddingLeft: 16, textIndent: -16, fontSize: 12, ...entryStyle }} className="cv-entry">
-                <span style={{ color: LIGHT, fontSize: 11 }}>[{i + 1}] </span>
-                {p.title && <span><b>{p.title}.</b> </span>}
-                {p.publisher && <span style={{ fontStyle: "italic" }}>{p.publisher}. </span>}
-                {p.date && <span style={{ color: LIGHT }}>{p.date}.</span>}
-                {p.description && p.description !== "<p></p>" && (
-                  <HtmlContent html={p.description} style={{ marginTop: 2, fontSize: 11, color: LIGHT, fontStyle: "italic" }} />
-                )}
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            {entries.map((e: any, i: number) => (
+              <div key={i} className="cv-entry" style={{ marginBottom: Math.round(8 * sp), ...eb }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}>{e.job_title}</div>
+                  <div style={dateStyle}>{e.start_date}{e.start_date && (e.end_date || e.current) ? " – " : ""}{e.current ? "Present" : e.end_date}</div>
+                </div>
+                <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{e.employer}{e.location ? ` · ${e.location}` : ""}</div>
+                {e.description && e.description !== "<p></p>" ? (
+                  <HtmlContent html={e.description} style={{ fontSize: 12, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
+                ) : e.bullets?.length > 0 ? (
+                  <ul style={{ margin: "4px 0 4px 16px", padding: 0 }}>
+                    {e.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: "#374151", fontFamily: fontCSS }}>{b.text}</li>)}
+                  </ul>
+                ) : null}
               </div>
             ))}
           </div>
@@ -84,54 +119,87 @@ export function AcademicTemplate({ sections }: Props) {
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Education</div>
-            {entries.map((entry: any, i: number) => (
-              <div key={i} style={{ marginBottom: 10, ...entryStyle }} className="cv-entry">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
-                  <div style={{ fontWeight: "bold", fontSize: 14 }}>{entry.degree}</div>
-                  <div style={dateStyle}>
-                    {entry.start_date}{entry.start_date && entry.end_date ? " – " : ""}{entry.end_date}
-                  </div>
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            {entries.map((e: any, i: number) => (
+              <div key={i} className="cv-entry" style={{ marginBottom: Math.round(8 * sp), ...eb }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}>{e.degree}</div>
+                  <div style={dateStyle}>{e.start_date}{e.start_date && e.end_date ? " – " : ""}{e.end_date}</div>
                 </div>
-                <div style={{ fontSize: 12, fontStyle: "italic", color: MID }}>
-                  {entry.institution}{entry.location ? `, ${entry.location}` : ""}
-                </div>
-                {entry.description && entry.description !== "<p></p>" && (
-                  <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 3, color: MID }} />
+                <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{e.institution}{e.location ? ` · ${e.location}` : ""}</div>
+                {e.description && e.description !== "<p></p>" && (
+                  <HtmlContent html={e.description} style={{ fontSize: 12, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />
                 )}
               </div>
             ))}
           </div>
         );
 
-      case "experience":
+      case "skills": {
+        if (!entries.length) return null;
+        const cols = skillColumns ?? 2;
+        const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";
+        const finalCols = gridCols;
+        return (
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp), ...eb }}>
+            <SectionHeading title="Skills" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(6 * sp)}px ${Math.round(16 * sp)}px` }}>
+              {entries.map((s: any, i: number) => (
+                <div key={i} className="cv-entry" style={{ ...eb }}>
+                  <SkillEntry skillName={s.skill_name} level={s.level} skillStyle={skillStyle ?? "classic"} accentColor={accentColor} fontFamily={fontCSS} />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Experience</div>
-            {entries.map((entry: any, i: number) => (
-              <div key={i} style={{ marginBottom: 10, ...entryStyle }} className="cv-entry">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
-                  <div style={{ fontWeight: "bold", fontSize: 14 }}>{entry.job_title}</div>
-                  <div style={dateStyle}>
-                    {entry.start_date}
-                    {entry.start_date && (entry.end_date || entry.current) ? " – " : ""}
-                    {entry.current ? "Present" : entry.end_date}
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp), marginBottom: Math.round(6 * sp) }}>
+            <SectionHeading title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <div style={{ display: "flex", gap: "8px 32px", flexWrap: "wrap", fontFamily: fontCSS }}>
+              {entries.map((l: any, i: number) => (
+                <div key={i} className="cv-entry" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>{l.language}</span>
+                  <DotRating count={levelToDots(l.level ?? "")} color={accentColor} />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "projects":
+        if (!entries.length) return null;
+        return (
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            {entries.map((p: any, i: number) => (
+              <div key={i} className="cv-entry" style={{ marginBottom: Math.round(8 * sp), ...eb }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}>
+                    {p.title}{p.subtitle && <span style={{ fontWeight: 400, color: "#4b5563", fontSize: 12 }}> — {p.subtitle}</span>}
                   </div>
+                  {(p.start_date || p.end_date) && <span style={dateStyle}>{p.start_date}{p.start_date && p.end_date ? " – " : ""}{p.end_date}</span>}
                 </div>
-                <div style={{ fontSize: 12, fontStyle: "italic", color: MID }}>
-                  {entry.employer}{entry.location ? `, ${entry.location}` : ""}
-                </div>
-                {entry.description && entry.description !== "<p></p>" ? (
-                  <HtmlContent html={entry.description} style={{ fontSize: 12, marginTop: 3, color: MID }} />
-                ) : entry.bullets?.length > 0 ? (
-                  <ul style={{ margin: "4px 0 0 18px", padding: 0 }}>
-                    {entry.bullets.map((b: any, j: number) =>
-                      b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID }}>{b.text}</li>
-                    )}
-                  </ul>
-                ) : null}
+                {p.description && p.description !== "<p></p>" && <HtmlContent html={p.description} style={{ fontSize: 12, color: "#374151", marginTop: 2, fontFamily: fontCSS }} />}
+                {p.tech?.length > 0 && <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2, fontFamily: fontCSS }}>{p.tech.join(" · ")}</div>}
+              </div>
+            ))}
+          </div>
+        );
+
+      case "certificates":
+        if (!entries.length) return null;
+        return (
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            {entries.map((c: any, i: number) => (
+              <div key={i} className="cv-entry" style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, marginBottom: Math.round(4 * sp), fontFamily: fontCSS, color: "#111827", ...eb }}>
+                <span>{c.certificate_name}{c.issuer ? ` — ${c.issuer}` : ""}</span>
+                <span style={{ color: "#6b7280", fontSize: 11, whiteSpace: "nowrap", flexShrink: 0 }}>{c.no_expiry ? `${c.date} (No expiry)` : c.date}</span>
               </div>
             ))}
           </div>
@@ -140,88 +208,17 @@ export function AcademicTemplate({ sections }: Props) {
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Awards</div>
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
-              <div key={i} style={{ marginBottom: 6, fontSize: 12, ...entryStyle }} className="cv-entry">
+              <div key={i} className="cv-entry" style={{ marginBottom: Math.round(6 * sp), fontFamily: fontCSS, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                  <span><b>{a.award_name}</b>{a.issuer ? `, ${a.issuer}` : ""}</span>
-                  <span style={{ color: LIGHT, fontFamily: "Arial, sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>{a.date}</span>
+                  <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}>
+                    {a.award_name}{a.issuer && <span style={{ fontWeight: 400, color: "#374151" }}> — {a.issuer}</span>}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0 }}>{a.date}</span>
                 </div>
-                {a.description && a.description !== "<p></p>" && (
-                  <HtmlContent html={a.description} style={{ marginTop: 2, fontSize: 11, color: MID, fontStyle: "italic" }} />
-                )}
-              </div>
-            ))}
-          </div>
-        );
-
-      case "projects":
-        if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Projects</div>
-            {entries.map((p: any, i: number) => (
-              <div key={i} style={{ marginBottom: 8, ...entryStyle }} className="cv-entry">
-                <div style={{ fontWeight: "bold", fontSize: 13 }}>
-                  {p.title}
-                  {p.subtitle && <span style={{ fontWeight: "normal", fontStyle: "italic", color: MID }}> — {p.subtitle}</span>}
-                </div>
-                {(p.start_date || p.end_date) && (
-                  <div style={{ fontSize: 11, color: LIGHT, fontFamily: "Arial, sans-serif" }}>
-                    {p.start_date}{p.start_date && p.end_date ? " – " : ""}{p.end_date}
-                  </div>
-                )}
-                {p.description && p.description !== "<p></p>" && (
-                  <HtmlContent html={p.description} style={{ fontSize: 12, marginTop: 2, color: MID }} />
-                )}
-              </div>
-            ))}
-          </div>
-        );
-
-      case "skills":
-        if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Skills</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 24px", fontFamily: "Arial, sans-serif" }}>
-              {entries.map((s: any, i: number) => (
-                <div key={i} style={{ fontSize: 12, paddingBottom: 2, ...entryStyle }} className="cv-entry">
-                  {s.skill_name}{s.level && <span style={{ color: LIGHT }}> ({s.level})</span>}
-                  {s.subskills && s.subskills !== "<p></p>" && (
-                    <HtmlContent html={s.subskills} style={{ fontSize: 10, color: LIGHT, marginTop: 1 }} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case "languages":
-        if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Languages</div>
-            <div style={{ display: "flex", gap: "4px 24px", flexWrap: "wrap", fontFamily: "Arial, sans-serif" }}>
-              {entries.map((l: any, i: number) => (
-                <span key={i} style={{ fontSize: 12 }}>
-                  <b>{l.language}</b>{l.level && <span style={{ color: LIGHT }}> — {l.level}</span>}
-                </span>
-              ))}
-            </div>
-          </div>
-        );
-
-      case "certificates":
-        if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Certifications</div>
-            {entries.map((c: any, i: number) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 4, fontSize: 12, fontFamily: "Arial, sans-serif", ...entryStyle }} className="cv-entry">
-                <span><b>{c.certificate_name}</b>{c.issuer ? ` — ${c.issuer}` : ""}</span>
-                <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}>{c.date}</span>
+                {a.description && a.description !== "<p></p>" && <HtmlContent html={a.description} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
               </div>
             ))}
           </div>
@@ -230,12 +227,31 @@ export function AcademicTemplate({ sections }: Props) {
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Courses</div>
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 4, fontSize: 12, fontFamily: "Arial, sans-serif", ...entryStyle }} className="cv-entry">
-                <span><b>{c.title}</b>{c.institution ? ` — ${c.institution}` : ""}</span>
-                <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}>{c.end_date || c.start_date}</span>
+              <div key={i} className="cv-entry" style={{ marginBottom: Math.round(4 * sp), ...eb }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontFamily: fontCSS, color: "#111827" }}>
+                  <span><b>{c.title}</b>{c.institution ? ` — ${c.institution}` : ""}</span>
+                  <span style={{ color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0, fontSize: 11 }}>{c.end_date || c.start_date}</span>
+                </div>
+                {c.description && c.description !== "<p></p>" && <HtmlContent html={c.description} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS }} />}
+              </div>
+            ))}
+          </div>
+        );
+
+      case "publications":
+        if (!entries.length) return null;
+        return (
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            {entries.map((p: any, i: number) => (
+              <div key={i} className="cv-entry" style={{ marginBottom: Math.round(5 * sp), fontFamily: fontCSS, ...eb }}>
+                <span style={{ fontSize: 12, color: "#111827" }}><b>{p.title}</b></span>
+                {p.publisher && <span style={{ fontSize: 11, color: "#374151" }}> · {p.publisher}</span>}
+                {p.date && <span style={{ fontSize: 11, color: "#6b7280" }}> ({p.date})</span>}
+                {p.description && p.description !== "<p></p>" && <HtmlContent html={p.description} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
               </div>
             ))}
           </div>
@@ -244,21 +260,16 @@ export function AcademicTemplate({ sections }: Props) {
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Memberships</div>
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Organizations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
-              <div key={i} style={{ marginBottom: 5, fontSize: 12, ...entryStyle }} className="cv-entry">
+              <div key={i} className="cv-entry" style={{ marginBottom: Math.round(6 * sp), fontFamily: fontCSS, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                  <span><b>{o.name}</b>{o.position ? ` — ${o.position}` : ""}</span>
-                  <span style={{ color: LIGHT, fontFamily: "Arial, sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
-                    {o.start_date}
-                    {o.start_date && (o.end_date || o.current_flag) ? " – " : ""}
-                    {o.current_flag ? "Present" : o.end_date}
-                  </span>
+                  <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}>{o.name}</span>
+                  <span style={dateStyle}>{o.start_date}{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : o.end_date}</span>
                 </div>
-                {o.description && o.description !== "<p></p>" && (
-                  <HtmlContent html={o.description} style={{ fontSize: 11, marginTop: 2, color: MID, fontStyle: "italic" }} />
-                )}
+                {o.position && <div style={{ fontSize: 11, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{o.position}</div>}
+                {o.description && o.description !== "<p></p>" && <HtmlContent html={o.description} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
               </div>
             ))}
           </div>
@@ -267,31 +278,29 @@ export function AcademicTemplate({ sections }: Props) {
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Interests</div>
-            <div style={{ fontSize: 12, color: MID }}>
-              {entries.map((item: any) => item.title).join(" · ")}
-            </div>
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <div style={{ fontSize: 12, color: "#374151", fontFamily: fontCSS }}>{entries.map((item: any) => item.title).join(" · ")}</div>
           </div>
         );
 
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">References</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px", fontFamily: "Arial, sans-serif" }}>
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: `6px ${Math.round(24 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((r: any, i: number) => (
-                <div key={i} style={{ fontSize: 12, ...entryStyle }} className="cv-entry">
-                  <div style={{ fontWeight: "bold" }}>{r.name}</div>
+                <div key={i} className="cv-entry" style={{ fontSize: 12, color: "#111827", ...eb }}>
+                  <div style={{ fontWeight: 700 }}>{r.name}</div>
                   {showDetails(r) ? (
                     <>
-                      {r.job_title && <div style={{ fontStyle: "italic", color: MID }}>{r.job_title}{r.organization ? `, ${r.organization}` : ""}</div>}
-                      {r.email && <div style={{ color: LIGHT, fontSize: 11 }}>{r.email}</div>}
-                      {r.phone && <div style={{ color: LIGHT, fontSize: 11 }}>{r.phone}</div>}
+                      {r.job_title && <div style={{ color: "#374151", fontStyle: "italic" }}>{r.job_title}{r.organization ? `, ${r.organization}` : ""}</div>}
+                      {r.email && <div style={{ color: "#6b7280", fontSize: 11 }}>{r.email}</div>}
+                      {r.phone && <div style={{ color: "#6b7280", fontSize: 11 }}>{r.phone}</div>}
                     </>
                   ) : (
-                    <div style={{ color: LIGHT, fontStyle: "italic" }}>Available upon request</div>
+                    <div style={{ color: "#6b7280", fontStyle: "italic" }}>Available upon request</div>
                   )}
                 </div>
               ))}
@@ -302,19 +311,17 @@ export function AcademicTemplate({ sections }: Props) {
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section">
-            <div style={heading} className="cv-section-header">Declaration</div>
-            <HtmlContent html={d.text} style={{ fontSize: 12, color: MID, fontStyle: "italic", marginBottom: 10 }} />
-            <div style={{ display: "flex", gap: 32, fontSize: 12, fontFamily: "Arial, sans-serif" }}>
+          <div className="cv-section" style={{ marginTop: Math.round(10 * sp) }}>
+            <SectionHeading title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <HtmlContent html={d.text} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
+            {d.signature && (
+              <div style={{ fontSize: 22, fontFamily: "'Dancing Script', cursive", color: "#111827", marginTop: 12, borderBottom: "1px solid #d1d5db", paddingBottom: 4, display: "inline-block" }}>{d.signature}</div>
+            )}
+            <div style={{ display: "flex", gap: 28, marginTop: d.signature ? 8 : 0, fontSize: 11, color: "#374151", fontFamily: fontCSS }}>
               {d.full_name && <span>Name: <b>{d.full_name}</b></span>}
               {d.place && <span>Place: <b>{d.place}</b></span>}
               {d.date && <span>Date: <b>{d.date}</b></span>}
             </div>
-            {d.signature && (
-              <div style={{ marginTop: 10, fontSize: 16, fontFamily: "'Dancing Script', cursive", color: DARK }}>
-                {d.signature}
-              </div>
-            )}
           </div>
         );
 
@@ -324,26 +331,42 @@ export function AcademicTemplate({ sections }: Props) {
   };
 
   return (
-    <div style={{ padding: "20px 28px", fontSize: 12, color: DARK, lineHeight: 1.7, fontFamily: "Georgia, 'Times New Roman', serif", backgroundColor: "#ffffff" }}>
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 16, borderBottom: "1px solid #ccc", paddingBottom: 14 }}>
-        <div style={{ fontSize: 26, fontWeight: "bold", color: DARK, letterSpacing: "0.01em" }}>
-          {personal.full_name || "Your Name"}
-        </div>
-        {personal.title && (
-          <div style={{ fontSize: 14, color: MID, marginTop: 3, fontStyle: "italic" }}>{personal.title}</div>
-        )}
-        <div style={{ marginTop: 8, fontSize: 11, color: LIGHT, lineHeight: 1.8, fontFamily: "Arial, sans-serif" }}>
-          {[personal.email, personal.phone, personal.location, personal.nationality].filter(Boolean).join("  ·  ")}
-        </div>
-        {links.filter((l: any) => l.url).length > 0 && (
-          <div style={{ fontSize: 11, color: LIGHT, fontFamily: "Arial, sans-serif" }}>
-            {links.filter((l: any) => l.url).map((l: any) => `${l.platform}: ${l.url}`).join("  ·  ")}
+    <div style={{ padding: "20px 28px", fontFamily: fontCSS, fontSize: 12, color: "#111827", lineHeight: 1.6, backgroundColor: "#ffffff", boxSizing: "border-box" }}>
+      {/* Header: name + title inline, photo on right */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily: fontCSS, lineHeight: 1.1 }}>{personal.full_name || "Your Name"}</span>
+            {personal.title && (
+              <>
+                <span style={{ color: "#9ca3af", fontSize: 13, fontFamily: fontCSS }}>&nbsp;·&nbsp;</span>
+                <span style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic", fontFamily: fontCSS }}>{personal.title}</span>
+              </>
+            )}
           </div>
+          {contactItems.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", marginTop: 6, marginBottom: 8, rowGap: 4 }}>
+              {contactItems.map((item, i) => (
+                <span key={i} style={{ fontSize: 10, color: "#6b7280", fontFamily: fontCSS, display: "inline-flex", alignItems: "center", marginRight: 14 }}>
+                  {getContactIcon(item.type, "#6b7280")}
+                  {item.text}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        {hasPhoto && (
+          <img
+            src={personal.photo_base64 || personal.photo_url}
+            alt=""
+            style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover", flexShrink: 0, marginLeft: 20 }}
+          />
         )}
       </div>
 
-      {/* Sections in display_order */}
+      {/* Divider */}
+      <div style={{ borderBottom: "2px solid #111827", marginBottom: 6 }} />
+
       {sections.map((section) =>
         section.section_type !== "personal_details" ? (
           <React.Fragment key={section.id}>{renderSection(section)}</React.Fragment>

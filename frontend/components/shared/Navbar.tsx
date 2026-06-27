@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Zap, LayoutDashboard, FileText, Target, LogOut, Crown } from "lucide-react";
+import { Zap, LayoutDashboard, FileText, Target, LogOut, Crown, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/cv-builder", label: "CV Builder", icon: FileText },
+  { href: "/cover-letter", label: "Cover Letters", icon: Mail },
   { href: "/ats-checker", label: "ATS Checker", icon: Target },
 ];
 

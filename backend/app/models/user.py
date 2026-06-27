@@ -25,3 +25,4 @@ class User(Base):
     cvs = relationship("CV", back_populates="owner", cascade="all, delete-orphan")
     cv_documents = relationship("CVDocument", back_populates="owner", cascade="all, delete-orphan")
     ats_results = relationship("ATSResult", back_populates="owner", cascade="all, delete-orphan")
+    cover_letters = relationship("CoverLetter", back_populates="user", cascade="all, delete-orphan")

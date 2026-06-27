@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FileText, Target, Plus, ArrowRight, TrendingUp, Clock, MoreHorizontal, Pencil, Copy, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FileText, Target, Plus, ArrowRight, TrendingUp, Clock, MoreHorizontal, Pencil, Copy, Trash2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import api from "@/lib/api";
-import type { ATSHistoryItem, CVDocument } from "@/types";
+import api, { coverLetterApi } from "@/lib/api";
+import type { ATSHistoryItem, CVDocument, CoverLetterListItem } from "@/types";
 import { formatDate, scoreColor } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -168,16 +169,23 @@ function DeleteDialog({
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [cvs, setCvs] = useState<CVDocument[]>([]);
   const [atsHistory, setAtsHistory] = useState<ATSHistoryItem[]>([]);
+  const [coverLetters, setCoverLetters] = useState<CoverLetterListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<CVDocument | null>(null);
 
   useEffect(() => {
-    Promise.all([api.get<CVDocument[]>("/cv/"), api.get<ATSHistoryItem[]>("/ats/history")])
-      .then(([cvRes, atsRes]) => {
+    Promise.all([
+      api.get<CVDocument[]>("/cv/"),
+      api.get<ATSHistoryItem[]>("/ats/history"),
+      coverLetterApi.list(),
+    ])
+      .then(([cvRes, atsRes, clRes]) => {
         setCvs(cvRes.data);
         setAtsHistory(atsRes.data);
+        setCoverLetters(clRes.data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -254,7 +262,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/cv-builder"
             className="bg-[#161b22] border border-[#30363d] hover:border-blue-600/50 rounded-lg p-6 flex items-center justify-between group transition-colors"
@@ -270,6 +278,30 @@ export default function DashboardPage() {
             </div>
             <ArrowRight className="text-[#8b949e] group-hover:text-white transition-colors w-5 h-5" />
           </Link>
+
+          <button
+            onClick={async () => {
+              const res = await coverLetterApi.create({
+                title: "My Cover Letter",
+                template_id: "classic",
+                job_title: "",
+                company: "",
+              });
+              router.push(`/cover-letter/${res.data.id}`);
+            }}
+            className="bg-[#161b22] border border-[#30363d] hover:border-blue-600/50 rounded-lg p-6 flex items-center justify-between group transition-colors text-left"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                <Mail className="text-blue-400 w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-white font-medium">Cover Letter</p>
+                <p className="text-[#8b949e] text-sm mt-0.5">Write AI-powered cover letters</p>
+              </div>
+            </div>
+            <ArrowRight className="text-[#8b949e] group-hover:text-white transition-colors w-5 h-5" />
+          </button>
 
           <Link
             href="/ats-checker"
@@ -338,6 +370,58 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Cover Letters */}
+        {!loading && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">Cover Letters</h2>
+              <Link href="/cover-letter" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                View all
+              </Link>
+            </div>
+            {coverLetters.length === 0 ? (
+              <div className="border border-dashed border-[#30363d] rounded-lg p-8 text-center">
+                <p className="text-[#8b949e] text-sm">No cover letters yet</p>
+                <p className="text-[#484f58] text-xs mt-1">Create one to get started</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {coverLetters.slice(0, 3).map((cl) => (
+                  <div
+                    key={cl.id}
+                    className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 hover:border-[#8b949e] transition-colors cursor-pointer"
+                    onClick={() => router.push(`/cover-letter/${cl.id}`)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0">
+                        <h3 className="text-white font-medium text-sm truncate">{cl.title}</h3>
+                        {cl.job_title && (
+                          <p className="text-[#8b949e] text-xs mt-0.5 truncate">
+                            {cl.job_title}{cl.company && ` @ ${cl.company}`}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm("Delete this cover letter?")) {
+                            await coverLetterApi.delete(cl.id);
+                            setCoverLetters((prev) => prev.filter((c) => c.id !== cl.id));
+                          }
+                        }}
+                        className="text-[#484f58] hover:text-red-400 transition-colors text-xs p-1 ml-2 flex-shrink-0"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <p className="text-[#484f58] text-[10px] mt-3">{formatDate(cl.updated_at)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

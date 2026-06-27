@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState, useEffect } from "react";
 import { ZoomIn, ZoomOut, Download, AlertTriangle, Loader2, Target } from "lucide-react";
-import type { CVDocument, CVSection } from "@/types";
+import type { CVDocument, CVSection, CVCustomization } from "@/types";
+import { DEFAULT_CUSTOMIZATION } from "@/types";
 import { ClassicTemplate } from "./templates/ClassicTemplate";
 import { ModernTemplate } from "./templates/ModernTemplate";
 import { MinimalTemplate } from "./templates/MinimalTemplate";
@@ -17,363 +18,107 @@ interface Props {
   cv: CVDocument;
   sections: CVSection[];
   zoom: 75 | 100 | 125;
+  customization: CVCustomization;
   onZoomChange: (z: 75 | 100 | 125) => void;
   onSendToATS?: () => void;
 }
 
 const A4_W = 794;
 const A4_H = 1123;
+const PAGE_GAP = 20;
 
-export function CentrePanel({ cv, sections, zoom, onZoomChange, onSendToATS }: Props) {
-  const previewRef = useRef<HTMLDivElement>(null);
+// Returns the template-space Y coordinate where each page begins.
+// Uses .cv-section elements for section-aware breaks (works for all templates).
+function calcPageStarts(el: HTMLElement): number[] {
+  const sections = Array.from(el.querySelectorAll<HTMLElement>(".cv-section"));
+  if (!sections.length) return [0];
+
+  const baseTop = el.getBoundingClientRect().top;
+  const starts: number[] = [0];
+  let pageBottom = A4_H;
+
+  for (const sec of sections) {
+    const rect = sec.getBoundingClientRect();
+    const secTop = rect.top - baseTop;
+    const secBottom = rect.bottom - baseTop;
+    if (secBottom > pageBottom && secTop > starts[starts.length - 1] + 20) {
+      starts.push(secTop);
+      pageBottom = secTop + A4_H;
+    }
+  }
+  return starts;
+}
+
+export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS }: Props) {
+  const hiddenRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
-  const [contentHeight, setContentHeight] = useState(A4_H);
+  const [pageStartY, setPageStartY] = useState<number[]>([0]);
 
   const visibleSections = sections.filter((s) => s.is_visible);
-  const isClassic = !cv.template_id || cv.template_id === "classic";
-  const isMinimal = cv.template_id === "minimal";
-  const isExecutive = cv.template_id === "executive";
-  const isGCC = cv.template_id === "gcc";
-  const isAcademic = cv.template_id === "academic";
   const isTech = cv.template_id === "tech";
+  const isCreative = cv.template_id === "creative";
+  const isModern = cv.template_id === "modern";
   const scale = zoom / 100;
 
-  // Measure actual content height with ResizeObserver
+  // Recalculate page break positions whenever the hidden div resizes
   useEffect(() => {
-    const el = previewRef.current;
+    const el = hiddenRef.current;
     if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContentHeight(entry.contentRect.height);
-      }
+    const observer = new ResizeObserver(() => {
+      if (hiddenRef.current) setPageStartY(calcPageStarts(hiddenRef.current));
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  const pageCount = Math.max(1, Math.ceil(contentHeight / A4_H));
+  const pageCount = pageStartY.length;
+  // Natural (unscaled) height of the pages column including page labels (~20px each) and gaps
+  const totalPagesNaturalHeight = pageCount * (A4_H + 20) + (pageCount - 1) * PAGE_GAP;
 
   const handleExportPDF = async () => {
     setExporting(true);
-
-    let parent: HTMLElement | null = null;
-    let savedParentTransform = "";
-    let savedParentMarginBottom = "";
-    let savedBodyBg = "";
-    let savedHtmlBg = "";
-    let shadowRemoved = false;
-    const savedChildBgs = new Map<HTMLElement, string>();
-
     try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      const element = document.getElementById("cv-preview");
-      if (!element) return;
+      const token = document.cookie
+        .split(";")
+        .find((c) => c.trim().startsWith("token="))
+        ?.split("=")[1];
+
+      if (!token) throw new Error("Not authenticated");
 
       const personalSection = sections.find((s) => s.section_type === "personal_details");
       const name = personalSection?.data?.full_name || "cv";
 
-      // Neutralize parent scale so getBoundingClientRect returns the real 794px A4 width
-      parent = element.parentElement as HTMLElement;
-      savedParentTransform = parent.style.transform;
-      savedParentMarginBottom = parent.style.marginBottom;
-      parent.style.transform = "none";
-      parent.style.marginBottom = "0";
+      const fileName = `${name}-zenzhire`;
 
-      if (isClassic) {
-        // margin: 0 — the template's own padding (40px top/bottom, 45px left/right)
-        // fills the A4 page exactly. Adding extra pdf margins would squeeze the
-        // 794px (= 210mm A4-width) content into less space and clip the right side.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const classicOpts: any = {
-          margin: 0,
-          filename: `${name}-cv-zenzhire.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: "#ffffff",
-            windowWidth: A4_W,
-            scrollX: 0,
-            scrollY: 0,
-            logging: false,
-            onclone: (clonedDoc: Document) => {
-              // Remove the preview box-shadow so it doesn't bleed into PDF pages
-              const preview = clonedDoc.getElementById("cv-preview");
-              if (preview) {
-                preview.classList.remove("shadow-2xl");
-                preview.style.boxShadow = "none";
-                preview.style.backgroundColor = "#ffffff";
-              }
-            },
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["avoid-all", "css", "legacy"],
-            avoid: [".cv-entry", ".cv-section"],
-          },
-        };
-        await html2pdf().set(classicOpts).from(element).save();
-        return;
-      }
-
-      if (isMinimal) {
-        // margin: 0 — the template's own padding (28px top/bottom, 35px left/right)
-        // fills the A4 page. Adding pdf margins would squeeze the 794px (= 210mm)
-        // content into less space and clip the right side.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const minimalOpts: any = {
-          margin: 0,
-          filename: `${name}-cv-zenzhire.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: "#ffffff",
-            windowWidth: A4_W,
-            scrollX: 0,
-            scrollY: 0,
-            logging: false,
-            onclone: (clonedDoc: Document) => {
-              const preview = clonedDoc.getElementById("cv-preview");
-              if (preview) {
-                preview.classList.remove("shadow-2xl");
-                preview.style.boxShadow = "none";
-                preview.style.backgroundColor = "#ffffff";
-              }
-            },
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["avoid-all", "css", "legacy"],
-            avoid: [".cv-entry", ".cv-section-header"],
-          },
-        };
-        await html2pdf().set(minimalOpts).from(element).save();
-        return;
-      }
-
-      if (isExecutive) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const executiveOpts: any = {
-          margin: [20, 0, 15, 0],
-          filename: `${name}-cv-zenzhire.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: "#ffffff",
-            windowWidth: A4_W,
-            scrollX: 0,
-            scrollY: 0,
-            logging: false,
-            onclone: (clonedDoc: Document) => {
-              const preview = clonedDoc.getElementById("cv-preview");
-              if (preview) {
-                preview.classList.remove("shadow-2xl");
-                preview.style.boxShadow = "none";
-                preview.style.backgroundColor = "#ffffff";
-              }
-            },
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["avoid-all", "css", "legacy"],
-            avoid: [".cv-entry", ".cv-section-header"],
-          },
-        };
-        await html2pdf().set(executiveOpts).from(element).save();
-        return;
-      }
-
-      if (isGCC) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const gccOpts: any = {
-          margin: 0,
-          filename: `${name}-cv-zenzhire.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: "#ffffff",
-            windowWidth: A4_W,
-            scrollX: 0,
-            scrollY: 0,
-            logging: false,
-            onclone: (clonedDoc: Document) => {
-              const preview = clonedDoc.getElementById("cv-preview");
-              if (preview) {
-                preview.classList.remove("shadow-2xl");
-                preview.style.boxShadow = "none";
-                preview.style.backgroundColor = "#ffffff";
-              }
-            },
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["avoid-all", "css", "legacy"],
-            avoid: [".cv-entry", ".cv-section-header"],
-          },
-        };
-        await html2pdf().set(gccOpts).from(element).save();
-        return;
-      }
-
-      if (isAcademic) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const academicOpts: any = {
-          margin: 0,
-          filename: `${name}-cv-zenzhire.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: "#ffffff",
-            windowWidth: A4_W,
-            scrollX: 0,
-            scrollY: 0,
-            logging: false,
-            onclone: (clonedDoc: Document) => {
-              const preview = clonedDoc.getElementById("cv-preview");
-              if (preview) {
-                preview.classList.remove("shadow-2xl");
-                preview.style.boxShadow = "none";
-                preview.style.backgroundColor = "#ffffff";
-              }
-            },
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["avoid-all", "css", "legacy"],
-            avoid: [".cv-entry", ".cv-section-header"],
-          },
-        };
-        await html2pdf().set(academicOpts).from(element).save();
-        return;
-      }
-
-      if (isTech) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const techOpts: any = {
-          margin: 0,
-          filename: `${name}-cv-zenzhire.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            backgroundColor: "#ffffff",
-            windowWidth: A4_W,
-            scrollX: 0,
-            scrollY: 0,
-            logging: false,
-            onclone: (clonedDoc: Document) => {
-              const preview = clonedDoc.getElementById("cv-preview");
-              if (preview) {
-                preview.classList.remove("shadow-2xl");
-                preview.style.boxShadow = "none";
-                preview.style.backgroundColor = "#ffffff";
-              }
-            },
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["avoid-all", "css", "legacy"],
-            avoid: [".cv-entry", ".cv-section-header"],
-          },
-        };
-        await html2pdf().set(techOpts).from(element).save();
-        return;
-      }
-
-      // Remove box-shadow — shadow-2xl renders as a gray ring artifact in the PDF
-      if (element.classList.contains("shadow-2xl")) {
-        element.classList.remove("shadow-2xl");
-        shadowRemoved = true;
-      }
-
-      // Force element to exact A4 width with pure white background
-      element.style.width = `${A4_W}px`;
-      element.style.maxWidth = `${A4_W}px`;
-      element.style.backgroundColor = "#ffffff";
-
-      // Set document/body to white so html2canvas canvas fill is clean
-      savedBodyBg = document.body.style.backgroundColor;
-      savedHtmlBg = document.documentElement.style.backgroundColor;
-      document.body.style.backgroundColor = "#ffffff";
-      document.documentElement.style.backgroundColor = "#ffffff";
-
-      // Force white on child elements whose background comes from global/inherited CSS
-      // (skip elements with explicit inline backgroundColor — those are intentional template colours)
-      element.querySelectorAll<HTMLElement>("*").forEach((el) => {
-        const bg = window.getComputedStyle(el).backgroundColor;
-        if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "rgb(255, 255, 255)" && !el.style.backgroundColor) {
-          savedChildBgs.set(el, "");
-          el.style.backgroundColor = "#ffffff";
-        }
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cvId: cv.id, token, fileName, templateId: cv.template_id }),
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pdfOpts: any = {
-        margin: [10, 6, 10, 6],
-        filename: `${name}-cv-zenzhire.pdf`,
-        image: { type: "jpeg", quality: 1.0 },
-        html2canvas: {
-          scale: 2.5,
-          useCORS: true,
-          letterRendering: true,
-          backgroundColor: "#ffffff",
-          windowWidth: A4_W,
-          width: A4_W,
-          scrollX: 0,
-          scrollY: 0,
-          logging: false,
-          onclone: (clonedDoc: Document) => {
-            const preview = clonedDoc.getElementById("cv-preview");
-            if (preview) {
-              preview.style.width = `${A4_W}px`;
-              preview.style.maxWidth = `${A4_W}px`;
-              preview.style.backgroundColor = "#ffffff";
-            }
-          },
-        },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: {
-          mode: ["avoid-all", "css", "legacy"],
-          avoid: [".cv-entry", ".cv-section"],
-        },
-      };
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.details || err.error || "PDF export failed");
+      }
 
-      await html2pdf().set(pdfOpts).from(element).save();
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${fileName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
     } catch (e) {
-      console.error("PDF export failed:", e);
+      console.error("PDF export error:", e);
     } finally {
-      const element = document.getElementById("cv-preview");
-      if (element) {
-        element.style.width = "";
-        element.style.maxWidth = "";
-        element.style.backgroundColor = "";
-        if (shadowRemoved) element.classList.add("shadow-2xl");
-        savedChildBgs.forEach((_, el) => {
-          el.style.backgroundColor = "";
-        });
-      }
-      if (parent) {
-        parent.style.transform = savedParentTransform;
-        parent.style.marginBottom = savedParentMarginBottom;
-      }
-      document.body.style.backgroundColor = savedBodyBg;
-      document.documentElement.style.backgroundColor = savedHtmlBg;
       setExporting(false);
     }
   };
 
   const renderTemplate = () => {
-    const props = { sections: visibleSections };
+    const props = { sections: visibleSections, customization };
     switch (cv.template_id) {
       case "modern":    return <ModernTemplate {...props} />;
       case "minimal":   return <MinimalTemplate {...props} />;
@@ -387,7 +132,7 @@ export function CentrePanel({ cv, sections, zoom, onZoomChange, onSendToATS }: P
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[#0d1117] min-w-0">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#0d1117] min-w-0 relative">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] flex-shrink-0 bg-[#0d1117]">
         <div className="flex items-center gap-1">
@@ -447,90 +192,179 @@ export function CentrePanel({ cv, sections, zoom, onZoomChange, onSendToATS }: P
         </div>
       </div>
 
-      {/* Paper preview */}
-      <div className="flex-1 overflow-auto">
+      {/* Hidden off-screen div â€” single continuous render for measurement + PDF export */}
+      <div
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: 0,
+          width: A4_W,
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          id="cv-preview"
+          ref={hiddenRef}
+          style={{ width: A4_W, minHeight: A4_H, fontFamily: "Arial, sans-serif", backgroundColor: "#ffffff" }}
+        >
+          {renderTemplate()}
+        </div>
+      </div>
+
+      {/* Scrollable paged preview â€” Google Docs style */}
+      <div
+        className="flex-1 overflow-auto min-h-0"
+        style={{ backgroundColor: "#94a3b8" }}
+      >
         <div
           style={{
-            minWidth: "fit-content",
+            padding: "24px",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding: "32px 40px",
-            minHeight: A4_H * scale + 96,
           }}
         >
-          {/* Scaled wrapper with page break overlays */}
+          {/* All page cards in a single scaled column */}
           <div
             style={{
               transform: `scale(${scale})`,
               transformOrigin: "top center",
-              width: A4_W,
-              marginBottom: `${A4_H * (scale - 1)}px`,
-              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              gap: `${PAGE_GAP}px`,
+              // Compensate for transform not affecting layout height
+              marginBottom: `${totalPagesNaturalHeight * (scale - 1)}px`,
+              ...(isCreative ? { borderLeft: `5px solid ${customization.accentColor}` } : {}),
+              ...(isModern ? { background: `linear-gradient(to right, ${customization.accentColor} 35%, transparent 35%)` } : {}),
             }}
           >
-            <div
-              id="cv-preview"
-              ref={previewRef}
-              className="bg-white shadow-2xl"
-              style={{ width: A4_W, minHeight: A4_H, fontFamily: "Arial, sans-serif" }}
-            >
-              {renderTemplate()}
-            </div>
-
-            {/* Page break indicators */}
-            {Array.from({ length: pageCount - 1 }, (_, i) => (
+            {Array.from({ length: pageCount }, (_, i) => (
               <div
                 key={i}
-                style={{
-                  position: "absolute",
-                  top: A4_H * (i + 1),
-                  left: 0,
-                  right: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  pointerEvents: "none",
-                  zIndex: 10,
-                }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
               >
-                <div style={{ position: "absolute", left: 0, right: 0, borderTop: "2px dashed rgba(96,165,250,0.5)" }} />
-                <span
+                {/* White A4 page card */}
+                <div
                   style={{
+                    width: A4_W,
+                    height: A4_H,
+                    backgroundColor: "#ffffff",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    borderRadius: "2px",
                     position: "relative",
-                    background: "#0d1117",
-                    color: "#60a5fa",
-                    fontSize: 10,
-                    padding: "1px 8px",
-                    borderRadius: 4,
-                    whiteSpace: "nowrap",
-                    border: "1px solid rgba(96,165,250,0.3)",
+                    overflow: "hidden",
                   }}
                 >
-                  Page {i + 2}
-                </span>
+                  {/* Template content â€” page 1 starts at Y=0 (template has native 40px padding);
+                      pages 2+ shift up so the section lands 40px from the card top */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: i === 0 ? 0 : 40 - pageStartY[i],
+                      left: 0,
+                      width: A4_W,
+                      fontFamily: "Arial, sans-serif",
+                    }}
+                  >
+                    {renderTemplate()}
+                  </div>
+
+                  {/* Top mask for pages 2+: covers the 40px of previous-section content
+                      that shifts into view due to the +40 offset, leaving blank top padding */}
+                  {i > 0 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 40,
+                        backgroundColor: "#ffffff",
+                        zIndex: 2,
+                      }}
+                    />
+                  )}
+
+                  {/* Bottom mask: hides content belonging to the next page.
+                      Formula differs for page 1 (top=0) vs pages 2+ (top=40-pageStartY[i]). */}
+                  {i < pageCount - 1 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: i === 0
+                          ? pageStartY[i + 1]
+                          : 40 + pageStartY[i + 1] - pageStartY[i],
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: "#ffffff",
+                        zIndex: 2,
+                      }}
+                    />
+                  )}
+
+                  {/* Bordered template: overlay frame drawn on top of content and masks */}
+                  {isTech && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        border: `8px solid ${customization.accentColor}`,
+                        boxSizing: "border-box",
+                        pointerEvents: "none",
+                        zIndex: 10,
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* Page number label in dark gap below each card */}
+                <div
+                  style={{
+                    color: "#374151",
+                    fontSize: "12px",
+                    textAlign: "center",
+                    marginTop: "4px",
+                    userSelect: "none",
+                  }}
+                >
+                  Page {i + 1} of {pageCount}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Page count + warnings */}
+          {/* Page count badge + warnings */}
           <div
-            className="flex flex-col items-center gap-2"
-            style={{ marginTop: scale < 1 ? `${A4_H * (1 - scale) + 16}px` : "16px" }}
+            style={{
+              marginTop: "16px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "8px",
+            }}
           >
-            <span className="text-[#8b949e] text-xs">
+            <span
+              style={{
+                fontSize: "12px",
+                color: pageCount === 1 ? "#22c55e" : pageCount === 2 ? "#f59e0b" : "#ef4444",
+              }}
+            >
               {pageCount} page{pageCount > 1 ? "s" : ""}
             </span>
             {pageCount === 3 && (
               <div className="flex items-center gap-1.5 text-yellow-400 text-xs bg-yellow-400/10 border border-yellow-400/20 rounded-md px-3 py-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                CV exceeds 2 pages — consider condensing content
+                CV exceeds 2 pages â€” consider condensing content
               </div>
             )}
             {pageCount > 3 && (
               <div className="flex items-center gap-1.5 text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-md px-3 py-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                CV is {pageCount} pages — significantly over the recommended limit
+                CV is {pageCount} pages â€” significantly over the recommended limit
               </div>
             )}
           </div>
