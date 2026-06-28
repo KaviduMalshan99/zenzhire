@@ -82,6 +82,7 @@ class CVSectionRead(BaseModel):
 class CVDocumentCreate(BaseModel):
     title: str = "My CV"
     template_id: TemplateId = TemplateId.classic
+    customization: Any | None = None
 
 
 class CVDocumentUpdate(BaseModel):

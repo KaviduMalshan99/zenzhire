@@ -22,6 +22,17 @@ export const DEFAULT_CUSTOMIZATION: CVCustomization = {
   skillColumns: 2,
 };
 
+export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomization>> = {
+  classic:   { accentColor: "#111827", fontFamily: "Arial",   headerStyle: "centered",   headingStyle: "fullline"  },
+  modern:    { accentColor: "#2563eb", fontFamily: "Roboto",  headerStyle: "left",       headingStyle: "underline" },
+  minimal:   { accentColor: "#e11d48", fontFamily: "Lato",    headerStyle: "centered",   headingStyle: "fullline"  },
+  executive: { accentColor: "#111827", fontFamily: "Georgia", headerStyle: "twocolumn",  headingStyle: "fullline"  },
+  tech:      { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline"  },
+  creative:  { accentColor: "#7c3aed", fontFamily: "Lato",    headerStyle: "left",       headingStyle: "underline" },
+  academic:  { accentColor: "#2563eb", fontFamily: "Georgia", headerStyle: "centered",   headingStyle: "fullline"  },
+  gcc:       { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline"  },
+};
+
 export const FONT_CSS_MAP: Record<string, string> = {
   Arial: "Arial, Helvetica, sans-serif",
   Georgia: "Georgia, 'Times New Roman', serif",

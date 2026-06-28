@@ -385,7 +385,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
   };
 
   return (
-    <div style={{ width: "100%", minHeight: "100vh", backgroundColor: "#ffffff", fontFamily: fontCSS, color: "#111827", position: "relative" }}>
+    <div style={{ width: "100%", minHeight: "100vh", backgroundColor: "#ffffff", fontFamily: fontCSS, color: "#111827", position: "relative", outline: `6px solid ${accentColor}`, outlineOffset: "-6px" }}>
       <div style={{ paddingTop: "20px", paddingBottom: "20px", paddingLeft: "32px", paddingRight: "32px" }}>
       {/* Header */}
       <div style={{ padding: "10px 0 24px 0", borderBottom: "1px solid #e5e7eb" }}>

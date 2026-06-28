@@ -88,7 +88,7 @@ test.describe("CV Builder Visual Tests", () => {
       }
     });
 
-    await page.goto("/cv-builder?id=1");
+    await page.goto("/cv-builder/1");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
@@ -141,7 +141,7 @@ test.describe("CV Builder Visual Tests", () => {
       }
     });
 
-    await page.goto("/cv-builder?id=1");
+    await page.goto("/cv-builder/1");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
@@ -213,7 +213,7 @@ test.describe("CV Builder Visual Tests", () => {
       }
     });
 
-    await page.goto("/cv-builder?id=1");
+    await page.goto("/cv-builder/1");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2500);
 

@@ -346,7 +346,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
   return (
     <div style={{ position: "relative", backgroundColor: "#ffffff", boxSizing: "border-box" }}>
       {/* Fixed left accent line — covers full page height on every PDF page */}
-      <div style={{ position: "fixed", left: 0, top: 0, bottom: 0, width: 5, backgroundColor: accentColor, zIndex: 999, WebkitPrintColorAdjust: "exact" } as React.CSSProperties} />
+      <div style={{ position: "fixed", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: accentColor, zIndex: 999, WebkitPrintColorAdjust: "exact" } as React.CSSProperties} />
       {/* Header */}
       <div style={{ padding: "38px 40px 20px 40px", borderBottom: "1px solid #e5e7eb" }}>
         <div style={{ fontSize: 28, fontWeight: 700, color: "#111827", fontFamily: fontCSS, lineHeight: 1.15 }}>

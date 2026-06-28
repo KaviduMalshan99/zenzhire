@@ -27,27 +27,36 @@ export default function CVPrintPage() {
 
   useEffect(() => {
     async function loadCV() {
+      // Prefer query-param token (PDF generation), fall back to cookie (iframe preview)
+      const authToken =
+        token ||
+        document.cookie
+          .split(";")
+          .map((c) => c.trim())
+          .find((c) => c.startsWith("token="))
+          ?.split("=")[1];
+
+      if (!authToken) {
+        setError("Not authenticated");
+        return;
+      }
+
       try {
-        console.log("[cv-print] Loading CV:", cvId, "token present:", !!token);
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         const res = await fetch(`${apiUrl}/api/v1/cv/${cvId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${authToken}` },
         });
-        console.log("[cv-print] API response status:", res.status);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        console.log("[cv-print] CV data:", { template_id: data.template_id, sections_count: (data.sections || []).length });
         setTemplateId(data.template_id || "classic");
         setSections((data.sections || []).filter((s: CVSection) => s.is_visible));
         if (data.customization) setCustomization(data.customization);
         setReady(true);
       } catch (e) {
-        console.error("[cv-print] Error:", e);
         setError(String(e));
       }
     }
-    if (cvId && token) loadCV();
-    else console.warn("[cv-print] Missing cvId or token", { cvId, token: !!token });
+    if (cvId) loadCV();
   }, [cvId, token]);
 
   if (error) {

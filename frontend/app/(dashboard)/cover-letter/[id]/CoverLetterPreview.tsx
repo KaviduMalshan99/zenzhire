@@ -252,9 +252,28 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
   if (templateId === "gcc") {
     const pills = [
       personal.nationality ? `Nationality: ${personal.nationality}` : null,
+      personal.visa_status ? `Visa: ${personal.visa_status}` : null,
       personal.date_of_birth ? `DOB: ${personal.date_of_birth}` : null,
       personal.gender ? `Gender: ${personal.gender}` : null,
+      personal.marital_status ? `Marital: ${personal.marital_status}` : null,
+      personal.religion ? `Religion: ${personal.religion}` : null,
+      personal.nic ? `NIC: ${personal.nic}` : null,
+      personal.driving_license ? `License: ${personal.driving_license}` : null,
     ].filter(Boolean) as string[];
+    const clBadgeStyle: React.CSSProperties = {
+      backgroundColor: "rgba(255,255,255,0.15)",
+      color: "#ffffff",
+      border: "1px solid rgba(255,255,255,0.3)",
+      borderRadius: 4,
+      padding: "3px 10px",
+      fontSize: 10,
+      fontFamily,
+      display: "inline-flex",
+      alignItems: "center",
+      height: 22,
+      whiteSpace: "nowrap",
+      lineHeight: 1,
+    };
     return (
       <div style={{ fontFamily, minHeight: "297mm", backgroundColor: "#ffffff" }}>
         {/* Header — accent color background matching GCC CV */}
@@ -269,11 +288,9 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
               </div>
             )}
             {pills.length > 0 && (
-              <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: "4px 12px" }}>
+              <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: "6px 8px", alignItems: "center" }}>
                 {pills.map((pill, i) => (
-                  <span key={i} style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 4, padding: "2px 10px", fontSize: 10, display: "inline-block", fontFamily }}>
-                    {pill}
-                  </span>
+                  <span key={i} style={clBadgeStyle}>{pill}</span>
                 ))}
               </div>
             )}

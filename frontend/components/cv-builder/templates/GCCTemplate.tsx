@@ -276,17 +276,36 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
 
   const headerPad = Math.round(20 * sp);
 
+  const badgeStyle: React.CSSProperties = {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    color: "#ffffff",
+    border: "1px solid rgba(255,255,255,0.3)",
+    borderRadius: 4,
+    padding: "3px 10px",
+    fontSize: 10,
+    fontFamily: fontCSS,
+    display: "inline-flex",
+    alignItems: "center",
+    height: 22,
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+  };
+
   return (
     <div style={{ paddingBottom: Math.round(24 * sp), fontSize: 12, color: MID, lineHeight: 1.6, fontFamily: fontCSS }}>
       <div style={{ backgroundColor: accentColor, padding: `${headerPad}px 16px`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 26, fontWeight: "bold", color: "#fff", letterSpacing: "0.01em", lineHeight: 1.2, fontFamily: fontCSS }}>{personal.full_name || "Your Name"}</div>
           {personal.title && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", marginTop: 4, letterSpacing: "0.03em", fontFamily: fontCSS }}>{personal.title}</div>}
-          <div style={{ marginTop: Math.round(6 * sp), display: "flex", flexWrap: "wrap", gap: "4px 12px" }}>
-            {personal.nationality && <span style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 4, padding: "2px 10px", fontSize: 10, display: "inline-block", fontFamily: fontCSS }}>Nationality: {personal.nationality}</span>}
-            {personal.visa_status && <span style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 4, padding: "2px 10px", fontSize: 10, display: "inline-block", fontFamily: fontCSS }}>Visa: {personal.visa_status}</span>}
-            {personal.date_of_birth && <span style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 4, padding: "2px 10px", fontSize: 10, display: "inline-block", marginTop: 6, fontFamily: fontCSS }}>DOB: {personal.date_of_birth}</span>}
-            {personal.gender && <span style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 4, padding: "2px 10px", fontSize: 10, display: "inline-block", fontFamily: fontCSS }}>Gender: {personal.gender}</span>}
+          <div style={{ marginTop: Math.round(6 * sp), display: "flex", flexWrap: "wrap", gap: "6px 8px", alignItems: "center" }}>
+            {personal.nationality && <span style={badgeStyle}>Nationality: {personal.nationality}</span>}
+            {personal.visa_status && <span style={badgeStyle}>Visa: {personal.visa_status}</span>}
+            {personal.date_of_birth && <span style={badgeStyle}>DOB: {personal.date_of_birth}</span>}
+            {personal.gender && <span style={badgeStyle}>Gender: {personal.gender}</span>}
+            {personal.marital_status && <span style={badgeStyle}>Marital: {personal.marital_status}</span>}
+            {personal.religion && <span style={badgeStyle}>Religion: {personal.religion}</span>}
+            {personal.nic && <span style={badgeStyle}>NIC: {personal.nic}</span>}
+            {personal.driving_license && <span style={badgeStyle}>License: {personal.driving_license}</span>}
           </div>
         </div>
         {(personal.photo_base64 || personal.photo_url) && (

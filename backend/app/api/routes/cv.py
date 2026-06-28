@@ -105,6 +105,7 @@ def create_cv(
         user_id=current_user.id,
         title=payload.title,
         template_id=payload.template_id,
+        customization=payload.customization or {},
         is_primary=False,
     )
     db.add(cv)
