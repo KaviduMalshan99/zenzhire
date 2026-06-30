@@ -17,6 +17,8 @@ import { LayerCard } from "@/components/ats-checker/LayerCard";
 import { KeywordHeatmap } from "@/components/ats-checker/KeywordHeatmap";
 import { RecruiterCard } from "@/components/ats-checker/RecruiterCard";
 import { GrammarIssues } from "@/components/ats-checker/GrammarIssues";
+import { ResultsSidebar } from "@/components/ats-checker/ResultsSidebar";
+import { CVRebuildPreview } from "@/components/ats-checker/CVRebuildPreview";
 
 // ── analysis layers for progress display ──────────────────────────────────────
 
@@ -336,7 +338,7 @@ function ATSCheckerInner() {
       </div>
 
       {/* Overall score */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-6 flex flex-col md:flex-row items-center gap-8">
+      <div id="ats-score-section" className="bg-[#161b22] border border-[#30363d] rounded-lg p-6 flex flex-col md:flex-row items-center gap-8">
         <ScoreGauge score={result.overall_score} size={220} />
         <div className="flex-1 space-y-3">
           <h2 className="text-xl font-bold text-white">Overall ATS Score</h2>
@@ -362,10 +364,69 @@ function ATSCheckerInner() {
         </div>
       </div>
 
+      {/* Diagnosis & Recommendations */}
+      {result.diagnosis && result.diagnosis.top_issues.length > 0 && (
+        <div id="ats-diagnosis-section" className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
+          <h2 className="text-lg font-semibold text-white mb-1">
+            📋 What&apos;s Wrong &amp; How to Fix It
+          </h2>
+          <p className="text-[#8b949e] text-xs mb-4">
+            Top {result.diagnosis.top_issues.length} highest-impact issues found, prioritized by score impact.
+          </p>
+
+          <div className="space-y-3">
+            {result.diagnosis.top_issues.map((issue, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 bg-[#0d1117] border border-[#30363d] rounded-md p-4"
+              >
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600/15 border border-blue-600/30 flex items-center justify-center text-blue-400 text-xs font-bold">
+                  {i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={cn(
+                        "text-[9px] font-semibold px-2 py-0.5 rounded-full border",
+                        issue.bucket === "design"
+                          ? "bg-purple-500/15 text-purple-400 border-purple-500/30"
+                          : "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                      )}
+                    >
+                      {issue.bucket === "design" ? "🎨 Design" : "📝 Content"}
+                    </span>
+                    <h3 className="text-white text-sm font-medium">{issue.title}</h3>
+                  </div>
+                  <p className="text-[#8b949e] text-xs leading-relaxed">{issue.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {result.diagnosis && (
+            <CVRebuildPreview
+              detectedName={result.layers?.sections_structure?.details?.detected_name}
+              detectedEmail={result.layers?.sections_structure?.details?.detected_email}
+              detectedPhone={result.layers?.sections_structure?.details?.detected_phone}
+              detectedLinkedin={result.layers?.sections_structure?.details?.detected_linkedin}
+              targetRole={result.target_role}
+              currentScore={result.diagnosis.current_score ?? result.overall_score}
+              projectedScore={result.diagnosis.projected_score ?? result.overall_score}
+              isPro={isPro}
+            />
+          )}
+
+          <p className="text-[10px] text-[#484f58] mt-3 text-center">
+            This score reflects how well your CV is structured and written. It is not a guarantee
+            of interview or hiring outcomes, which depend on many factors beyond CV quality.
+          </p>
+        </div>
+      )}
+
       {/* 7 layer cards */}
-      <div>
+      <div id="ats-layers-section">
         <h2 className="text-lg font-semibold text-white mb-3">Layer Breakdown</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {(Object.keys(result.layers) as (keyof typeof result.layers)[]).map((key) => {
             const layer = result.layers[key];
             const Meta = layerMeta(key);
@@ -388,22 +449,26 @@ function ATSCheckerInner() {
       </div>
 
       {/* Keyword heatmap */}
-      <KeywordHeatmap
-        matched={result.layers.keyword_match.matched_keywords}
-        missing={result.layers.keyword_match.missing_keywords}
-        semantic={result.layers.keyword_match.semantic_matches}
-        matchPct={result.layers.keyword_match.match_percentage}
-        mode={result.layers.keyword_match.mode}
-        isPro={isPro}
-      />
+      <div id="ats-keywords-section">
+        <KeywordHeatmap
+          matched={result.layers.keyword_match.matched_keywords}
+          missing={result.layers.keyword_match.missing_keywords}
+          semantic={result.layers.keyword_match.semantic_matches}
+          matchPct={result.layers.keyword_match.match_percentage}
+          mode={result.layers.keyword_match.mode}
+          isPro={isPro}
+        />
+      </div>
 
       {/* Grammar issues */}
-      <GrammarIssues
-        errors={result.layers.language_grammar.grammar_errors}
-        fillerWords={result.layers.language_grammar.filler_words}
-        tenseIssues={result.layers.language_grammar.tense_issues}
-        isPro={isPro}
-      />
+      <div id="ats-grammar-section">
+        <GrammarIssues
+          errors={result.layers.language_grammar.grammar_errors}
+          fillerWords={result.layers.language_grammar.filler_words}
+          tenseIssues={result.layers.language_grammar.tense_issues}
+          isPro={isPro}
+        />
+      </div>
 
       {/* Content quality detail */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
@@ -457,7 +522,7 @@ function ATSCheckerInner() {
       </div>
 
       {/* AI Recruiter card */}
-      <div>
+      <div id="ats-recruiter-section">
         <h2 className="text-lg font-semibold text-white mb-3">AI Recruiter Simulation</h2>
         <RecruiterCard layer={result.layers.ai_recruiter} isPro={isPro} />
       </div>
@@ -485,10 +550,17 @@ function ATSCheckerInner() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 w-full">
-      <div className="max-w-3xl mx-auto">
-        {analyzing ? LoadingSection : result ? ResultsSection : UploadSection}
-      </div>
+    <div className="max-w-[1400px] mx-auto px-6 py-8 w-full">
+      {result && !analyzing ? (
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
+          <ResultsSidebar result={result} />
+          <div className="min-w-0">{ResultsSection}</div>
+        </div>
+      ) : (
+        <div className="max-w-3xl mx-auto">
+          {analyzing ? LoadingSection : UploadSection}
+        </div>
+      )}
     </div>
   );
 }

@@ -24,7 +24,6 @@ _ai_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 # ── lazy model handles ─────────────────────────────────────────────────────────
 
 _sentence_model = None
-_language_tool = None
 
 
 def _get_sentence_model():
@@ -36,17 +35,6 @@ def _get_sentence_model():
         except Exception:
             pass
     return _sentence_model
-
-
-def _get_language_tool():
-    global _language_tool
-    if _language_tool is None:
-        try:
-            import language_tool_python
-            _language_tool = language_tool_python.LanguageTool("en-US")
-        except Exception:
-            pass
-    return _language_tool
 
 
 # ── constants ──────────────────────────────────────────────────────────────────
@@ -81,21 +69,6 @@ SECTION_RE = {
     "education": r"\b(education|academic|qualifications?|degrees?|academic background)\b",
     "skills": r"\b(skills?|technical skills?|competenc(?:y|ies)|expertise|technologies|tools?)\b",
     "certifications": r"\b(certifications?|certificates?|credentials?|licenses?|accreditations?)\b",
-}
-
-INDUSTRY_SKILLS: dict[str, list[str]] = {
-    "software engineer":   ["Python", "JavaScript", "Java", "SQL", "Git", "Docker", "AWS", "REST APIs", "React"],
-    "data scientist":      ["Python", "R", "Machine Learning", "SQL", "TensorFlow", "pandas", "Statistics", "Scikit-learn"],
-    "product manager":     ["Agile", "Scrum", "Roadmap", "User Research", "Analytics", "A/B Testing", "Stakeholder Management"],
-    "devops engineer":     ["Docker", "Kubernetes", "CI/CD", "Jenkins", "AWS", "Terraform", "Linux", "Python"],
-    "data engineer":       ["Python", "SQL", "Spark", "ETL", "Airflow", "AWS", "Kafka", "Data Pipelines"],
-    "frontend developer":  ["JavaScript", "React", "TypeScript", "HTML", "CSS", "Redux", "REST APIs", "Webpack"],
-    "backend developer":   ["Python", "Java", "Node.js", "SQL", "REST APIs", "Microservices", "Docker", "PostgreSQL"],
-    "ux designer":         ["Figma", "User Research", "Prototyping", "Wireframing", "Usability Testing", "Adobe XD"],
-    "marketing manager":   ["SEO", "Google Analytics", "Content Marketing", "Social Media", "CRM", "Email Marketing"],
-    "financial analyst":   ["Excel", "Financial Modeling", "SQL", "Budgeting", "Forecasting", "Bloomberg", "Tableau"],
-    "project manager":     ["Agile", "Scrum", "Risk Management", "Stakeholder Management", "JIRA", "Budget Management"],
-    "cybersecurity":       ["Penetration Testing", "SIEM", "Firewalls", "Risk Assessment", "Python", "Network Security"],
 }
 
 METRIC_RE = re.compile(
@@ -234,15 +207,27 @@ def _layer_sections(cv_text: str) -> dict:
     pos_d = _pos(SECTION_RE["education"])
     correct_order = pos_s < pos_e and pos_e < pos_d
 
-    if correct_order:
-        score += 1.0
-    else:
-        issues.append("Recommended order: Summary → Experience → Education → Skills")
+    score += 1.0
+    if not correct_order:
+        issues.append(
+            "Tip: Many recruiters prefer Summary → Experience → Education → Skills order, "
+            "but your current order is also acceptable."
+        )
 
-    has_name = len(cv_text.split("\n")[0].strip()) > 2
-    has_email = bool(re.search(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", cv_text))
-    has_phone = bool(re.search(r"(\+?[\d\s\-\(\)]{7,15})", cv_text))
-    has_linkedin = bool(re.search(r"linkedin\.com/in/", cv_text, re.I))
+    first_line = cv_text.split("\n")[0].strip()
+    has_name = len(first_line) > 2
+    detected_name = first_line if has_name and len(first_line) < 60 else None
+    email_match = re.search(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", cv_text)
+    has_email = bool(email_match)
+    detected_email = email_match.group(0) if email_match else None
+
+    phone_match = re.search(r"(\+?[\d\s\-\(\)]{7,15})", cv_text)
+    has_phone = bool(phone_match)
+    detected_phone = phone_match.group(0).strip() if phone_match else None
+
+    linkedin_match = re.search(r"linkedin\.com/in/[\w\-]+", cv_text, re.I)
+    has_linkedin = bool(linkedin_match)
+    detected_linkedin = linkedin_match.group(0) if linkedin_match else None
 
     if has_name:
         score += 0.5
@@ -277,6 +262,10 @@ def _layer_sections(cv_text: str) -> dict:
             "contact_email": has_email,
             "contact_phone": has_phone,
             "contact_linkedin": has_linkedin,
+            "detected_name": detected_name,
+            "detected_email": detected_email,
+            "detected_phone": detected_phone,
+            "detected_linkedin": detected_linkedin,
         },
         "missing_sections": missing,
         "issues": issues,
@@ -348,7 +337,46 @@ def _match_keywords(cv_text: str, keywords: list[str]) -> tuple[list[str], list[
     return matched, missing, []
 
 
-def _layer_keywords(
+async def _generate_role_keywords(target_role: Optional[str]) -> list[str]:
+    role = target_role or "this professional role"
+
+    prompt = f"""You are an expert recruiter and ATS keyword specialist.
+
+List the 18-20 most important skills, tools, certifications, and keywords that a strong CV for the role of "{role}" should contain.
+
+Include a mix of:
+- Hard/technical skills specific to this exact role
+- Relevant tools and software
+- Relevant methodologies or frameworks
+- Soft skills ONLY if they are genuinely role-specific (not generic like "Communication" unless the role specifically demands it, e.g. customer-facing roles)
+
+Be specific to "{role}" — do NOT return generic business skills that could apply to any job.
+
+Return ONLY a JSON array of strings, no markdown, no commentary:
+["keyword1", "keyword2", ...]"""
+
+    try:
+        msg = _ai_client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = msg.content[0].text.strip()
+        start = raw.find("[")
+        end = raw.rfind("]") + 1
+        keywords = json.loads(raw[start:end])
+        return [str(k).strip() for k in keywords if str(k).strip()][:20]
+    except Exception:
+        return [
+            "Communication",
+            "Problem Solving",
+            "Teamwork",
+            "Attention to Detail",
+            "Time Management",
+        ]
+
+
+async def _layer_keywords(
     cv_text: str,
     job_description: Optional[str],
     target_role: Optional[str],
@@ -372,34 +400,23 @@ def _layer_keywords(
             "mode": "jd_match",
         }
 
-    # industry coverage fallback
-    role_key = None
-    if target_role:
-        rl = target_role.lower()
-        for key in INDUSTRY_SKILLS:
-            if key in rl or rl in key:
-                role_key = key
-                break
-
-    expected = INDUSTRY_SKILLS.get(role_key or "", [
-        "Communication", "Problem Solving", "Teamwork", "Leadership", "Project Management",
-    ])
-    cv_lower = cv_text.lower()
-    matched_ind = [s for s in expected if s.lower() in cv_lower]
-    missing_ind = [s for s in expected if s.lower() not in cv_lower]
-    pct = (len(matched_ind) / len(expected) * 100) if expected else 50
-    # max 20 without JD (job description gives the extra 5 pts)
+    # No JD — use Claude to generate role-specific expected keywords
+    expected = await _generate_role_keywords(target_role)
+    matched, missing, semantic = _match_keywords(cv_text, expected)
+    total = len(expected)
+    pct = (len(matched) / total * 100) if total else 0
+    # Max 20 without JD — job description gives the extra 5 pts for precision matching
     score = round(pct / 100 * 20, 1)
     return {
         "score": score,
         "max_score": 25,
         "percentage": round(score / 25 * 100, 1),
         "match_percentage": round(pct, 1),
-        "matched_keywords": matched_ind,
-        "missing_keywords": missing_ind,
-        "semantic_matches": [],
-        "total_jd_keywords": len(expected),
-        "mode": "industry_coverage",
+        "matched_keywords": matched,
+        "missing_keywords": missing,
+        "semantic_matches": semantic,
+        "total_jd_keywords": total,
+        "mode": "ai_role_estimate",
     }
 
 
@@ -504,21 +521,19 @@ def _layer_content_quality(cv_text: str) -> dict:
 
 # ── layer 5: language & grammar ────────────────────────────────────────────────
 
-def _layer_grammar(cv_text: str) -> dict:
-    grammar_errors: list[dict] = []
-    filler_found: list[str] = []
-    tense_issues: list[str] = []
+async def _layer_grammar(cv_text: str) -> dict:
+    tl = cv_text.lower()
     issues: list[str] = []
 
-    tl = cv_text.lower()
-
-    # filler words
+    # Filler words — deterministic, fast, reliable
+    filler_found: list[str] = []
     for fw in FILLER_WORDS:
         cnt = len(re.findall(r"\b" + fw + r"\b", tl))
         if cnt:
             filler_found.append(f"{fw} ({cnt}×)")
 
-    # tense consistency in experience section
+    # Tense consistency — deterministic check
+    tense_issues: list[str] = []
     exp_m = re.search(
         r"(experience|employment|work history)(.*?)(education|skills|certifications|$)",
         tl, re.DOTALL,
@@ -531,42 +546,51 @@ def _layer_grammar(cv_text: str) -> dict:
             tense_issues.append("Mixed present and past tenses in experience section.")
             issues.append("Use consistent past tense for previous roles.")
 
-    # language_tool_python (requires Java)
-    lt = _get_language_tool()
-    if lt:
-        try:
-            sample = cv_text[:3000]
-            for match in lt.check(sample)[:15]:
-                grammar_errors.append({
-                    "message": match.message,
-                    "context": (match.context or "")[:100],
-                    "suggestion": match.replacements[0] if match.replacements else "",
-                    "offset": match.offset,
-                })
-        except Exception:
-            pass
+    # Grammar & spelling via Claude — reliable, no silent failure
+    grammar_errors: list[dict] = []
+    try:
+        prompt = f"""You are a professional proofreader reviewing a CV/resume for grammar and spelling errors.
 
-    # fallback: pyspellchecker
-    if not grammar_errors:
-        try:
-            from spellchecker import SpellChecker
-            spell = SpellChecker()
-            words = re.findall(r"\b[a-zA-Z]{3,}\b", cv_text)
-            check = [w.lower() for w in words if not w[0].isupper()]
-            for bad in list(spell.unknown(check[:300]))[:10]:
-                fix = spell.correction(bad)
-                if fix and fix != bad:
-                    grammar_errors.append({
-                        "message": f"Possible spelling error: '{bad}'",
-                        "context": bad,
-                        "suggestion": fix,
-                        "offset": None,
-                    })
-        except Exception:
-            pass
+Find genuine grammar, spelling, and punctuation mistakes in this text. Do NOT flag stylistic choices, industry jargon, abbreviations, or proper nouns (company/people names) as errors. Only flag actual mistakes.
+
+Return ONLY a JSON array, max 15 items, no markdown, no commentary:
+[
+  {{
+    "error": "<the exact incorrect text snippet>",
+    "issue": "<short description of what is wrong>",
+    "suggestion": "<the corrected version>"
+  }}
+]
+
+If there are no genuine errors, return an empty array: []
+
+CV TEXT:
+{cv_text[:4000]}"""
+
+        msg = _ai_client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=900,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = msg.content[0].text.strip()
+        start = raw.find("[")
+        end = raw.rfind("]") + 1
+        found = json.loads(raw[start:end])
+        for item in found[:15]:
+            grammar_errors.append({
+                "message": item.get("issue", ""),
+                "context": item.get("error", "")[:100],
+                "suggestion": item.get("suggestion", ""),
+                "offset": None,
+            })
+    except Exception:
+        # Do NOT claim zero errors — be honest about the failure
+        issues.append(
+            "Grammar check could not be completed — please review your CV manually for spelling and grammar."
+        )
 
     cnt = len(grammar_errors)
-    if cnt == 0:
+    if cnt == 0 and not issues:
         score = 10.0
     elif cnt <= 2:
         score = 8.0
@@ -746,6 +770,196 @@ def _overall(layers: dict) -> float:
     return round(total, 1)
 
 
+# ── diagnosis aggregator ───────────────────────────────────────────────────────
+
+def _build_diagnosis(layers: dict) -> dict:
+    """
+    Aggregate the top 5 highest-impact issues across all 7 layers, split into
+    design/format problems vs missing content problems. Pure aggregation of
+    already-computed layer data — no AI call.
+    """
+    design_issues: list[dict] = []
+    content_issues: list[dict] = []
+
+    l1 = layers["ats_compatibility"]
+    l2 = layers["sections_structure"]
+    l3 = layers["keyword_match"]
+    l4 = layers["content_quality"]
+    l5 = layers["language_grammar"]
+    l6 = layers["professional_data"]
+
+    # ── DESIGN / FORMAT bucket ─────────────────────────────────────────────────
+
+    d1 = l1["details"]
+
+    if d1.get("has_tables"):
+        design_issues.append({
+            "title": "Tables detected",
+            "detail": (
+                "ATS systems often cannot read content inside tables, which may cause "
+                "sections of your CV to be skipped entirely."
+            ),
+            "impact": 3,
+        })
+
+    if d1.get("has_images"):
+        design_issues.append({
+            "title": "Images or photos detected",
+            "detail": (
+                "Photos and graphics are invisible to ATS parsers and can also bias "
+                "automated screening. Use a clean text-based template instead."
+            ),
+            "impact": 2,
+        })
+
+    if d1.get("has_multiple_columns"):
+        design_issues.append({
+            "title": "Multi-column layout detected",
+            "detail": (
+                "Multi-column CVs are frequently read out of order by ATS systems, "
+                "scrambling your work history."
+            ),
+            "impact": 3,
+        })
+
+    if d1.get("font_issues"):
+        design_issues.append({
+            "title": "Too many fonts",
+            "detail": (
+                "Using more than 2 fonts can confuse ATS parsing and looks inconsistent "
+                "to recruiters."
+            ),
+            "impact": 2,
+        })
+
+    if not d1.get("clean_text_extraction"):
+        design_issues.append({
+            "title": "CV text could not be cleanly extracted",
+            "detail": (
+                "Your file may be an image-based or scanned PDF, which ATS systems "
+                "cannot read at all."
+            ),
+            "impact": 5,
+        })
+
+    for section in l2.get("missing_sections", []):
+        design_issues.append({
+            "title": f"Missing {section} section",
+            "detail": (
+                f"Your CV does not have a clearly labeled {section} section, which "
+                f"both ATS systems and recruiters look for."
+            ),
+            "impact": 3,
+        })
+
+    # ── MISSING CONTENT bucket ─────────────────────────────────────────────────
+
+    missing_kw = l3.get("missing_keywords", [])[:6]
+    if missing_kw:
+        content_issues.append({
+            "title": "Missing relevant skills/keywords",
+            "detail": (
+                "Your CV is missing these role-relevant keywords: "
+                + ", ".join(missing_kw)
+            ),
+            "impact": round(l3["max_score"] - l3["score"]),
+        })
+
+    ba = l4.get("bullet_analysis", {})
+    total_b = ba.get("total_bullets", 0)
+    with_metrics = ba.get("with_metrics", 0)
+    if total_b > 0 and (with_metrics / total_b) < 0.4:
+        content_issues.append({
+            "title": "Bullets lack measurable results",
+            "detail": (
+                f"Only {with_metrics}/{total_b} bullet points contain numbers or metrics. "
+                f"Add percentages, team sizes, or timeframes to show real impact."
+            ),
+            "impact": 4,
+        })
+
+    weak_phrases = ba.get("weak_phrases_found", [])
+    if weak_phrases:
+        content_issues.append({
+            "title": "Weak phrases found",
+            "detail": (
+                "Replace passive phrases like "
+                + ", ".join(f'"{p}"' for p in weak_phrases[:3])
+                + " with strong action verbs."
+            ),
+            "impact": 2,
+        })
+
+    pd = l6.get("details", {})
+    if not pd.get("has_linkedin"):
+        content_issues.append({
+            "title": "No LinkedIn profile",
+            "detail": (
+                "Most recruiters expect a LinkedIn URL on a CV. Add yours to build credibility."
+            ),
+            "impact": 2,
+        })
+
+    if not pd.get("has_certifications"):
+        content_issues.append({
+            "title": "No certifications listed",
+            "detail": (
+                "Adding relevant certifications can strengthen your CV, especially for "
+                "technical or regulated roles."
+            ),
+            "impact": 2,
+        })
+
+    if not pd.get("dates_complete"):
+        content_issues.append({
+            "title": "Incomplete dates",
+            "detail": (
+                "Some experience or education entries are missing clear start/end dates."
+            ),
+            "impact": 2,
+        })
+
+    grammar_errors = l5.get("grammar_errors", [])
+    if len(grammar_errors) > 2:
+        content_issues.append({
+            "title": f"{len(grammar_errors)} grammar/spelling issues",
+            "detail": (
+                "Multiple grammar or spelling mistakes were found. Review the Language & "
+                "Grammar section for details."
+            ),
+            "impact": 2,
+        })
+
+    # Sort each bucket by impact descending
+    design_issues.sort(key=lambda x: -x["impact"])
+    content_issues.sort(key=lambda x: -x["impact"])
+
+    # Combine and pick overall top 5 by impact across both buckets
+    all_issues = (
+        [{**i, "bucket": "design"} for i in design_issues]
+        + [{**i, "bucket": "content"} for i in content_issues]
+    )
+    all_issues.sort(key=lambda x: -x["impact"])
+    top5 = all_issues[:5]
+
+    current_score = _overall(layers)
+    total_impact = sum(i["impact"] for i in top5)
+    # Project realistic improvement: assume fixing top 5 issues recovers ~70%
+    # of their combined impact, capped so projected never implies a perfect 100
+    recovered = round(total_impact * 0.7)
+    projected_score = min(96, current_score + recovered)
+
+    return {
+        "top_issues": top5,
+        "design_count": len(design_issues),
+        "content_count": len(content_issues),
+        "has_design_issues": len(design_issues) > 0,
+        "has_content_issues": len(content_issues) > 0,
+        "current_score": current_score,
+        "projected_score": projected_score,
+    }
+
+
 # ── public entry point ─────────────────────────────────────────────────────────
 
 async def run_full_analysis(
@@ -757,9 +971,9 @@ async def run_full_analysis(
 ) -> dict:
     l1 = _layer_ats_compatibility(cv_text, cv_bytes)
     l2 = _layer_sections(cv_text)
-    l3 = _layer_keywords(cv_text, job_description, target_role, target_industry)
+    l3 = await _layer_keywords(cv_text, job_description, target_role, target_industry)
     l4 = _layer_content_quality(cv_text)
-    l5 = _layer_grammar(cv_text)
+    l5 = await _layer_grammar(cv_text)
     l6 = _layer_professional(cv_text)
     l7 = await _layer_ai_recruiter(cv_text, target_role, target_industry)
 
@@ -772,4 +986,9 @@ async def run_full_analysis(
         "professional_data": l6,
         "ai_recruiter": l7,
     }
-    return {"overall_score": _overall(layers), "layers": layers}
+    diagnosis = _build_diagnosis(layers)
+    return {
+        "overall_score": _overall(layers),
+        "layers": layers,
+        "diagnosis": diagnosis,
+    }

@@ -31,6 +31,10 @@ class SectionsDetail(BaseModel):
     contact_email: bool
     contact_phone: bool
     contact_linkedin: bool
+    detected_name: Optional[str] = None
+    detected_email: Optional[str] = None
+    detected_phone: Optional[str] = None
+    detected_linkedin: Optional[str] = None
 
 
 class SectionsLayer(BaseModel):
@@ -132,6 +136,7 @@ class ATSResultRead(BaseModel):
     user_id: int
     overall_score: float
     layers: Any
+    diagnosis: Optional[Any] = None
     cv_filename: str
     job_description: Optional[str]
     target_role: Optional[str]

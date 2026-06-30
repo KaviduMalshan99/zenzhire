@@ -66,6 +66,7 @@ async def analyze_cv(
         target_industry=target_industry or None,
         overall_score=analysis["overall_score"],
         layers=analysis["layers"],
+        diagnosis=analysis.get("diagnosis", {}),
         has_job_description=bool(job_description and job_description.strip()),
     )
     db.add(record)

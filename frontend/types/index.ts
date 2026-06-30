@@ -201,6 +201,10 @@ export interface SectionsDetail {
   contact_email: boolean;
   contact_phone: boolean;
   contact_linkedin: boolean;
+  detected_name?: string | null;
+  detected_email?: string | null;
+  detected_phone?: string | null;
+  detected_linkedin?: string | null;
 }
 
 export interface SectionsLayer extends LayerBase {
@@ -214,7 +218,7 @@ export interface KeywordLayer extends LayerBase {
   missing_keywords: string[];
   semantic_matches: string[];
   total_jd_keywords: number;
-  mode: "jd_match" | "industry_coverage";
+  mode: "jd_match" | "industry_coverage" | "ai_role_estimate";
 }
 
 export interface BulletAnalysis {
@@ -275,11 +279,29 @@ export interface ATSLayers {
   ai_recruiter: RecruiterLayer;
 }
 
+export interface DiagnosisIssue {
+  title: string;
+  detail: string;
+  impact: number;
+  bucket: "design" | "content";
+}
+
+export interface ATSDiagnosis {
+  top_issues: DiagnosisIssue[];
+  design_count: number;
+  content_count: number;
+  has_design_issues: boolean;
+  has_content_issues: boolean;
+  current_score: number;
+  projected_score: number;
+}
+
 export interface ATSResult {
   id: number;
   user_id: number;
   overall_score: number;
   layers: ATSLayers;
+  diagnosis?: ATSDiagnosis;
   cv_filename: string;
   job_description: string | null;
   target_role: string | null;

@@ -15,6 +15,7 @@ class ATSResult(Base):
     target_industry = Column(String, nullable=True)
     overall_score = Column(Float, nullable=False)
     layers = Column(JSON, nullable=False, default=dict)
+    diagnosis = Column(JSON, nullable=True, default=dict)
     has_job_description = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
