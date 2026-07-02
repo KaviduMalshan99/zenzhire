@@ -1,3 +1,5 @@
+"use client";
+
 import { ClassicTemplate } from "@/components/cv-builder/templates/ClassicTemplate";
 import { ModernTemplate } from "@/components/cv-builder/templates/ModernTemplate";
 import { MinimalTemplate } from "@/components/cv-builder/templates/MinimalTemplate";
