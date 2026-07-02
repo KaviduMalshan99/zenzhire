@@ -23,6 +23,7 @@ class SectionType(str, enum.Enum):
     experience = "experience"
     education = "education"
     skills = "skills"
+    soft_skills = "soft_skills"
     languages = "languages"
     projects = "projects"
     courses = "courses"

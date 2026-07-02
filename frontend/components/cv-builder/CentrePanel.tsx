@@ -2,8 +2,14 @@
 
 import { useRef, useState, useEffect } from "react";
 import { ZoomIn, ZoomOut, Download, AlertTriangle, Loader2, Target } from "lucide-react";
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { CVDocument, CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION } from "@/types";
+import { CVEditProvider } from "./templates/edit/CVEditContext";
 import { ClassicTemplate } from "./templates/ClassicTemplate";
 import { ModernTemplate } from "./templates/ModernTemplate";
 import { MinimalTemplate } from "./templates/MinimalTemplate";
@@ -21,38 +27,89 @@ interface Props {
   customization: CVCustomization;
   onZoomChange: (z: 75 | 100 | 125) => void;
   onSendToATS?: () => void;
+  onSectionDataChange?: (section: CVSection, data: Record<string, any>) => void;
+  onReorder?: (sections: CVSection[]) => void;
 }
 
 const A4_W = 794;
 const A4_H = 1123;
 const PAGE_GAP = 20;
 
-// Returns the template-space Y coordinate where each page begins.
-// Uses .cv-section elements for section-aware breaks (works for all templates).
-function calcPageStarts(el: HTMLElement): number[] {
-  const sections = Array.from(el.querySelectorAll<HTMLElement>(".cv-section"));
-  if (!sections.length) return [0];
-
-  const baseTop = el.getBoundingClientRect().top;
-  const starts: number[] = [0];
-  let pageBottom = A4_H;
-
-  for (const sec of sections) {
-    const rect = sec.getBoundingClientRect();
-    const secTop = rect.top - baseTop;
-    const secBottom = rect.bottom - baseTop;
-    if (secBottom > pageBottom && secTop > starts[starts.length - 1] + 20) {
-      starts.push(secTop);
-      pageBottom = secTop + A4_H;
-    }
-  }
-  return starts;
+interface PageLayout {
+  /** Template-space Y coordinate where each page begins. */
+  starts: number[];
+  /** section.id -> the page index it visually starts on, used to decide which page-card is allowed to register that section as a drag source/target. */
+  sectionPage: Map<number, number>;
 }
 
-export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS }: Props) {
+// Breaks at .cv-section boundaries by default, but for sections with multiple
+// stacked .cv-entry children (experience, education, projects, etc.) each
+// entry after the first is its own break candidate too — so a long section
+// can spill onto the next page without dragging along entries that already
+// fit, instead of leaving a big gap and pushing the whole section over.
+// Entries laid out side-by-side (skill/reference grids) are detected by
+// sharing a top with a sibling and kept as a single unbreakable chunk, since
+// splitting mid-row would cut a row in half.
+function calcPageLayout(el: HTMLElement): PageLayout {
+  const sections = Array.from(el.querySelectorAll<HTMLElement>(".cv-section"));
+  const baseTop = el.getBoundingClientRect().top;
+
+  let starts: number[] = [0];
+  if (sections.length) {
+    const chunks: { top: number; bottom: number }[] = [];
+
+    for (const sec of sections) {
+      const secRect = sec.getBoundingClientRect();
+      const entries = Array.from(sec.querySelectorAll<HTMLElement>(".cv-entry"));
+      const isGrid =
+        entries.length > 1 &&
+        Math.abs(entries[0].getBoundingClientRect().top - entries[1].getBoundingClientRect().top) < 4;
+
+      if (entries.length <= 1 || isGrid) {
+        chunks.push({ top: secRect.top - baseTop, bottom: secRect.bottom - baseTop });
+      } else {
+        // Heading stays with its first entry so it's never orphaned alone at a page bottom.
+        const firstRect = entries[0].getBoundingClientRect();
+        chunks.push({ top: secRect.top - baseTop, bottom: firstRect.bottom - baseTop });
+        for (let i = 1; i < entries.length; i++) {
+          const r = entries[i].getBoundingClientRect();
+          chunks.push({ top: r.top - baseTop, bottom: r.bottom - baseTop });
+        }
+      }
+    }
+
+    let pageBottom = A4_H;
+    for (const c of chunks) {
+      if (c.bottom > pageBottom && c.top > starts[starts.length - 1] + 20) {
+        starts.push(c.top);
+        pageBottom = c.top + A4_H;
+      }
+    }
+  }
+
+  // Every SortableSection (main-column sections and, in Modern, sidebar
+  // sections too) tags itself with data-section-id regardless of whether
+  // it's editable — bucket each one into the page it visually starts on.
+  const sectionPage = new Map<number, number>();
+  const markers = Array.from(el.querySelectorAll<HTMLElement>("[data-section-id]"));
+  for (const marker of markers) {
+    const id = Number(marker.getAttribute("data-section-id"));
+    const top = marker.getBoundingClientRect().top - baseTop;
+    let page = 0;
+    for (let i = 0; i < starts.length; i++) {
+      if (top >= starts[i] - 1) page = i;
+    }
+    sectionPage.set(id, page);
+  }
+
+  return { starts, sectionPage };
+}
+
+export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS, onSectionDataChange, onReorder }: Props) {
   const hiddenRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [pageStartY, setPageStartY] = useState<number[]>([0]);
+  const [sectionPage, setSectionPage] = useState<Map<number, number>>(new Map());
 
   const visibleSections = sections.filter((s) => s.is_visible);
   const isTech = cv.template_id === "tech";
@@ -60,12 +117,36 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   const isModern = cv.template_id === "modern";
   const scale = zoom / 100;
 
-  // Recalculate page break positions whenever the hidden div resizes
+  const editable = !!(onSectionDataChange && onReorder);
+  const reorderableIds = visibleSections
+    .filter((s) => s.section_type !== "personal_details")
+    .map((s) => s.id);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorder) return;
+    const oldIndex = sections.findIndex((s) => s.id === active.id);
+    const newIndex = sections.findIndex((s) => s.id === over.id);
+    if (oldIndex !== -1 && newIndex !== -1) {
+      onReorder(arrayMove(sections, oldIndex, newIndex));
+    }
+  };
+
+  // Recalculate page break positions (and which page each section lands on)
+  // whenever the hidden div resizes
   useEffect(() => {
     const el = hiddenRef.current;
     if (!el) return;
     const observer = new ResizeObserver(() => {
-      if (hiddenRef.current) setPageStartY(calcPageStarts(hiddenRef.current));
+      if (!hiddenRef.current) return;
+      const layout = calcPageLayout(hiddenRef.current);
+      setPageStartY(layout.starts);
+      setSectionPage(layout.sectionPage);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -129,6 +210,27 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       case "gcc":       return <GCCTemplate {...props} />;
       default:          return <ClassicTemplate {...props} />;
     }
+  };
+
+  // Every page-card renders the full template (pagination is done via clipping,
+  // not by slicing the section list). Every page-card is editable at once —
+  // only the page-card where a given section visually lands (per `sectionPage`)
+  // is allowed to register it as a drag source/target, so a section can be
+  // dragged from, or dropped onto, any page.
+  const renderEditableTemplate = (pageIndex: number) => {
+    if (!editable) return renderTemplate();
+    return (
+      <CVEditProvider
+        value={{
+          editable: true,
+          onFieldChange: (section, data) => onSectionDataChange!(section, data),
+          onReorder: (newSections) => onReorder!(newSections),
+          isDragTarget: (sectionId) => (sectionPage.get(sectionId) ?? 0) === pageIndex,
+        }}
+      >
+        {renderTemplate()}
+      </CVEditProvider>
+    );
   };
 
   return (
@@ -212,6 +314,8 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       </div>
 
       {/* Scrollable paged preview â€” Google Docs style */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={reorderableIds} strategy={verticalListSortingStrategy}>
       <div
         className="flex-1 overflow-auto min-h-0"
         style={{ backgroundColor: "#94a3b8" }}
@@ -266,7 +370,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                       fontFamily: "Arial, sans-serif",
                     }}
                   >
-                    {renderTemplate()}
+                    {renderEditableTemplate(i)}
                   </div>
 
                   {/* Top mask for pages 2+: covers the 40px of previous-section content
@@ -370,6 +474,8 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
           </div>
         </div>
       </div>
+      </SortableContext>
+      </DndContext>
     </div>
   );
 }

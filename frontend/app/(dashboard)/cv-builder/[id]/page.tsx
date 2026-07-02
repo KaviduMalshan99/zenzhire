@@ -294,6 +294,8 @@ export default function CVEditorPage() {
           customization={customization}
           onZoomChange={setZoom}
           onSendToATS={handleSendToATS}
+          onSectionDataChange={saveSectionData}
+          onReorder={reorderSections}
         />
         <RightPanel
           cv={cv}
@@ -315,6 +317,8 @@ export default function CVEditorPage() {
           customization={customization}
           onZoomChange={setZoom}
           onSendToATS={handleSendToATS}
+          onSectionDataChange={saveSectionData}
+          onReorder={reorderSections}
         />
 
         <div className="fixed bottom-6 right-4 flex flex-col gap-3 z-40">

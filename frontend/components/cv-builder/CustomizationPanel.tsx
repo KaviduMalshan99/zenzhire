@@ -43,6 +43,7 @@ const HEADER_STYLE_OPTIONS = [
 ];
 
 const SKILL_STYLE_OPTIONS = [
+  { value: "chips" as const, label: "Chips", preview: "Python · Advanced" },
   { value: "classic" as const, label: "Classic", preview: "Python  ●●●●○" },
   { value: "progressbar" as const, label: "Progress Bar", preview: "Python ████░" },
   { value: "dotrating" as const, label: "Dot Rating", preview: "Python ●●●●○" },

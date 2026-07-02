@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   let browser: Awaited<ReturnType<typeof puppeteerCore.launch>> | null = null;
 
   try {
-    const { cvId, token, fileName, templateId } = await request.json();
+    const { cvId, token, fileName } = await request.json();
     if (!cvId || !token) {
       return NextResponse.json({ error: "Missing cvId or token" }, { status: 400 });
     }
@@ -94,13 +94,6 @@ export async function POST(request: NextRequest) {
     // Wait for fonts to finish loading
     await page.evaluateHandle(() => document.fonts.ready);
 
-    const isBordered = templateId === "tech";
-    const isGCC = templateId === "gcc";
-    const isCreative = templateId === "creative";
-    const isInline = templateId === "academic";
-    const isModern = templateId === "modern";
-    const isMinimal = templateId === "minimal";
-
     // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
     // Also add padding-top to every section/entry so whichever section lands
     // first on page 2+ always has built-in breathing room from the border.
@@ -119,8 +112,6 @@ export async function POST(request: NextRequest) {
         }
         .cv-section {
           padding-top: 8px !important;
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
         }
         .cv-entry {
           padding-top: 4px !important;
@@ -141,29 +132,15 @@ export async function POST(request: NextRequest) {
     // Wait for style injection + any final paint
     await new Promise((r) => setTimeout(r, 500));
 
-    // Debug screenshot (saved to project root for easy inspection)
-    await page.screenshot({
-      path: "C:/Users/kavidu/debug-screenshot.png",
-      fullPage: true,
-    });
-    console.log("Debug screenshot saved to C:/Users/kavidu/debug-screenshot.png");
-
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: isBordered
-        ? { top: "0", right: "0", bottom: "0", left: "0" }
-        : isGCC
-        ? { top: "0", right: "0", bottom: "8mm", left: "0" }
-        : isCreative
-        ? { top: "0", right: "8mm", bottom: "0", left: "0" }
-        : isModern
-        ? { top: "0", right: "8mm", bottom: "0", left: "0" }
-        : isMinimal
-        ? { top: "0", right: "0", bottom: "8mm", left: "0" }
-        : isInline
-        ? { top: "6mm", right: "6mm", bottom: "6mm", left: "6mm" }
-        : { top: "8mm", right: "8mm", bottom: "8mm", left: "8mm" },
+      // Every template already bakes its own visual inset into its root
+      // padding, matching the zero-padding page card used in the on-screen
+      // preview — adding a page-level margin here on top of that double-counts
+      // the inset and makes the PDF's usable content area per page smaller
+      // than the preview's, so page breaks land in different places.
+      margin: { top: "0", right: "0", bottom: "0", left: "0" },
       displayHeaderFooter: false,
     });
 

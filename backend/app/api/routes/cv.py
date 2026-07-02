@@ -28,6 +28,7 @@ _DEFAULT_DATA: dict[SectionType, dict] = {
     SectionType.experience: {"entries": []},
     SectionType.education: {"entries": []},
     SectionType.skills: {"display_style": "text", "entries": []},
+    SectionType.soft_skills: {"display_style": "text", "entries": []},
     SectionType.languages: {"entries": []},
     SectionType.projects: {"entries": []},
     SectionType.courses: {"entries": []},
