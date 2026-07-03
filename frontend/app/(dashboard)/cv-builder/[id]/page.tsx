@@ -87,6 +87,13 @@ function extractCVText(sections: CVSection[]): string {
   return lines.join("\n");
 }
 
+interface HistorySnapshot {
+  sections: CVSection[];
+  customization: CVCustomization;
+  templateId: TemplateId;
+  title: string;
+}
+
 export default function CVEditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -103,9 +110,129 @@ export default function CVEditorPage() {
   const [leftPanelTab, setLeftPanelTab] = useState<"sections" | "style">("sections");
   const [leftPanelMode, setLeftPanelMode] = useState<"list" | "form">("list");
   const [mobileSheet, setMobileSheet] = useState<"closed" | "sections" | "ai">("closed");
+  const [past, setPast] = useState<HistorySnapshot[]>([]);
+  const [future, setFuture] = useState<HistorySnapshot[]>([]);
+  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
 
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const customizationTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Read via refs (not the plain state closures) so pushHistory stays a
+  // single stable function callable from handlers with older dependency
+  // arrays (e.g. saveSectionData only depends on [cv]) without going stale.
+  const cvRef = useRef(cv);
+  const sectionsRef = useRef(sections);
+  const customizationRef = useRef(customization);
+  const isRestoringRef = useRef(false);
+  useEffect(() => { cvRef.current = cv; }, [cv]);
+  useEffect(() => { sectionsRef.current = sections; }, [sections]);
+  useEffect(() => { customizationRef.current = customization; }, [customization]);
+  useEffect(() => { isRestoringRef.current = isRestoringHistory; }, [isRestoringHistory]);
+
+  const snapshotNow = useCallback((): HistorySnapshot | null => {
+    if (!cvRef.current) return null;
+    return {
+      sections: sectionsRef.current.map((s) => ({ ...s, data: { ...s.data } })),
+      customization: { ...customizationRef.current },
+      templateId: cvRef.current.template_id,
+      title: cvRef.current.title,
+    };
+  }, []);
+
+  // Called at the start of every mutating action so it captures the state
+  // immediately before that action — one undo step per completed edit
+  // (field blur, stepper click, drag/resize release, reorder, add/delete
+  // section, customization change, template/title change), not per keystroke,
+  // since those already only call onFieldChange on commit rather than per
+  // change. Capped so history can't grow unbounded over a long session.
+  const pushHistory = useCallback(() => {
+    if (isRestoringRef.current) return;
+    const snap = snapshotNow();
+    if (!snap) return;
+    setPast((prev) => [...prev.slice(-49), snap]);
+    setFuture([]);
+  }, [snapshotNow]);
+
+  // Reconciles the CV's sections/customization/template/title back to a
+  // saved snapshot. Sections present now but not in the snapshot are
+  // deleted; sections in the snapshot but missing now (e.g. redoing past a
+  // delete) are recreated with matching type/data — under a new id, which is
+  // the one real limitation here, since the backend doesn't support
+  // resurrecting a specific deleted row's id.
+  const restoreSnapshot = useCallback(async (snapshot: HistorySnapshot) => {
+    const currentCV = cvRef.current;
+    if (!currentCV) return;
+    setIsRestoringHistory(true);
+    try {
+      const currentSections = sectionsRef.current;
+      const currentIds = new Set(currentSections.map((s) => s.id));
+      const snapshotIds = new Set(snapshot.sections.map((s) => s.id));
+
+      for (const s of currentSections) {
+        if (!snapshotIds.has(s.id) && s.section_type !== "personal_details") {
+          await api.delete(`/cv/${currentCV.id}/sections/${s.id}`);
+        }
+      }
+
+      const idMap = new Map<number, number>();
+      for (const snapSec of snapshot.sections) {
+        if (currentIds.has(snapSec.id)) {
+          await api.put(`/cv/${currentCV.id}/sections/${snapSec.id}`, {
+            data: snapSec.data,
+            is_visible: snapSec.is_visible,
+          });
+          idMap.set(snapSec.id, snapSec.id);
+        } else {
+          const res = await api.post<CVSection>(`/cv/${currentCV.id}/sections`, {
+            section_type: snapSec.section_type,
+            data: snapSec.data,
+          });
+          idMap.set(snapSec.id, res.data.id);
+        }
+      }
+
+      await api.put(`/cv/${currentCV.id}/reorder`, {
+        sections: snapshot.sections.map((s, i) => ({ id: idMap.get(s.id)!, display_order: i })),
+      });
+
+      if (snapshot.templateId !== currentCV.template_id || snapshot.title !== currentCV.title) {
+        await api.put(`/cv/${currentCV.id}`, { template_id: snapshot.templateId, title: snapshot.title });
+      }
+      if (JSON.stringify(snapshot.customization) !== JSON.stringify(customizationRef.current)) {
+        await api.put(`/cv/${currentCV.id}`, { customization: snapshot.customization });
+      }
+
+      const res = await api.get<CVDocument>(`/cv/${currentCV.id}`);
+      setCV(res.data);
+      setSections(res.data.sections.sort((a, b) => a.display_order - b.display_order));
+      setActiveSection((prev) => (prev ? res.data.sections.find((s) => s.id === prev.id) ?? null : null));
+      if (res.data.customization && Object.keys(res.data.customization).length > 0) {
+        setCustomizationState({ ...DEFAULT_CUSTOMIZATION, ...(res.data.customization as CVCustomization) });
+      }
+    } catch {
+      toast.error("Failed to restore that step");
+    } finally {
+      setIsRestoringHistory(false);
+    }
+  }, []);
+
+  const handleUndo = useCallback(async () => {
+    if (past.length === 0) return;
+    const previous = past[past.length - 1];
+    const currentSnap = snapshotNow();
+    setPast((prev) => prev.slice(0, -1));
+    if (currentSnap) setFuture((prev) => [currentSnap, ...prev]);
+    await restoreSnapshot(previous);
+  }, [past, snapshotNow, restoreSnapshot]);
+
+  const handleRedo = useCallback(async () => {
+    if (future.length === 0) return;
+    const next = future[0];
+    const currentSnap = snapshotNow();
+    setFuture((prev) => prev.slice(1));
+    if (currentSnap) setPast((prev) => [...prev, currentSnap]);
+    await restoreSnapshot(next);
+  }, [future, snapshotNow, restoreSnapshot]);
 
   useEffect(() => {
     const init = async () => {
@@ -129,6 +256,7 @@ export default function CVEditorPage() {
 
   const saveSectionData = useCallback(async (section: CVSection, newData: Record<string, any>) => {
     if (!cv) return;
+    pushHistory();
     setSaveStatus("saving");
 
     const timer = debounceTimers.current.get(section.id);
@@ -156,10 +284,11 @@ export default function CVEditorPage() {
     const updated = { ...section, data: newData };
     setSections((prev) => prev.map((s) => (s.id === section.id ? updated : s)));
     setActiveSection((prev) => (prev?.id === section.id ? updated : prev));
-  }, [cv]);
+  }, [cv, pushHistory]);
 
   const toggleVisibility = useCallback(async (section: CVSection) => {
     if (!cv) return;
+    pushHistory();
     try {
       const res = await api.put<CVSection>(
         `/cv/${cv.id}/sections/${section.id}`,
@@ -170,10 +299,11 @@ export default function CVEditorPage() {
     } catch {
       toast.error("Failed to update visibility");
     }
-  }, [cv]);
+  }, [cv, pushHistory]);
 
   const reorderSections = useCallback(async (newSections: CVSection[]) => {
     if (!cv) return;
+    pushHistory();
     setSections(newSections);
     try {
       const res = await api.put<CVDocument>(`/cv/${cv.id}/reorder`, {
@@ -183,10 +313,11 @@ export default function CVEditorPage() {
     } catch {
       toast.error("Failed to reorder sections");
     }
-  }, [cv]);
+  }, [cv, pushHistory]);
 
   const addSection = useCallback(async (type: SectionType) => {
     if (!cv) return;
+    pushHistory();
     try {
       const res = await api.post<CVSection>(`/cv/${cv.id}/sections`, { section_type: type });
       setSections((prev) => [...prev, res.data]);
@@ -195,10 +326,11 @@ export default function CVEditorPage() {
     } catch {
       toast.error("Failed to add section");
     }
-  }, [cv]);
+  }, [cv, pushHistory]);
 
   const deleteSection = useCallback(async (section: CVSection) => {
     if (!cv) return;
+    pushHistory();
     try {
       await api.delete(`/cv/${cv.id}/sections/${section.id}`);
       setSections((prev) => prev.filter((s) => s.id !== section.id));
@@ -207,9 +339,10 @@ export default function CVEditorPage() {
     } catch {
       toast.error("Failed to remove section");
     }
-  }, [cv]);
+  }, [cv, pushHistory]);
 
   const handleCustomizationChange = useCallback((next: CVCustomization) => {
+    if (cv) pushHistory();
     setCustomizationState(next);
     if (!cv) return;
     if (customizationTimer.current) clearTimeout(customizationTimer.current);
@@ -220,17 +353,18 @@ export default function CVEditorPage() {
         // silent — customization save failure is non-critical
       }
     }, 1000);
-  }, [cv]);
+  }, [cv, pushHistory]);
 
   const updateCV = useCallback(async (updates: { title?: string; template_id?: TemplateId }) => {
     if (!cv) return;
+    pushHistory();
     try {
       const res = await api.put<CVDocument>(`/cv/${cv.id}`, updates);
       setCV(res.data);
     } catch {
       toast.error("Failed to update CV");
     }
-  }, [cv]);
+  }, [cv, pushHistory]);
 
   const handleJumpToSection = useCallback((sectionType: SectionType) => {
     const section = sections.find((s) => s.section_type === sectionType);
@@ -280,6 +414,10 @@ export default function CVEditorPage() {
     onControlledTabChange: setLeftPanelTab,
     controlledMode: leftPanelMode,
     onControlledModeChange: setLeftPanelMode,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    canUndo: past.length > 0,
+    canRedo: future.length > 0,
   };
 
   return (
@@ -294,6 +432,8 @@ export default function CVEditorPage() {
           customization={customization}
           onZoomChange={setZoom}
           onSendToATS={handleSendToATS}
+          onSectionDataChange={saveSectionData}
+          onReorder={reorderSections}
         />
         <RightPanel
           cv={cv}
@@ -315,6 +455,8 @@ export default function CVEditorPage() {
           customization={customization}
           onZoomChange={setZoom}
           onSendToATS={handleSendToATS}
+          onSectionDataChange={saveSectionData}
+          onReorder={reorderSections}
         />
 
         <div className="fixed bottom-6 right-4 flex flex-col gap-3 z-40">

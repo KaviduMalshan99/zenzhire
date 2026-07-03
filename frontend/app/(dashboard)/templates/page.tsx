@@ -82,6 +82,24 @@ const TEMPLATES = [
     description: "Dark header design tailored for Gulf and Middle East applications.",
     accentColor: "#2563eb",
   },
+  {
+    id: "portrait",
+    name: "Portrait",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Photo-forward header with a clean two-column body. Elegant and refined.",
+    accentColor: "#8a6fae",
+  },
+  {
+    id: "milestone",
+    name: "Milestone",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Timeline-style experience with a clean sidebar. Structured and confident.",
+    accentColor: "#111827",
+  },
 ] as const;
 
 type Template = typeof TEMPLATES[number];

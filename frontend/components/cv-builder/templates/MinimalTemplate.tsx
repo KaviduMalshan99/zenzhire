@@ -1,9 +1,14 @@
 import React from "react";
-import type { CVSection, CVCustomization } from "@/types";
+import type { CVSection, CVCustomization, SectionLayout } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
 import { SectionHeading } from "../SectionHeading";
 import { SkillEntry } from "./SkillEntry";
+import { EditableText } from "./edit/EditableText";
+import { EditableHtml } from "./edit/EditableHtml";
+import { SortableSection } from "./edit/SortableSection";
+import { useCVEdit } from "./edit/CVEditContext";
+import { makeFieldSetter, makeEntrySetter } from "./edit/sectionHelpers";
 
 interface Props {
   sections: CVSection[];
@@ -68,22 +73,30 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
   const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
   const mb = Math.round(14 * sp);
   const entryMb = Math.round(10 * sp);
+  const { onFieldChange } = useCVEdit();
 
   const personal = get(sections, "personal_details");
+  const personalSection = sections.find((s) => s.section_type === "personal_details");
+  const setPersonal = personalSection ? makeFieldSetter(personalSection, onFieldChange) : () => {};
   const links: any[] = personal.links ?? [];
   const showDetails = (r: any) => (r.privacy ? r.privacy === "show" : r.show_on_cv !== false);
   const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
   const dateStyle: React.CSSProperties = { fontSize: 11, color: "#374151", whiteSpace: "nowrap", flexShrink: 0, fontFamily: fontCSS };
 
-  const contactItems: { type: string; text: string }[] = [];
-  if (personal.email) contactItems.push({ type: "email", text: personal.email });
-  if (personal.phone) contactItems.push({ type: "phone", text: personal.phone });
-  if (personal.location) contactItems.push({ type: "location", text: personal.location });
-  if (personal.nationality) contactItems.push({ type: "nationality", text: personal.nationality });
-  links.filter((l: any) => l.url).forEach((l: any) => {
+  const contactItems: { type: string; text: string; onCommit: (v: string) => void }[] = [];
+  if (personal.email) contactItems.push({ type: "email", text: personal.email, onCommit: (v) => setPersonal("email", v) });
+  if (personal.phone) contactItems.push({ type: "phone", text: personal.phone, onCommit: (v) => setPersonal("phone", v) });
+  if (personal.location) contactItems.push({ type: "location", text: personal.location, onCommit: (v) => setPersonal("location", v) });
+  if (personal.nationality) contactItems.push({ type: "nationality", text: personal.nationality, onCommit: (v) => setPersonal("nationality", v) });
+  links.forEach((l: any, i: number) => {
+    if (!l.url) return;
     const lp = (l.platform ?? "").toLowerCase();
     const type = lp.includes("linkedin") ? "linkedin" : lp.includes("github") ? "github" : "website";
-    contactItems.push({ type, text: l.url });
+    contactItems.push({
+      type,
+      text: l.url,
+      onCommit: (v) => setPersonal("links", links.map((x: any, xi: number) => (xi === i ? { ...x, url: v } : x))),
+    });
   });
 
   const hasPhoto = !!(personal.photo_base64 || personal.photo_url);
@@ -91,31 +104,34 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
   const renderSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
+    const layout: SectionLayout = d._layout ?? {};
+    const setField = makeFieldSetter(section, onFieldChange);
+    const setEntry = makeEntrySetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <HtmlContent html={d.summary} style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS, textAlign: "justify", lineHeight: 1.6 }} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS, textAlign: "justify", lineHeight: 1.6 }} />
           </div>
         );
 
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}>{e.job_title}</div>
-                  <div style={dateStyle}>{e.start_date}{e.start_date && (e.end_date || e.current) ? " – " : ""}{e.current ? "Present" : e.end_date}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}><EditableText value={e.job_title} onCommit={(v) => setEntry(i, "job_title", v)} /></div>
+                  <div style={dateStyle}><EditableText value={e.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{e.start_date && (e.end_date || e.current) ? " – " : ""}{e.current ? "Present" : <EditableText value={e.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</div>
                 </div>
-                <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.employer}</a> : e.employer}{e.location ? ` · ${e.location}` : ""}</div>
+                <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} /></a> : <EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} />}{e.location ? ` · ${e.location}` : ""}</div>
                 {e.description && e.description !== "<p></p>" ? (
-                  <HtmlContent html={e.description} style={{ fontSize: 12, marginTop: 3, color: "#111827", fontFamily: fontCSS }} />
+                  <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: "#111827", fontFamily: fontCSS }} />
                 ) : e.bullets?.length > 0 ? (
                   <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                     {e.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: "#111827", fontFamily: fontCSS }}>{b.text}</li>)}
@@ -129,40 +145,41 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}>{e.degree}</div>
-                  <div style={dateStyle}>{e.start_date}{e.start_date && e.end_date ? " – " : ""}{e.end_date}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}><EditableText value={e.degree} onCommit={(v) => setEntry(i, "degree", v)} /></div>
+                  <div style={dateStyle}><EditableText value={e.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{e.start_date && e.end_date ? " – " : ""}<EditableText value={e.end_date} onCommit={(v) => setEntry(i, "end_date", v)} /></div>
                 </div>
-                <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{e.institution_link ? <a href={e.institution_link.startsWith("http") ? e.institution_link : `https://${e.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.institution}</a> : e.institution}{e.location ? ` · ${e.location}` : ""}</div>
+                <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{e.institution_link ? <a href={e.institution_link.startsWith("http") ? e.institution_link : `https://${e.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={e.institution} onCommit={(v) => setEntry(i, "institution", v)} /></a> : <EditableText value={e.institution} onCommit={(v) => setEntry(i, "institution", v)} />}{e.location ? ` · ${e.location}` : ""}</div>
                 {e.score_type && e.score_value && (
                   <div style={{ fontSize: 11, color: "#6b7280", fontFamily: fontCSS, marginTop: 1 }}>
-                    {e.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}>{e.score_value}</span>
+                    {e.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}><EditableText value={e.score_value} onCommit={(v) => setEntry(i, "score_value", v)} /></span>
                   </div>
                 )}
                 {e.description && e.description !== "<p></p>" && (
-                  <HtmlContent html={e.description} style={{ fontSize: 12, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />
+                  <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />
                 )}
               </div>
             ))}
           </div>
         );
 
-      case "skills": {
+      case "skills":
+      case "soft_skills": {
         if (!entries.length) return null;
         const cols = skillColumns ?? 2;
         const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";
         const finalCols = gridCols;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, ...eb }}>
-            <SectionHeading title="Skills" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight, ...eb }}>
+            <SectionHeading section={section} title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(6 * sp)}px ${Math.round(16 * sp)}px` }}>
               {entries.map((s: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ ...eb }}>
-                  <SkillEntry skillName={s.skill_name} level={s.level} skillStyle={skillStyle ?? "classic"} accentColor={accentColor} fontFamily={fontCSS} />
+                  <SkillEntry skillName={s.skill_name} level={s.level} skillStyle={skillStyle ?? "classic"} accentColor={accentColor} fontFamily={fontCSS} onNameCommit={(v) => setEntry(i, "skill_name", v)} />
                 </div>
               ))}
             </div>
@@ -173,12 +190,12 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", gap: "8px 32px", flexWrap: "wrap", fontFamily: fontCSS }}>
               {entries.map((l: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>{l.language}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}><EditableText value={l.language} onCommit={(v) => setEntry(i, "language", v)} /></span>
                   <DotRating count={levelToDots(l.level ?? "")} color={accentColor} />
                 </div>
               ))}
@@ -189,17 +206,17 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", fontFamily: fontCSS }}>
-                    {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{p.title}</a> : p.title}{p.subtitle && <span style={{ fontWeight: 400, color: "#4b5563", fontSize: 12 }}> — {p.subtitle}</span>}
+                    {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}{p.subtitle && <span style={{ fontWeight: 400, color: "#4b5563", fontSize: 12 }}> — <EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></span>}
                   </div>
-                  {(p.start_date || p.end_date) && <span style={dateStyle}>{p.start_date}{p.start_date && p.end_date ? " – " : ""}{p.end_date}</span>}
+                  {(p.start_date || p.end_date) && <span style={dateStyle}><EditableText value={p.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{p.start_date && p.end_date ? " – " : ""}<EditableText value={p.end_date} onCommit={(v) => setEntry(i, "end_date", v)} /></span>}
                 </div>
-                {p.description && p.description !== "<p></p>" && <HtmlContent html={p.description} style={{ fontSize: 12, color: "#111827", marginTop: 2, fontFamily: fontCSS }} />}
+                {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, color: "#111827", marginTop: 2, fontFamily: fontCSS }} />}
                 {p.tech?.length > 0 && <div style={{ fontSize: 11, color: "#4b5563", marginTop: 2, fontFamily: fontCSS }}>{p.tech.join(" · ")}</div>}
               </div>
             ))}
@@ -209,12 +226,12 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, marginBottom: 4, fontFamily: fontCSS, color: "#111827", ...eb }}>
-                <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.certificate_name}</a> : c.certificate_name}{c.issuer ? ` — ${c.issuer}` : ""}</span>
-                <span style={{ color: "#374151", fontSize: 11, whiteSpace: "nowrap", flexShrink: 0 }}>{c.no_expiry ? `${c.date} (No expiry)` : c.date}</span>
+                <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} /></a> : <EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} />}{c.issuer ? <> — <EditableText value={c.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
+                <span style={{ color: "#374151", fontSize: 11, whiteSpace: "nowrap", flexShrink: 0 }}>{c.no_expiry ? <><EditableText value={c.date} onCommit={(v) => setEntry(i, "date", v)} /> (No expiry)</> : <EditableText value={c.date} onCommit={(v) => setEntry(i, "date", v)} />}</span>
               </div>
             ))}
           </div>
@@ -223,14 +240,14 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 6, fontFamily: fontCSS, ...eb }}>
-                <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}>{a.award_name}</span>
-                {a.issuer && <span style={{ fontSize: 11, color: "#374151" }}> — {a.issuer}</span>}
-                {a.date && <span style={{ fontSize: 11, color: "#4b5563" }}> ({a.date})</span>}
-                {a.description && a.description !== "<p></p>" && <HtmlContent html={a.description} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+                <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></span>
+                {a.issuer && <span style={{ fontSize: 11, color: "#374151" }}> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></span>}
+                {a.date && <span style={{ fontSize: 11, color: "#4b5563" }}> (<EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
+                {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
               </div>
             ))}
           </div>
@@ -239,15 +256,15 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 4, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontFamily: fontCSS, color: "#111827" }}>
-                  <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.title}</b></a> : <b>{c.title}</b>}{c.institution ? ` — ${c.institution}` : ""}</span>
-                  <span style={{ color: "#374151", whiteSpace: "nowrap", flexShrink: 0, fontSize: 11 }}>{c.end_date || c.start_date}</span>
+                  <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b></a> : <b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b>}{c.institution ? <> — <EditableText value={c.institution} onCommit={(v) => setEntry(i, "institution", v)} /></> : ""}</span>
+                  <span style={{ color: "#374151", whiteSpace: "nowrap", flexShrink: 0, fontSize: 11 }}><EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} /></span>
                 </div>
-                {c.description && c.description !== "<p></p>" && <HtmlContent html={c.description} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS }} />}
+                {c.description && c.description !== "<p></p>" && <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS }} />}
               </div>
             ))}
           </div>
@@ -256,14 +273,14 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 5, fontFamily: fontCSS, ...eb }}>
-                <span style={{ fontSize: 12, color: "#111827" }}><b>{p.title}</b></span>
-                {p.publisher && <span style={{ fontSize: 11, color: "#374151" }}> · {p.publisher}</span>}
-                {p.date && <span style={{ fontSize: 11, color: "#4b5563" }}> ({p.date})</span>}
-                {p.description && p.description !== "<p></p>" && <HtmlContent html={p.description} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+                <span style={{ fontSize: 12, color: "#111827" }}><b><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b></span>
+                {p.publisher && <span style={{ fontSize: 11, color: "#374151" }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}
+                {p.date && <span style={{ fontSize: 11, color: "#4b5563" }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
+                {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
               </div>
             ))}
           </div>
@@ -272,16 +289,16 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Organizations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Organizations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 6, fontFamily: fontCSS, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                  <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}>{o.name}</span>
-                  <span style={dateStyle}>{o.start_date}{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : o.end_date}</span>
+                  <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}><EditableText value={o.name} onCommit={(v) => setEntry(i, "name", v)} /></span>
+                  <span style={dateStyle}><EditableText value={o.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</span>
                 </div>
-                {o.position && <div style={{ fontSize: 11, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{o.position}</div>}
-                {o.description && o.description !== "<p></p>" && <HtmlContent html={o.description} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+                {o.position && <div style={{ fontSize: 11, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></div>}
+                {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
               </div>
             ))}
           </div>
@@ -290,26 +307,33 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <div style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS }}>{entries.map((item: any) => item.title).join(" · ")}</div>
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <div style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS }}>
+              {entries.map((item: any, i: number) => (
+                <React.Fragment key={i}>
+                  {i > 0 ? " · " : ""}
+                  <EditableText value={item.title} onCommit={(v) => setEntry(i, "title", v)} />
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         );
 
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: `6px ${Math.round(24 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((r: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ fontSize: 12, color: "#111827", ...eb }}>
-                  <div style={{ fontWeight: 700 }}>{r.name}</div>
+                  <div style={{ fontWeight: 700 }}><EditableText value={r.name} onCommit={(v) => setEntry(i, "name", v)} /></div>
                   {showDetails(r) ? (
                     <>
-                      {r.job_title && <div style={{ color: "#374151" }}>{r.job_title}{r.organization ? `, ${r.organization}` : ""}</div>}
-                      {r.email && <div style={{ color: "#4b5563" }}>{r.email}</div>}
-                      {r.phone && <div style={{ color: "#4b5563" }}>{r.phone}</div>}
+                      {r.job_title && <div style={{ color: "#374151" }}><EditableText value={r.job_title} onCommit={(v) => setEntry(i, "job_title", v)} />{r.organization ? <>, <EditableText value={r.organization} onCommit={(v) => setEntry(i, "organization", v)} /></> : ""}</div>}
+                      {r.email && <div style={{ color: "#4b5563" }}><EditableText value={r.email} onCommit={(v) => setEntry(i, "email", v)} /></div>}
+                      {r.phone && <div style={{ color: "#4b5563" }}><EditableText value={r.phone} onCommit={(v) => setEntry(i, "phone", v)} /></div>}
                     </>
                   ) : (
                     <div style={{ color: "#4b5563", fontStyle: "italic" }}>Available on request</div>
@@ -323,16 +347,16 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb }}>
-            <SectionHeading title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <HtmlContent html={d.text} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+            <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
             {d.signature && (
-              <div style={{ fontSize: 22, fontFamily: "'Dancing Script', cursive", color: "#111827", marginTop: 12, borderBottom: "1px solid #d1d5db", paddingBottom: 4, display: "inline-block" }}>{d.signature}</div>
+              <div style={{ fontSize: 22, fontFamily: "'Dancing Script', cursive", color: "#111827", marginTop: 12, borderBottom: "1px solid #d1d5db", paddingBottom: 4, display: "inline-block" }}><EditableText value={d.signature} onCommit={(v) => setField("signature", v)} /></div>
             )}
             <div style={{ display: "flex", gap: 28, marginTop: d.signature ? 8 : 0, fontSize: 11, color: "#374151", fontFamily: fontCSS }}>
-              {d.full_name && <span>Name: <b>{d.full_name}</b></span>}
-              {d.place && <span>Place: <b>{d.place}</b></span>}
-              {d.date && <span>Date: <b>{d.date}</b></span>}
+              {d.full_name && <span>Name: <b><EditableText value={d.full_name} onCommit={(v) => setField("full_name", v)} /></b></span>}
+              {d.place && <span>Place: <b><EditableText value={d.place} onCommit={(v) => setField("place", v)} /></b></span>}
+              {d.date && <span>Date: <b><EditableText value={d.date} onCommit={(v) => setField("date", v)} /></b></span>}
             </div>
           </div>
         );
@@ -356,16 +380,16 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
           )}
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 24, fontWeight: 700, color: "#ffffff", fontFamily: fontCSS, lineHeight: 1.15 }}>
-              {personal.full_name || "Your Name"}
+              <EditableText value={personal.full_name} onCommit={(v) => setPersonal("full_name", v)} placeholder="Your Name" />
             </div>
             {personal.title && (
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", fontFamily: fontCSS, marginTop: 4 }}>{personal.title}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", fontFamily: fontCSS, marginTop: 4 }}><EditableText value={personal.title} onCommit={(v) => setPersonal("title", v)} /></div>
             )}
             {contactItems.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginTop: 8 }}>
                 {contactItems.map((item, i) => (
                   <span key={i} style={{ fontSize: 10, color: "rgba(255,255,255,0.9)", fontFamily: fontCSS }}>
-                    {getContactIcon(item.type, "white")}<a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{item.text}</a>
+                    {getContactIcon(item.type, "white")}<a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={item.text} onCommit={item.onCommit} /></a>
                   </span>
                 ))}
               </div>
@@ -378,7 +402,9 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       <div style={{ padding: "16px 32px" }}>
         {sections.map((section) =>
           section.section_type !== "personal_details" ? (
-            <React.Fragment key={section.id}>{renderSection(section)}</React.Fragment>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={mb}>
+              {renderSection(section)}
+            </SortableSection>
           ) : null
         )}
       </div>

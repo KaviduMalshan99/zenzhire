@@ -15,6 +15,8 @@ class TemplateId(str, enum.Enum):
     creative = "creative"
     academic = "academic"
     gcc = "gcc"
+    portrait = "portrait"
+    milestone = "milestone"
 
 
 class SectionType(str, enum.Enum):
@@ -23,6 +25,7 @@ class SectionType(str, enum.Enum):
     experience = "experience"
     education = "education"
     skills = "skills"
+    soft_skills = "soft_skills"
     languages = "languages"
     projects = "projects"
     courses = "courses"
