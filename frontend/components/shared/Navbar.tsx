@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Zap, LayoutDashboard, FileText, Target, LogOut, Crown, Mail, LayoutTemplate } from "lucide-react";
+import { LayoutDashboard, FileText, Target, LogOut, Crown, Mail, LayoutTemplate } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -22,9 +23,8 @@ export function Navbar() {
     <nav className="border-b border-[#30363d] bg-[#0d1117] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <Zap className="text-blue-500 w-6 h-6" />
-            <span className="text-lg font-bold text-white">ZenzHire</span>
+          <Link href="/dashboard" className="flex items-center">
+            <Image src="/logo.png" alt="ZenzHire" width={180} height={60} className="h-10 w-auto" priority />
           </Link>
           <div className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => (

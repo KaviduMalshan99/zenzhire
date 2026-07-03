@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Zap, Target, FileText, BarChart3, CheckCircle } from "lucide-react";
 
 const features = [
@@ -57,9 +58,8 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="border-b border-[#30363d] sticky top-0 z-50 bg-[#0d1117]/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="text-blue-500 w-6 h-6" />
-            <span className="text-xl font-bold text-white">ZenzHire</span>
+          <div className="flex items-center">
+            <Image src="/logo.png" alt="ZenzHire" width={140} height={47} className="h-8 w-auto" priority />
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login" className="text-[#8b949e] hover:text-white transition-colors text-sm">
@@ -168,10 +168,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-[#30363d] py-10">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Zap className="text-blue-500 w-5 h-5" />
-            <span className="text-white font-bold">ZenzHire</span>
-          </div>
+          <Image src="/logo.png" alt="ZenzHire" width={110} height={37} className="h-6 w-auto" />
           <p className="text-[#8b949e] text-sm">© 2026 ZenzHire. All rights reserved.</p>
         </div>
       </footer>
