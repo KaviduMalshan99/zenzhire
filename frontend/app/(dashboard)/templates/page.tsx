@@ -100,6 +100,24 @@ const TEMPLATES = [
     description: "Timeline-style experience with a clean sidebar. Structured and confident.",
     accentColor: "#111827",
   },
+  {
+    id: "corporate",
+    name: "Halo",
+    category: "professional",
+    plan: "free",
+    popular: false,
+    description: "Left-aligned header with dot accent, clean two-column body. Polished and modern.",
+    accentColor: "#111827",
+  },
+  {
+    id: "vega",
+    name: "Vega",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Square-marker headings with accent underline. Bold name header, two-column body. Sharp and confident.",
+    accentColor: "#2c3e50",
+  },
 ] as const;
 
 type Template = typeof TEMPLATES[number];

@@ -10,6 +10,8 @@ import { AcademicTemplate } from "@/components/cv-builder/templates/AcademicTemp
 import { GCCTemplate } from "@/components/cv-builder/templates/GCCTemplate";
 import { PortraitTemplate } from "@/components/cv-builder/templates/PortraitTemplate";
 import { MilestoneTemplate } from "@/components/cv-builder/templates/MilestoneTemplate";
+import { CorporateTemplate } from "@/components/cv-builder/templates/CorporateTemplate";
+import { VegaTemplate } from "@/components/cv-builder/templates/VegaTemplate";
 import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
 import type { CVCustomization } from "@/types";
 import { SAMPLE_CV_DATA } from "@/lib/sample-cv-data";
@@ -42,7 +44,9 @@ export default function TemplatePreviewPage({
     case "academic":  return <AcademicTemplate {...props} />;
     case "gcc":       return <GCCTemplate {...props} />;
     case "portrait":  return <PortraitTemplate {...props} />;
-    case "milestone": return <MilestoneTemplate {...props} />;
-    default:          return <ClassicTemplate {...props} />;
+    case "milestone":  return <MilestoneTemplate {...props} />;
+    case "corporate":  return <CorporateTemplate {...props} />;
+    case "vega":       return <VegaTemplate {...props} />;
+    default:           return <ClassicTemplate {...props} />;
   }
 }
