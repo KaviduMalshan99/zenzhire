@@ -18,6 +18,8 @@ import { TechTemplate } from "./templates/TechTemplate";
 import { CreativeTemplate } from "./templates/CreativeTemplate";
 import { AcademicTemplate } from "./templates/AcademicTemplate";
 import { GCCTemplate } from "./templates/GCCTemplate";
+import { PortraitTemplate } from "./templates/PortraitTemplate";
+import { MilestoneTemplate } from "./templates/MilestoneTemplate";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -208,6 +210,8 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       case "creative":  return <CreativeTemplate {...props} />;
       case "academic":  return <AcademicTemplate {...props} />;
       case "gcc":       return <GCCTemplate {...props} />;
+      case "portrait":  return <PortraitTemplate {...props} />;
+      case "milestone": return <MilestoneTemplate {...props} />;
       default:          return <ClassicTemplate {...props} />;
     }
   };

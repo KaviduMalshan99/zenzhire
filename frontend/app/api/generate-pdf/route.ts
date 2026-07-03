@@ -95,8 +95,12 @@ export async function POST(request: NextRequest) {
     await page.evaluateHandle(() => document.fonts.ready);
 
     // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
-    // Also add padding-top to every section/entry so whichever section lands
-    // first on page 2+ always has built-in breathing room from the border.
+    // NOTE: deliberately no padding-top on .cv-section/.cv-entry here — that
+    // used to add 8px/4px to every section and entry in the PDF only, which
+    // doesn't exist in the on-screen preview (CentrePanel never applies it),
+    // so section gaps in the exported PDF silently drifted from what the
+    // user configured/saw. page-break-inside:avoid alone is enough to stop
+    // sections/entries from splitting across a page boundary.
     await page.addStyleTag({
       content: `
         * {
@@ -111,10 +115,10 @@ export async function POST(request: NextRequest) {
           padding: 0 !important;
         }
         .cv-section {
-          padding-top: 8px !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
         }
         .cv-entry {
-          padding-top: 4px !important;
           page-break-inside: avoid !important;
           break-inside: avoid !important;
         }
@@ -131,6 +135,63 @@ export async function POST(request: NextRequest) {
 
     // Wait for style injection + any final paint
     await new Promise((r) => setTimeout(r, 500));
+
+    // Give continuation pages (2+) the same top breathing room the on-screen
+    // preview gives them. The preview (CentrePanel) offsets page 2+ content
+    // by 40px via a clip trick purely for display — page 1 gets no offset
+    // there because the template's own header/root padding already is its
+    // top inset (see the margin:0 comment on page.pdf() below). This mirrors
+    // that same 40px, but for real here, by finding the actual chunk that
+    // will start each new PDF page (same break-point logic as CentrePanel's
+    // calcPageLayout) and pushing it down before Chrome paginates, so the
+    // gap actually exists in the flowed document instead of just visually.
+    await page.evaluate(() => {
+      const A4_H = 1123;
+      const CONTINUATION_TOP_GAP = 40;
+
+      const sections = Array.from(document.querySelectorAll<HTMLElement>(".cv-section"));
+      if (!sections.length) return;
+      const baseTop = document.body.getBoundingClientRect().top;
+
+      const chunks: { el: HTMLElement; top: number; bottom: number }[] = [];
+      for (const sec of sections) {
+        const secRect = sec.getBoundingClientRect();
+        const entries = Array.from(sec.querySelectorAll<HTMLElement>(".cv-entry"));
+        const isGrid =
+          entries.length > 1 &&
+          Math.abs(entries[0].getBoundingClientRect().top - entries[1].getBoundingClientRect().top) < 4;
+
+        if (entries.length <= 1 || isGrid) {
+          chunks.push({ el: sec, top: secRect.top - baseTop, bottom: secRect.bottom - baseTop });
+        } else {
+          const firstRect = entries[0].getBoundingClientRect();
+          chunks.push({ el: sec, top: secRect.top - baseTop, bottom: firstRect.bottom - baseTop });
+          for (let i = 1; i < entries.length; i++) {
+            const r = entries[i].getBoundingClientRect();
+            chunks.push({ el: entries[i], top: r.top - baseTop, bottom: r.bottom - baseTop });
+          }
+        }
+      }
+
+      let lastStart = 0;
+      let pageBottom = A4_H;
+      const breakEls: HTMLElement[] = [];
+      for (const c of chunks) {
+        if (c.bottom > pageBottom && c.top > lastStart + 20) {
+          lastStart = c.top;
+          pageBottom = c.top + A4_H;
+          breakEls.push(c.el);
+        }
+      }
+
+      for (const el of breakEls) {
+        const current = parseFloat(getComputedStyle(el).marginTop) || 0;
+        el.style.marginTop = `${current + CONTINUATION_TOP_GAP}px`;
+      }
+    });
+
+    // Let the reflow from the spacing above settle before pagination.
+    await new Promise((r) => setTimeout(r, 100));
 
     const pdf = await page.pdf({
       format: "A4",

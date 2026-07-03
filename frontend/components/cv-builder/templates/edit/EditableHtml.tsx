@@ -33,7 +33,12 @@ export function EditableHtml({ html, onCommit, style, className, placeholder }: 
     return <HtmlContent html={html} style={style} className={className} />;
   }
 
-  const sanitized = isEmptyHtml(html) ? "" : DOMPurify.sanitize(html);
+  // See HtmlContent for why DOMPurify is skipped (tags stripped instead) during SSR.
+  const sanitized = isEmptyHtml(html)
+    ? ""
+    : typeof window === "undefined"
+      ? html.replace(/<[^>]*>/g, "")
+      : DOMPurify.sanitize(html);
 
   return (
     <div

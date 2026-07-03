@@ -117,7 +117,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#374151", textAlign: "justify", marginBottom: 4, fontFamily: fontCSS }} />
           </div>
         );
@@ -126,7 +126,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(8 * sp) }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
@@ -158,7 +158,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(6 * sp) }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -185,7 +185,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(6 * sp) }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -212,7 +212,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS }}>
                 <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b style={{ color: "#1e3a5f" }}><EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} /></b></a> : <b style={{ color: "#1e3a5f" }}><EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} /></b>}{c.issuer ? <> — <EditableText value={c.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
@@ -226,7 +226,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -245,7 +245,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontFamily: fontCSS }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12 }}>
@@ -264,7 +264,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS }} className="cv-entry">
                 <span>
@@ -284,7 +284,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Organizations & Volunteering" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Organizations & Volunteering" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS }} className="cv-entry">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -307,7 +307,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px" }}>
               {entries.map((r: any, i: number) => (
                 <div key={i} style={{ fontSize: 12, marginBottom: 4, fontFamily: fontCSS }} className="cv-entry">
@@ -334,6 +334,91 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
   const sidePad = Math.round(30 * sp);
   const mainPad = Math.round(30 * sp);
+
+  const skillsContent = skillsSection && skillEntries.length > 0 ? (
+    <>
+      <div style={{ ...sideHeading, marginTop: skillsLayout.marginBottom ?? sideHeading.marginTop }}>
+        <EditableText value={skillsSection?.data?._title || "Technical Skills"} onCommit={(v) => skillsSection && onFieldChange(skillsSection, { ...skillsSection.data, _title: v })} placeholder="Technical Skills" />
+      </div>
+      <div style={{ fontSize: 11, lineHeight: skillsLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
+        {skillEntries.map((s: any, i: number) => (
+          <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#e2e8f0" }}><EditableText value={s.skill_name} onCommit={(v) => setSkillEntry(i, "skill_name", v)} /></span>
+              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.level}</span>
+            </div>
+            {s.subskills && s.subskills !== "<p></p>" && (
+              <HtmlContent html={s.subskills} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontFamily: fontCSS }} />
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  ) : null;
+
+  const softSkillsContent = softSkillsSection && softSkillEntries.length > 0 ? (
+    <>
+      <div style={{ ...sideHeading, marginTop: softSkillsLayout.marginBottom ?? sideHeading.marginTop }}>
+        <EditableText value={softSkillsSection?.data?._title || "Soft Skills"} onCommit={(v) => softSkillsSection && onFieldChange(softSkillsSection, { ...softSkillsSection.data, _title: v })} placeholder="Soft Skills" />
+      </div>
+      <div style={{ fontSize: 11, lineHeight: softSkillsLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
+        {softSkillEntries.map((s: any, i: number) => (
+          <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#e2e8f0" }}><EditableText value={s.skill_name} onCommit={(v) => setSoftSkillEntry(i, "skill_name", v)} /></span>
+              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.level}</span>
+            </div>
+            {s.subskills && s.subskills !== "<p></p>" && (
+              <HtmlContent html={s.subskills} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontFamily: fontCSS }} />
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  ) : null;
+
+  const langContent = langSection && langEntries.length > 0 ? (
+    <>
+      <div style={{ ...sideHeading, marginTop: langLayout.marginBottom ?? sideHeading.marginTop }}>
+        <EditableText value={langSection?.data?._title || "Languages"} onCommit={(v) => langSection && onFieldChange(langSection, { ...langSection.data, _title: v })} placeholder="Languages" />
+      </div>
+      <div style={{ fontSize: 11, lineHeight: langLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
+        {langEntries.map((l: any, i: number) => (
+          <div key={i}>
+            <span style={{ color: "#e2e8f0", fontWeight: "bold" }}><EditableText value={l.language} onCommit={(v) => setLangEntry(i, "language", v)} /></span>
+            {l.level && <span style={{ color: "rgba(255,255,255,0.6)" }}> — <EditableText value={l.level} onCommit={(v) => setLangEntry(i, "level", v)} /></span>}
+          </div>
+        ))}
+      </div>
+    </>
+  ) : null;
+
+  const interestsContent = interestsSection && interestEntries.length > 0 ? (
+    <>
+      <div style={{ ...sideHeading, marginTop: interestsLayout.marginBottom ?? sideHeading.marginTop }}>
+        <EditableText value={interestsSection?.data?._title || "Interests"} onCommit={(v) => interestsSection && onFieldChange(interestsSection, { ...interestsSection.data, _title: v })} placeholder="Interests" />
+      </div>
+      <div style={{ fontSize: 11, color: "#cbd5e1", lineHeight: interestsLayout.lineHeight ?? 1.7, fontFamily: fontCSS }}>
+        {interestEntries.map((item: any, i: number) => (
+          <div key={i}><EditableText value={item.title} onCommit={(v) => setInterestEntry(i, "title", v)} /></div>
+        ))}
+      </div>
+    </>
+  ) : null;
+
+  const declarationContent = declarationSection && declaration.text && declaration.text !== "<p></p>" ? (
+    <>
+      <div style={{ ...sideHeading, marginTop: declarationLayout.marginBottom ?? sideHeading.marginTop }}>
+        <EditableText value={declarationSection?.data?._title || "Declaration"} onCommit={(v) => declarationSection && onFieldChange(declarationSection, { ...declarationSection.data, _title: v })} placeholder="Declaration" />
+      </div>
+      <EditableHtml html={declaration.text} onCommit={(v) => setDeclaration("text", v)} style={{ fontSize: 10, color: "#94a3b8", lineHeight: declarationLayout.lineHeight ?? 1.6, fontFamily: fontCSS }} />
+      {declaration.signature && (
+        <div style={{ marginTop: 6, fontFamily: "'Dancing Script', cursive", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+          <EditableText value={declaration.signature} onCommit={(v) => setDeclaration("signature", v)} />
+        </div>
+      )}
+    </>
+  ) : null;
 
   return (
     <div className="modern-outer" style={{ display: "flex", fontFamily: fontCSS, fontSize: 12, minHeight: "297mm", alignItems: "stretch" }}>
@@ -401,78 +486,33 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
           ))}
         </div>
 
-        {skillsSection && skillEntries.length > 0 && (
-          <SortableSection section={skillsSection} defaultMarginBottom={12} defaultLineHeight={1.8}>
-            <div style={{ ...sideHeading, marginTop: skillsLayout.marginBottom ?? sideHeading.marginTop }}>Technical Skills</div>
-            <div style={{ fontSize: 11, lineHeight: skillsLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
-              {skillEntries.map((s: any, i: number) => (
-                <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "#e2e8f0" }}><EditableText value={s.skill_name} onCommit={(v) => setSkillEntry(i, "skill_name", v)} /></span>
-                    <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.level}</span>
-                  </div>
-                  {s.subskills && s.subskills !== "<p></p>" && (
-                    <HtmlContent html={s.subskills} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontFamily: fontCSS }} />
-                  )}
-                </div>
-              ))}
-            </div>
+        {skillsContent && (
+          <SortableSection section={skillsSection!} defaultMarginBottom={12} defaultLineHeight={1.8}>
+            {skillsContent}
           </SortableSection>
         )}
 
-        {softSkillsSection && softSkillEntries.length > 0 && (
-          <SortableSection section={softSkillsSection} defaultMarginBottom={12} defaultLineHeight={1.8}>
-            <div style={{ ...sideHeading, marginTop: softSkillsLayout.marginBottom ?? sideHeading.marginTop }}>Soft Skills</div>
-            <div style={{ fontSize: 11, lineHeight: softSkillsLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
-              {softSkillEntries.map((s: any, i: number) => (
-                <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "#e2e8f0" }}><EditableText value={s.skill_name} onCommit={(v) => setSoftSkillEntry(i, "skill_name", v)} /></span>
-                    <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.level}</span>
-                  </div>
-                  {s.subskills && s.subskills !== "<p></p>" && (
-                    <HtmlContent html={s.subskills} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontFamily: fontCSS }} />
-                  )}
-                </div>
-              ))}
-            </div>
+        {softSkillsContent && (
+          <SortableSection section={softSkillsSection!} defaultMarginBottom={12} defaultLineHeight={1.8}>
+            {softSkillsContent}
           </SortableSection>
         )}
 
-        {langSection && langEntries.length > 0 && (
-          <SortableSection section={langSection} defaultMarginBottom={12} defaultLineHeight={1.8}>
-            <div style={{ ...sideHeading, marginTop: langLayout.marginBottom ?? sideHeading.marginTop }}>Languages</div>
-            <div style={{ fontSize: 11, lineHeight: langLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
-              {langEntries.map((l: any, i: number) => (
-                <div key={i}>
-                  <span style={{ color: "#e2e8f0", fontWeight: "bold" }}><EditableText value={l.language} onCommit={(v) => setLangEntry(i, "language", v)} /></span>
-                  {l.level && <span style={{ color: "rgba(255,255,255,0.6)" }}> — <EditableText value={l.level} onCommit={(v) => setLangEntry(i, "level", v)} /></span>}
-                </div>
-              ))}
-            </div>
+        {langContent && (
+          <SortableSection section={langSection!} defaultMarginBottom={12} defaultLineHeight={1.8}>
+            {langContent}
           </SortableSection>
         )}
 
-        {interestsSection && interestEntries.length > 0 && (
-          <SortableSection section={interestsSection} defaultMarginBottom={12} defaultLineHeight={1.7}>
-            <div style={{ ...sideHeading, marginTop: interestsLayout.marginBottom ?? sideHeading.marginTop }}>Interests</div>
-            <div style={{ fontSize: 11, color: "#cbd5e1", lineHeight: interestsLayout.lineHeight ?? 1.7, fontFamily: fontCSS }}>
-              {interestEntries.map((item: any, i: number) => (
-                <div key={i}><EditableText value={item.title} onCommit={(v) => setInterestEntry(i, "title", v)} /></div>
-              ))}
-            </div>
+        {interestsContent && (
+          <SortableSection section={interestsSection!} defaultMarginBottom={12} defaultLineHeight={1.7}>
+            {interestsContent}
           </SortableSection>
         )}
 
-        {declarationSection && declaration.text && declaration.text !== "<p></p>" && (
-          <SortableSection section={declarationSection} defaultMarginBottom={12} defaultLineHeight={1.6}>
-            <div style={{ ...sideHeading, marginTop: declarationLayout.marginBottom ?? sideHeading.marginTop }}>Declaration</div>
-            <EditableHtml html={declaration.text} onCommit={(v) => setDeclaration("text", v)} style={{ fontSize: 10, color: "#94a3b8", lineHeight: declarationLayout.lineHeight ?? 1.6, fontFamily: fontCSS }} />
-            {declaration.signature && (
-              <div style={{ marginTop: 6, fontFamily: "'Dancing Script', cursive", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-                <EditableText value={declaration.signature} onCommit={(v) => setDeclaration("signature", v)} />
-              </div>
-            )}
+        {declarationContent && (
+          <SortableSection section={declarationSection!} defaultMarginBottom={12} defaultLineHeight={1.6}>
+            {declarationContent}
           </SortableSection>
         )}
       </div>

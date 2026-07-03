@@ -115,7 +115,7 @@ function SortableSectionInner({ section, defaultMarginBottom, defaultLineHeight 
             label="Section spacing"
             value={String(marginBottom)}
             onDecrement={() => setLayout({ marginBottom: Math.max(0, marginBottom - 2) })}
-            onIncrement={() => setLayout({ marginBottom: Math.min(60, marginBottom + 2) })}
+            onIncrement={() => setLayout({ marginBottom: Math.min(120, marginBottom + 2) })}
           />
           <Stepper
             label="Line height"

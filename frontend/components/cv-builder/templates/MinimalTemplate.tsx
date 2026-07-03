@@ -113,7 +113,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS, textAlign: "justify", lineHeight: 1.6 }} />
           </div>
         );
@@ -122,7 +122,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
@@ -146,7 +146,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
@@ -175,7 +175,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         const finalCols = gridCols;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight, ...eb }}>
-            <SectionHeading title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(6 * sp)}px ${Math.round(16 * sp)}px` }}>
               {entries.map((s: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ ...eb }}>
@@ -191,7 +191,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", gap: "8px 32px", flexWrap: "wrap", fontFamily: fontCSS }}>
               {entries.map((l: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -207,7 +207,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
@@ -227,7 +227,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, marginBottom: 4, fontFamily: fontCSS, color: "#111827", ...eb }}>
                 <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} /></a> : <EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} />}{c.issuer ? <> — <EditableText value={c.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
@@ -241,7 +241,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 6, fontFamily: fontCSS, ...eb }}>
                 <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></span>
@@ -257,7 +257,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 4, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontFamily: fontCSS, color: "#111827" }}>
@@ -274,7 +274,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 5, fontFamily: fontCSS, ...eb }}>
                 <span style={{ fontSize: 12, color: "#111827" }}><b><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b></span>
@@ -290,7 +290,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Organizations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Organizations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 6, fontFamily: fontCSS, ...eb }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -308,7 +308,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS }}>
               {entries.map((item: any, i: number) => (
                 <React.Fragment key={i}>
@@ -324,7 +324,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!entries.length) return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: `6px ${Math.round(24 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((r: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ fontSize: 12, color: "#111827", ...eb }}>
@@ -348,7 +348,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         if (!d.text || d.text === "<p></p>") return null;
         return (
           <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
-            <SectionHeading title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+            <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
             {d.signature && (
               <div style={{ fontSize: 22, fontFamily: "'Dancing Script', cursive", color: "#111827", marginTop: 12, borderBottom: "1px solid #d1d5db", paddingBottom: 4, display: "inline-block" }}><EditableText value={d.signature} onCommit={(v) => setField("signature", v)} /></div>

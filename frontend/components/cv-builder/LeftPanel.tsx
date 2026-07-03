@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   GripVertical, Eye, EyeOff, ChevronLeft, Plus, Trash2, Check,
-  FileText, Layers, Palette,
+  FileText, Layers, Palette, Undo2, Redo2,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -30,6 +30,8 @@ const TEMPLATE_OPTIONS: { id: TemplateId; label: string }[] = [
   { id: "creative", label: "Timeline" },
   { id: "academic", label: "Inline" },
   { id: "gcc", label: "GCC" },
+  { id: "portrait", label: "Portrait" },
+  { id: "milestone", label: "Milestone" },
 ];
 
 interface Props {
@@ -47,6 +49,10 @@ interface Props {
   onUpdateCV: (updates: { title?: string; template_id?: TemplateId }) => void;
   onSectionDataChange: (section: CVSection, data: Record<string, any>) => void;
   onCustomizationChange: (c: CVCustomization) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   /** When true, renders without fixed width (for mobile sheet embedding) */
   mobile?: boolean;
   /** Controlled tab — when provided overrides local state */
@@ -55,6 +61,38 @@ interface Props {
   /** Controlled mode — when provided overrides local state */
   controlledMode?: "list" | "form";
   onControlledModeChange?: (mode: "list" | "form") => void;
+}
+
+function UndoRedoButtons({
+  onUndo, onRedo, canUndo, canRedo,
+}: {
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1 flex-shrink-0">
+      <button
+        type="button"
+        onClick={onUndo}
+        disabled={!canUndo}
+        title="Undo"
+        className="p-1.5 rounded text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[#8b949e] disabled:cursor-not-allowed"
+      >
+        <Undo2 className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onRedo}
+        disabled={!canRedo}
+        title="Redo"
+        className="p-1.5 rounded text-[#8b949e] hover:text-white hover:bg-[#21262d] transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[#8b949e] disabled:cursor-not-allowed"
+      >
+        <Redo2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
 }
 
 function SortableSectionItem({
@@ -128,6 +166,7 @@ export function LeftPanel({
   cv, sections, activeSection, saveStatus, customization, isPro,
   onSelectSection, onToggleVisibility, onReorder, onAddSection,
   onDeleteSection, onUpdateCV, onSectionDataChange, onCustomizationChange, mobile,
+  onUndo, onRedo, canUndo, canRedo,
   controlledTab, onControlledTabChange, controlledMode, onControlledModeChange,
 }: Props) {
   const [localMode, setLocalMode] = useState<"list" | "form">("list");
@@ -195,6 +234,7 @@ export function LeftPanel({
               {SECTION_LABELS[activeSection.section_type]}
             </span>
             {saveIndicator}
+            <UndoRedoButtons onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <SectionForm
@@ -245,6 +285,7 @@ export function LeftPanel({
                   {cv.title}
                 </span>
               )}
+              <UndoRedoButtons onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[#8b949e] text-[11px]">Click title to rename</span>
