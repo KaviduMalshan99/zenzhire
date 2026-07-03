@@ -62,6 +62,9 @@ export const coverLetterApi = {
   delete: (id: number) =>
     api.delete(`/cover-letter/${id}`),
 
+  duplicate: (id: number) =>
+    api.post<CoverLetter>(`/cover-letter/${id}/duplicate`),
+
   generate: (data: {
     cv_id?: number;
     job_title: string;

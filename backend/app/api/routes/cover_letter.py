@@ -137,6 +137,31 @@ def update_cover_letter(
     return cl
 
 
+@router.post("/{cl_id}/duplicate", response_model=CoverLetterRead, status_code=status.HTTP_201_CREATED)
+def duplicate_cover_letter(
+    cl_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    source = _get_cl_or_404(cl_id, current_user.id, db)
+    new_cl = CoverLetter(
+        user_id=current_user.id,
+        cv_id=source.cv_id,
+        title=f"{source.title} (Copy)",
+        template_id=source.template_id,
+        content=source.content,
+        job_title=source.job_title,
+        company=source.company,
+        job_description=source.job_description,
+        tone=source.tone,
+        customization=source.customization,
+    )
+    db.add(new_cl)
+    db.commit()
+    db.refresh(new_cl)
+    return new_cl
+
+
 @router.delete("/{cl_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_cover_letter(
     cl_id: int,
