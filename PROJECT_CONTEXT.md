@@ -1,6 +1,6 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-06-30. Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-03 (later same day). Working directory: `F:\zenzhire\zenzhire\`
 
 ---
 
@@ -13,7 +13,7 @@ ZenzHire is an **AI-powered career and talent intelligence platform**. The prima
 - Optimize the CV to pass Applicant Tracking Systems (ATS) with an **honest, trustworthy** scoring system
 - Get AI-generated feedback and improvement suggestions via Claude API
 
-**Phase 1 (built):** Full CV builder (8 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
+**Phase 1 (built):** Full CV builder (10 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
 
 **Phase 2 (next):** Stripe payments, Landing page, Admin panel, Production deployment.
 
@@ -118,7 +118,9 @@ F:\zenzhire\zenzhire\
 │   │   │       ├── TechTemplate.tsx      # "Bordered" in UI
 │   │   │       ├── CreativeTemplate.tsx  # "Timeline" in UI
 │   │   │       ├── AcademicTemplate.tsx  # "Inline" in UI
-│   │   │       └── GCCTemplate.tsx
+│   │   │       ├── GCCTemplate.tsx
+│   │   │       ├── PortraitTemplate.tsx  # "Portrait" in UI, photo-header + 2-col body
+│   │   │       └── MilestoneTemplate.tsx # NEW — "Milestone" in UI, timeline-marker experience + 2-col body
 │   │   └── ats-checker/
 │   │       ├── ScoreGauge.tsx
 │   │       ├── LayerCard.tsx
@@ -231,12 +233,14 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
   creative:  { accentColor: "#7c3aed", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "underline" },
   academic:  { accentColor: "#2563eb", fontFamily: "Georgia",  headerStyle: "centered",   headingStyle: "fullline" },
   gcc:       { accentColor: "#2563eb", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "fullline" },
+  portrait:  { accentColor: "#8a6fae", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "fullline" },
+  milestone: { accentColor: "#111827", fontFamily: "Roboto",   headerStyle: "left",       headingStyle: "fullline" },
 };
 ```
 
 ---
 
-## 6. The 8 CV Templates
+## 6. The 10 CV Templates
 
 | template_id | Component | UI Name | Free/Pro | Category |
 |---|---|---|---|---|
@@ -248,6 +252,10 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 | `creative` | CreativeTemplate.tsx | Timeline | PRO | Creative |
 | `executive` | ExecutiveTemplate.tsx | Executive | PRO | Professional |
 | `gcc` | GCCTemplate.tsx | GCC | PRO | Professional |
+| `portrait` | PortraitTemplate.tsx | Portrait | PRO | Professional |
+| `milestone` | MilestoneTemplate.tsx | Milestone | PRO | Professional |
+
+⚠️ Note: `creative` is already named "Timeline" in the UI (left accent line + date-column layout) — `milestone` is a *different* design (circular timeline markers/connector line specifically on the Experience section). Don't confuse the two when picking a name for a future template.
 
 ### Template Features:
 
@@ -266,6 +274,10 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 **Inline (Academic)** — Icon contacts row, photo right, clean divider header
 
 **GCC** — Header background uses `accentColor`, photo on RIGHT (no border), pill badges for nationality/DOB/gender/visa/marital/religion/NIC/license, separate light `#f0f4f8` contact row below header (no accent bar)
+
+**Portrait** — Square-framed photo top-left with a thin `accentColor` border, name to the right with the last word in `accentColor` (rest in near-black — derived by splitting `full_name` at the last space, not a separate stored field), full-width divider below the header, then a 2-column body: left column (~34% width, right-bordered) holds Contact/Education/Skills/Soft Skills/Certificates/Languages/Interests, right column holds Summary/Experience/Projects/Courses/Awards/Organizations/Publications/References/Declaration. Section placement into sidebar-vs-main is a hardcoded `SIDEBAR_TYPES` set in the component (same pattern as ModernTemplate), not user-configurable.
+
+**Milestone** — NEW (2026-07-03). No photo. Plain bold uppercase name + title header, full-width divider, then a full-width Career Summary, then a 2-column body (Contact/Education/Skills/Soft Skills/Certificates/Languages/Interests on the left ~34%; Experience/Projects/Courses/Awards/Organizations/Publications/Declaration on the right), then a full-width References grid at the very bottom (outside the 2-column area, always spans both columns). Experience entries render as a vertical timeline — each entry is a flex row with a small circle marker in a fixed-width left column and the connecting line between markers drawn as `position:absolute; top:20px; bottom:-entryGap` inside that column. The line's height comes from CSS flexbox `align-items:stretch` (default) making the marker column match the row's real content height — no JS measurement needed, and it survives PDF pagination the same way every other `.cv-entry` does (`page-break-inside:avoid`). Same hardcoded `SIDEBAR_TYPES` pattern as Portrait/Modern.
 
 ### Photo Options (all templates):
 - Shape: circle / rounded / square / hexagon (stored as `photo_shape` in personal_details data)
@@ -287,6 +299,20 @@ When cloning `SAMPLE_CV_DATA` (e.g. via `JSON.parse(JSON.stringify(...))`) for r
 cloned.forEach((section: any, i: number) => { section.id = i + 1; });
 ```
 Without this, templates can mis-render headers (e.g. show a section title like "TECHNICAL SKILLS" instead of the person's name) due to id collisions/lookup issues. Always verify the `personal_details` section is found by `section_type`, not array position, when debugging this class of bug.
+
+### ⚠️ `/cv-template-preview/[templateId]` requires `"use client"` (fixed 2026-07-03)
+This page renders CV template components directly with no data-fetching gate (`SAMPLE_CV_DATA` is imported statically, so the templates render synchronously on first paint — unlike `cv-builder` and `cv-print`, which gate template rendering behind a client-fetched `useState`/`useEffect` and so never actually render the templates during Next's server-render pass). This exposed two latent bugs when the page was accidentally a Server Component:
+1. **`useCVEdit is not a function`** — every template calls `useCVEdit()` (a `useContext` hook, defined in `templates/edit/CVEditContext.tsx`). Hooks can't cross the RSC/client boundary as plain function exports — only components can. Fix: the page itself must have `"use client"` at the top (it didn't). `CentrePanel.tsx` and `cv-print/page.tsx` don't hit this because they already declare `"use client"`.
+2. **`DOMPurify.sanitize is not a function`** — once (1) was fixed, Next still server-renders the initial HTML of a `"use client"` page/component before hydration, and `dompurify` (the plain npm package, not `isomorphic-dompurify`) has no `sanitize` implementation without a browser `window`/`document`. `HtmlContent.tsx` and `EditableHtml.tsx` both call `DOMPurify.sanitize()` directly during render. Fix: both now guard with `typeof window === "undefined"` and **strip tags** (not pass raw HTML through — passing unsanitized HTML during SSR would be a stored-XSS window) as the SSR fallback; the real `DOMPurify.sanitize()` call still runs on every client-side render after hydration.
+
+**Any new page that renders a CV template outside the `CentrePanel`/`cv-print` gated-loading pattern must have `"use client"`, or it will hit both of the above.**
+
+### ⚠️ Adding a new CV template requires backend enum + migration too (learned adding Portrait, 2026-07-03)
+`template_id` isn't just a frontend `TemplateId` string union — the backend has its own `TemplateId(str, enum.Enum)` in `app/models/cv_document.py`, backed by a **native Postgres enum type** (`templateid`, created in `000_initial_schema.py`). Registering a new template only on the frontend (all the files listed above) lets the CV *builder UI* show the template, but selecting it calls `PUT /cv/{id}` with `template_id: "yourtemplate"`, which the backend rejects — surfaces in the UI as a generic "Failed to update CV" toast, not an obviously-backend error. Adding a new template requires **all** of:
+1. Frontend registration (6 files: `types/index.ts` ×2 places, `LeftPanel.tsx`, `CentrePanel.tsx`, `cv-print/[cvId]/page.tsx`, `cv-template-preview/[templateId]/page.tsx`, `(dashboard)/templates/page.tsx`)
+2. Add the value to `TemplateId` in `backend/app/models/cv_document.py`
+3. A new Alembic migration: `ALTER TYPE templateid ADD VALUE IF NOT EXISTS 'yourtemplate'` inside `op.get_context().autocommit_block()` (Postgres requires `ADD VALUE` to run outside a transaction block — see `003_add_soft_skills_section_type.py` or `004_add_portrait_template_id.py` for the exact pattern), then `alembic upgrade head`
+4. No backend restart needed if running with `--reload` — it picks up the model change automatically; confirm via `GET /openapi.json` and checking the `TemplateId` enum values
 
 ---
 
@@ -320,7 +346,7 @@ score_value: string,
 description
 ```
 
-Score displays below institution in all 8 templates as:
+Score displays below institution in all CV templates as:
 `GPA: 3.8 / 4.0` or `Z-Score: 1.2345`
 
 ---
@@ -356,7 +382,8 @@ CentrePanel "Download PDF" button
 → cv-print page fetches CV, renders template
 → Adds <div id="cv-ready-marker"> when ready
 → Puppeteer waits for #cv-ready-marker
-→ Injects CSS (print-color-adjust, .cv-section padding)
+→ Injects CSS (print-color-adjust, page-break-inside:avoid)
+→ page.evaluate() nudges continuation-page break elements down 40px (see below)
 → page.pdf() → streams as download
 ```
 
@@ -369,17 +396,23 @@ await page.evaluateHandle(() => document.fonts.ready);
 await page.addStyleTag({ content: `
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   html, body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
-  .cv-section { padding-top: 8px !important; }
-  .cv-entry   { padding-top: 4px !important; }
+  .cv-section, .cv-entry { page-break-inside: avoid !important; break-inside: avoid !important; }
 ` });
 
-// Template-specific margins:
-// tech (Bordered): { top:"0", right:"0", bottom:"0", left:"0" }
-// gcc, minimal (Colorful): { top:"0", right:"0", bottom:"8mm", left:"0" }
-// modern: { top:"0", right:"8mm", bottom:"0", left:"0" }
-// creative (Timeline): { top:"8mm", right:"8mm", bottom:"8mm", left:"0" }
-// all others: { top:"8mm", right:"8mm", bottom:"8mm", left:"8mm" }
+// margin: { top:"0", right:"0", bottom:"0", left:"0" } for ALL templates —
+// every template bakes its own visual inset into its own root padding
+// (matching the zero-padding page card in the on-screen preview); adding a
+// page-level Puppeteer margin on top of that double-counts the inset and
+// shrinks the PDF's usable content area vs. the preview's, so page breaks
+// land in different places than what the user saw while editing.
 ```
+
+### ⚠️ PDF section-gap / page-2-margin history (fixed 2026-07-03 — don't reintroduce either bug)
+There used to be a blanket `.cv-section { padding-top: 8px !important }` / `.cv-entry { padding-top: 4px !important }` injected only for the PDF (not the on-screen preview), meant to give continuation pages some breathing room at the top so content didn't sit flush against template borders (e.g. Bordered/Tech's 8px frame). Two bugs this caused, both now fixed:
+1. **It applied to every section/entry on every page, not just the first one on a new page** — so PDF gaps were silently 8px/4px larger than what `SortableSection`'s "Section spacing" stepper showed in the on-screen preview (which never applies this), for every section, cumulatively. Fixed by removing the hack entirely; `page-break-inside:avoid` alone is sufficient for the "don't split a section" correctness requirement — it doesn't add any visual gap.
+2. **Removing it above then left continuation pages (2+) with *zero* top margin** — the on-screen preview (`CentrePanel.tsx`) actually does give page 2+ a real 40px gap, but only as a display-only clip/offset trick (`top: i === 0 ? 0 : 40 - pageStartY[i]`, plus a white mask) that doesn't exist in the PDF's single continuous document flow. Fixed by porting `CentrePanel`'s `calcPageLayout` chunk/break-point algorithm into a `page.evaluate()` call that runs right before `page.pdf()`: it finds the actual DOM element that will start each new printed page and adds a real `margin-top: 40px` to it (page 1 is never a break element, so it's untouched — no double-inset). This means the gap exists in the real flowed document, not just a visual trick, so Chrome's own pagination naturally leaves room for it.
+
+If you touch `generate-pdf/route.ts` again: do not reach for a blanket per-section/per-entry padding as a quick fix for "page 2 looks cramped" — it silently breaks WYSIWYG for every other section on every page. The correct lever is the page-break-point-targeted `margin-top` nudge described above.
 
 ### cv-print page (/cv-print/[cvId]/page.tsx):
 - Renders template based on template_id
@@ -460,7 +493,7 @@ POST /api/generate-cl-pdf { content, templateId, customization, jobTitle, compan
 
 ### Free/Pro split:
 - FREE: Classic (Simple), Inline (Simple), Colorful (Creative)
-- PRO: Modern, Bordered, Timeline, Executive, GCC
+- PRO: Modern, Bordered, Timeline, Executive, GCC, Portrait, Milestone
 
 ### Template card features:
 - iframe preview using `/cv-template-preview/[templateId]`

@@ -1,8 +1,13 @@
 import React from "react";
-import type { CVSection, CVCustomization } from "@/types";
+import type { CVSection, CVCustomization, SectionLayout } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
 import { SkillEntry } from "./SkillEntry";
+import { EditableText } from "./edit/EditableText";
+import { EditableHtml } from "./edit/EditableHtml";
+import { SortableSection } from "./edit/SortableSection";
+import { useCVEdit } from "./edit/CVEditContext";
+import { makeFieldSetter, makeEntrySetter } from "./edit/sectionHelpers";
 
 interface Props {
   sections: CVSection[];
@@ -48,6 +53,7 @@ const SECTION_ICONS: Record<string, string> = {
   experience: "◈",
   education: "✦",
   skills: "◉",
+  soft_skills: "♥",
   languages: "◎",
   projects: "◆",
   certificates: "★",
@@ -60,15 +66,22 @@ const SECTION_ICONS: Record<string, string> = {
   declaration: "◻",
 };
 
-interface SHProps { title: string; stype: string; accent: string; font: string; sp: number }
-function SH({ title, stype, accent, font, sp }: SHProps) {
+interface SHProps { title: string; stype: string; section?: CVSection; accent: string; font: string; sp: number }
+function SH({ title, stype, section, accent, font, sp }: SHProps) {
+  const { onFieldChange } = useCVEdit();
   const icon = SECTION_ICONS[stype] || "•";
+  const displayTitle = section?.data?._title || title;
+  const titleNode = section ? (
+    <EditableText value={displayTitle} onCommit={(v) => onFieldChange(section, { ...section.data, _title: v })} placeholder={title} />
+  ) : (
+    displayTitle
+  );
   return (
     <div className="cv-section-header" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: Math.round(20 * sp), marginBottom: 14 }}>
       <div style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 12px", backgroundColor: accent + "15", borderRadius: 20, border: `1px solid ${accent}40` }}>
         <span style={{ color: accent, fontSize: 12 }}>{icon}</span>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: accent, fontFamily: font }}>{title}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: accent, fontFamily: font }}>{titleNode}</span>
       </div>
       <div style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
     </div>
@@ -88,57 +101,68 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
   const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
   const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
+  const { onFieldChange } = useCVEdit();
 
   const personal = get(sections, "personal_details");
+  const personalSection = sections.find((s) => s.section_type === "personal_details");
+  const setPersonal = personalSection ? makeFieldSetter(personalSection, onFieldChange) : () => {};
   const links: any[] = personal.links ?? [];
   const showDetails = (r: any) => r.privacy ? r.privacy === "show" : r.show_on_cv !== false;
   const hasPhoto = !!(personal.photo_base64 || personal.photo_url);
 
-  const contactItems: { type: string; text: string }[] = [];
-  if (personal.email) contactItems.push({ type: "email", text: personal.email });
-  if (personal.phone) contactItems.push({ type: "phone", text: personal.phone });
-  if (personal.location) contactItems.push({ type: "location", text: personal.location });
-  if (personal.nationality) contactItems.push({ type: "nationality", text: personal.nationality });
-  links.filter((l: any) => l.url).forEach((l: any) => {
+  const contactItems: { type: string; text: string; onCommit: (v: string) => void }[] = [];
+  if (personal.email) contactItems.push({ type: "email", text: personal.email, onCommit: (v) => setPersonal("email", v) });
+  if (personal.phone) contactItems.push({ type: "phone", text: personal.phone, onCommit: (v) => setPersonal("phone", v) });
+  if (personal.location) contactItems.push({ type: "location", text: personal.location, onCommit: (v) => setPersonal("location", v) });
+  if (personal.nationality) contactItems.push({ type: "nationality", text: personal.nationality, onCommit: (v) => setPersonal("nationality", v) });
+  links.forEach((l: any, i: number) => {
+    if (!l.url) return;
     const lp = (l.platform ?? "").toLowerCase();
     const type = lp.includes("linkedin") ? "linkedin" : lp.includes("github") ? "github" : "website";
-    contactItems.push({ type, text: l.url });
+    contactItems.push({
+      type,
+      text: l.url,
+      onCommit: (v) => setPersonal("links", links.map((x: any, xi: number) => (xi === i ? { ...x, url: v } : x))),
+    });
   });
 
-  const sh = (title: string, stype: string) => (
-    <SH title={title} stype={stype} accent={accentColor} font={fontCSS} sp={sp} />
+  const sh = (title: string, stype: string, section?: CVSection) => (
+    <SH title={title} stype={stype} section={section} accent={accentColor} font={fontCSS} sp={sp} />
   );
 
   const renderSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
+    const layout: SectionLayout = d._layout ?? {};
+    const setField = makeFieldSetter(section, onFieldChange);
+    const setEntry = makeEntrySetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section">
-            {sh("Profile", "profile_summary")}
-            <HtmlContent html={d.summary} style={{ fontSize: 11, color: "#374151", fontFamily: fontCSS, lineHeight: 1.65 }} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Profile", "profile_summary", section)}
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 11, color: "#374151", fontFamily: fontCSS, lineHeight: 1.65 }} />
           </div>
         );
 
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Experience", "experience")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Experience", "experience", section)}
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 16, marginBottom: Math.round(14 * sp), ...eb }}>
                 <div style={{ width: 110, flexShrink: 0, fontSize: 10, color: "#6b7280", fontFamily: fontCSS, lineHeight: 1.5 }}>
-                  <div>{e.start_date}{e.start_date && (e.end_date || e.current) ? " – " : ""}{e.current ? "Present" : e.end_date}</div>
+                  <div><EditableText value={e.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{e.start_date && (e.end_date || e.current) ? " – " : ""}{e.current ? "Present" : <EditableText value={e.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</div>
                   {e.location && <div style={{ color: "#9ca3af", marginTop: 2 }}>{e.location}</div>}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>{e.job_title}</div>
-                  {e.employer && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.employer}</a> : e.employer}</div>}
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}><EditableText value={e.job_title} onCommit={(v) => setEntry(i, "job_title", v)} /></div>
+                  {e.employer && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} /></a> : <EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} />}</div>}
                   {e.description && e.description !== "<p></p>" ? (
-                    <HtmlContent html={e.description} style={{ fontSize: 11, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
+                    <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
                   ) : e.bullets?.length > 0 ? (
                     <ul style={{ margin: "4px 0 0 14px", padding: 0 }}>
                       {e.bullets.map((b: any, j: number) => b.text && (
@@ -155,24 +179,24 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Education", "education")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Education", "education", section)}
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 16, marginBottom: Math.round(12 * sp), ...eb }}>
                 <div style={{ width: 110, flexShrink: 0, fontSize: 10, color: "#6b7280", fontFamily: fontCSS, lineHeight: 1.5 }}>
-                  <div>{e.start_date}{e.start_date && e.end_date ? " – " : ""}{e.end_date}</div>
+                  <div><EditableText value={e.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{e.start_date && e.end_date ? " – " : ""}<EditableText value={e.end_date} onCommit={(v) => setEntry(i, "end_date", v)} /></div>
                   {e.location && <div style={{ color: "#9ca3af", marginTop: 2 }}>{e.location}</div>}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>{e.degree}</div>
-                  {e.institution && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.institution_link ? <a href={e.institution_link.startsWith("http") ? e.institution_link : `https://${e.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{e.institution}</a> : e.institution}</div>}
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}><EditableText value={e.degree} onCommit={(v) => setEntry(i, "degree", v)} /></div>
+                  {e.institution && <div style={{ fontSize: 11, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{e.institution_link ? <a href={e.institution_link.startsWith("http") ? e.institution_link : `https://${e.institution_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={e.institution} onCommit={(v) => setEntry(i, "institution", v)} /></a> : <EditableText value={e.institution} onCommit={(v) => setEntry(i, "institution", v)} />}</div>}
                   {e.score_type && e.score_value && (
                     <div style={{ fontSize: 10, color: "#6b7280", fontFamily: fontCSS, marginTop: 1 }}>
-                      {e.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}>{e.score_value}</span>
+                      {e.score_type}:{" "}<span style={{ fontWeight: 600, color: "#374151" }}><EditableText value={e.score_value} onCommit={(v) => setEntry(i, "score_value", v)} /></span>
                     </div>
                   )}
                   {e.description && e.description !== "<p></p>" && (
-                    <HtmlContent html={e.description} style={{ fontSize: 11, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
+                    <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
                   )}
                 </div>
               </div>
@@ -180,18 +204,19 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
           </div>
         );
 
-      case "skills": {
+      case "skills":
+      case "soft_skills": {
         if (!entries.length) return null;
         const cols = skillColumns ?? 2;
         const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";
         const finalCols = gridCols;
         return (
-          <div className="cv-section" style={{ ...eb }}>
-            {sh("Skills", "skills")}
+          <div className="cv-section" style={{ ...eb, marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {section.section_type === "skills" ? sh("Technical Skills", "skills", section) : sh("Soft Skills", "soft_skills", section)}
             <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(5 * sp)}px ${Math.round(16 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((s: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ ...eb }}>
-                  <SkillEntry skillName={s.skill_name} level={s.level} skillStyle={skillStyle ?? "classic"} accentColor={accentColor} fontFamily={fontCSS} />
+                  <SkillEntry skillName={s.skill_name} level={s.level} skillStyle={skillStyle ?? "classic"} accentColor={accentColor} fontFamily={fontCSS} onNameCommit={(v) => setEntry(i, "skill_name", v)} />
                 </div>
               ))}
             </div>
@@ -202,15 +227,15 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Languages", "languages")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Languages", "languages", section)}
             {entries.map((l: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: Math.round(8 * sp), ...eb }}>
-                <span style={{ width: 80, fontSize: 11, color: "#374151", fontWeight: 600, flexShrink: 0, fontFamily: fontCSS }}>{l.language}</span>
+                <span style={{ width: 80, fontSize: 11, color: "#374151", fontWeight: 600, flexShrink: 0, fontFamily: fontCSS }}><EditableText value={l.language} onCommit={(v) => setEntry(i, "language", v)} /></span>
                 <div style={{ flex: 1, height: 4, backgroundColor: "#e5e7eb", borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: 4, borderRadius: 2, backgroundColor: accentColor, width: levelToPercent(l.level ?? "") }} />
                 </div>
-                <span style={{ fontSize: 10, color: "#9ca3af", width: 70, textAlign: "right" as const, flexShrink: 0, fontFamily: fontCSS }}>{l.level}</span>
+                <span style={{ fontSize: 10, color: "#9ca3af", width: 70, textAlign: "right" as const, flexShrink: 0, fontFamily: fontCSS }}><EditableText value={l.level} onCommit={(v) => setEntry(i, "level", v)} /></span>
               </div>
             ))}
           </div>
@@ -219,15 +244,15 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Projects", "projects")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Projects", "projects", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: Math.round(12 * sp), ...eb }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", fontFamily: fontCSS }}>
-                  {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{p.title}</a> : p.title}{p.subtitle && <span style={{ fontWeight: 400, color: "#6b7280", fontSize: 11 }}> — {p.subtitle}</span>}
+                  {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}{p.subtitle && <span style={{ fontWeight: 400, color: "#6b7280", fontSize: 11 }}> — <EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></span>}
                 </div>
                 {p.description && p.description !== "<p></p>" && (
-                  <HtmlContent html={p.description} style={{ fontSize: 11, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
+                  <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
                 )}
                 {p.tech?.length > 0 && (
                   <div style={{ fontSize: 10, color: accentColor, fontFamily: fontCSS, marginTop: 4 }}>{p.tech.join(" · ")}</div>
@@ -240,13 +265,13 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Certifications", "certificates")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Certifications", "certificates", section)}
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
-                • {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.certificate_name}</b></a> : <b>{c.certificate_name}</b>}
-                {c.issuer && <span style={{ color: "#6b7280" }}> — {c.issuer}</span>}
-                {c.date && <span style={{ color: "#9ca3af" }}> ({c.no_expiry ? `${c.date}, no expiry` : c.date})</span>}
+                • {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b><EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} /></b></a> : <b><EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} /></b>}
+                {c.issuer && <span style={{ color: "#6b7280" }}> — <EditableText value={c.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></span>}
+                {c.date && <span style={{ color: "#9ca3af" }}> (<EditableText value={c.date} onCommit={(v) => setEntry(i, "date", v)} />{c.no_expiry ? ", no expiry" : ""})</span>}
               </div>
             ))}
           </div>
@@ -255,15 +280,15 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Awards", "awards")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Awards", "awards", section)}
             {entries.map((a: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
-                • <b>{a.award_name}</b>
-                {a.issuer && <span style={{ color: "#6b7280" }}> — {a.issuer}</span>}
-                {a.date && <span style={{ color: "#9ca3af" }}> ({a.date})</span>}
+                • <b><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>
+                {a.issuer && <span style={{ color: "#6b7280" }}> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></span>}
+                {a.date && <span style={{ color: "#9ca3af" }}> (<EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
                 {a.description && a.description !== "<p></p>" && (
-                  <HtmlContent html={a.description} style={{ fontSize: 10, color: "#6b7280", marginTop: 1, marginLeft: 10, fontFamily: fontCSS }} />
+                  <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 10, color: "#6b7280", marginTop: 1, marginLeft: 10, fontFamily: fontCSS }} />
                 )}
               </div>
             ))}
@@ -273,13 +298,13 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Courses & Training", "courses")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Courses & Training", "courses", section)}
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
-                • {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b>{c.title}</b></a> : <b>{c.title}</b>}
-                {c.institution && <span style={{ color: "#6b7280" }}> — {c.institution}</span>}
-                {(c.end_date || c.start_date) && <span style={{ color: "#9ca3af" }}> ({c.end_date || c.start_date})</span>}
+                • {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b></a> : <b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b>}
+                {c.institution && <span style={{ color: "#6b7280" }}> — <EditableText value={c.institution} onCommit={(v) => setEntry(i, "institution", v)} /></span>}
+                {(c.end_date || c.start_date) && <span style={{ color: "#9ca3af" }}> (<EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} />)</span>}
               </div>
             ))}
           </div>
@@ -288,15 +313,15 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Publications", "publications")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Publications", "publications", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
-                • <b>{p.title}</b>
-                {p.publisher && <span style={{ color: "#6b7280" }}> — {p.publisher}</span>}
-                {p.date && <span style={{ color: "#9ca3af" }}> ({p.date})</span>}
+                • <b><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>
+                {p.publisher && <span style={{ color: "#6b7280" }}> — <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}
+                {p.date && <span style={{ color: "#9ca3af" }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
                 {p.description && p.description !== "<p></p>" && (
-                  <HtmlContent html={p.description} style={{ fontSize: 10, color: "#6b7280", marginTop: 1, marginLeft: 10, fontFamily: fontCSS }} />
+                  <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 10, color: "#6b7280", marginTop: 1, marginLeft: 10, fontFamily: fontCSS }} />
                 )}
               </div>
             ))}
@@ -306,19 +331,19 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("Organizations", "organizations")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Organizations", "organizations", section)}
             {entries.map((o: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 6, fontFamily: fontCSS, ...eb }}>
-                • <b>{o.name}</b>
-                {o.position && <span style={{ color: "#6b7280" }}> — {o.position}</span>}
+                • <b><EditableText value={o.name} onCommit={(v) => setEntry(i, "name", v)} /></b>
+                {o.position && <span style={{ color: "#6b7280" }}> — <EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></span>}
                 {(o.start_date || o.end_date || o.current_flag) && (
                   <span style={{ color: "#9ca3af" }}>
-                    {" "}({o.start_date}{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : o.end_date})
+                    {" "}(<EditableText value={o.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />})
                   </span>
                 )}
                 {o.description && o.description !== "<p></p>" && (
-                  <HtmlContent html={o.description} style={{ fontSize: 10, color: "#6b7280", marginTop: 1, marginLeft: 10, fontFamily: fontCSS }} />
+                  <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 10, color: "#6b7280", marginTop: 1, marginLeft: 10, fontFamily: fontCSS }} />
                 )}
               </div>
             ))}
@@ -328,8 +353,8 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ ...eb }}>
-            {sh("Interests", "interests")}
+          <div className="cv-section" style={{ ...eb, marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Interests", "interests", section)}
             <div style={{ fontSize: 11, color: "#374151", fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join("  ·  ")}
             </div>
@@ -339,17 +364,17 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            {sh("References", "references")}
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("References", "references", section)}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: `6px ${Math.round(24 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((r: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ fontSize: 11, color: "#111827", ...eb }}>
-                  <div style={{ fontWeight: 700 }}>{r.name}</div>
+                  <div style={{ fontWeight: 700 }}><EditableText value={r.name} onCommit={(v) => setEntry(i, "name", v)} /></div>
                   {showDetails(r) ? (
                     <>
-                      {r.job_title && <div style={{ color: "#6b7280" }}>{r.job_title}{r.organization ? `, ${r.organization}` : ""}</div>}
-                      {r.email && <div style={{ color: accentColor, fontSize: 10 }}>{r.email}</div>}
-                      {r.phone && <div style={{ color: "#6b7280", fontSize: 10 }}>{r.phone}</div>}
+                      {r.job_title && <div style={{ color: "#6b7280" }}><EditableText value={r.job_title} onCommit={(v) => setEntry(i, "job_title", v)} />{r.organization ? <>, <EditableText value={r.organization} onCommit={(v) => setEntry(i, "organization", v)} /></> : ""}</div>}
+                      {r.email && <div style={{ color: accentColor, fontSize: 10 }}><EditableText value={r.email} onCommit={(v) => setEntry(i, "email", v)} /></div>}
+                      {r.phone && <div style={{ color: "#6b7280", fontSize: 10 }}><EditableText value={r.phone} onCommit={(v) => setEntry(i, "phone", v)} /></div>}
                     </>
                   ) : (
                     <div style={{ color: "#9ca3af", fontStyle: "italic" }}>Available on request</div>
@@ -363,18 +388,18 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section">
-            {sh("Declaration", "declaration")}
-            <HtmlContent html={d.text} style={{ fontSize: 11, color: "#374151", fontStyle: "italic", marginBottom: 8, fontFamily: fontCSS }} />
+          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+            {sh("Declaration", "declaration", section)}
+            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 11, color: "#374151", fontStyle: "italic", marginBottom: 8, fontFamily: fontCSS }} />
             {d.signature && (
               <div style={{ fontSize: 20, fontFamily: "'Dancing Script', cursive", color: "#111827", borderBottom: "1px solid #d1d5db", paddingBottom: 4, display: "inline-block", marginTop: 8 }}>
-                {d.signature}
+                <EditableText value={d.signature} onCommit={(v) => setField("signature", v)} />
               </div>
             )}
             <div style={{ display: "flex", gap: 24, marginTop: d.signature ? 8 : 0, fontSize: 10, color: "#6b7280", fontFamily: fontCSS }}>
-              {d.full_name && <span>Name: <b>{d.full_name}</b></span>}
-              {d.place && <span>Place: <b>{d.place}</b></span>}
-              {d.date && <span>Date: <b>{d.date}</b></span>}
+              {d.full_name && <span>Name: <b><EditableText value={d.full_name} onCommit={(v) => setField("full_name", v)} /></b></span>}
+              {d.place && <span>Place: <b><EditableText value={d.place} onCommit={(v) => setField("place", v)} /></b></span>}
+              {d.date && <span>Date: <b><EditableText value={d.date} onCommit={(v) => setField("date", v)} /></b></span>}
             </div>
           </div>
         );
@@ -400,12 +425,12 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: contactItems.length > 0 ? 8 : 0 }}>
               <span style={{ fontSize: 26, fontWeight: 700, color: "#111827", fontFamily: fontCSS, lineHeight: 1.2 }}>
-                {personal.full_name || "Your Name"}
+                <EditableText value={personal.full_name} onCommit={(v) => setPersonal("full_name", v)} placeholder="Your Name" />
               </span>
               {personal.title && (
                 <>
                   <span style={{ color: "#9ca3af", fontSize: 16, fontFamily: fontCSS }}> · </span>
-                  <span style={{ fontSize: 15, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}>{personal.title}</span>
+                  <span style={{ fontSize: 15, color: accentColor, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={personal.title} onCommit={(v) => setPersonal("title", v)} /></span>
                 </>
               )}
             </div>
@@ -413,7 +438,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
                 {contactItems.map((item, i) => (
                   <span key={i} style={{ fontSize: 10, color: "#6b7280", fontFamily: fontCSS }}>
-                    {getContactIcon(item.type, accentColor)}<a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{item.text}</a>
+                    {getContactIcon(item.type, accentColor)}<a href={item.type === "email" ? `mailto:${item.text}` : item.type === "phone" ? `tel:${item.text}` : item.text.startsWith("http") ? item.text : `https://${item.text}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={item.text} onCommit={item.onCommit} /></a>
                   </span>
                 ))}
               </div>
@@ -426,7 +451,9 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       <div>
         {sections.map((section) =>
           section.section_type !== "personal_details" ? (
-            <React.Fragment key={section.id}>{renderSection(section)}</React.Fragment>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(14 * sp)}>
+              {renderSection(section)}
+            </SortableSection>
           ) : null
         )}
       </div>

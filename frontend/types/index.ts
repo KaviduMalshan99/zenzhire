@@ -8,7 +8,7 @@ export interface CVCustomization {
   spacing: "compact" | "normal" | "spacious";
   headerStyle: "left" | "centered" | "twocolumn";
   headingStyle: "fullline" | "underline" | "boxed" | "plain" | "doubleline" | "leftbar" | "dotted" | "accentbadge" | "centerlines";
-  skillStyle?: "classic" | "progressbar" | "dotrating" | "percentage" | "starrating" | "nameonly";
+  skillStyle?: "classic" | "progressbar" | "dotrating" | "percentage" | "starrating" | "nameonly" | "chips";
   skillColumns?: 1 | 2 | 3;
 }
 
@@ -18,19 +18,21 @@ export const DEFAULT_CUSTOMIZATION: CVCustomization = {
   spacing: "normal",
   headerStyle: "centered",
   headingStyle: "fullline",
-  skillStyle: "classic",
+  skillStyle: "chips",
   skillColumns: 2,
 };
 
 export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomization>> = {
-  classic:   { accentColor: "#111827", fontFamily: "Arial",   headerStyle: "centered",   headingStyle: "fullline"  },
+  classic:   { accentColor: "#111827", fontFamily: "Arial",   headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
   modern:    { accentColor: "#2563eb", fontFamily: "Roboto",  headerStyle: "left",       headingStyle: "underline" },
-  minimal:   { accentColor: "#e11d48", fontFamily: "Lato",    headerStyle: "centered",   headingStyle: "fullline"  },
-  executive: { accentColor: "#111827", fontFamily: "Georgia", headerStyle: "twocolumn",  headingStyle: "fullline"  },
-  tech:      { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline"  },
-  creative:  { accentColor: "#7c3aed", fontFamily: "Lato",    headerStyle: "left",       headingStyle: "underline" },
-  academic:  { accentColor: "#2563eb", fontFamily: "Georgia", headerStyle: "centered",   headingStyle: "fullline"  },
-  gcc:       { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline"  },
+  minimal:   { accentColor: "#e11d48", fontFamily: "Lato",    headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
+  executive: { accentColor: "#111827", fontFamily: "Georgia", headerStyle: "twocolumn",  headingStyle: "fullline",  skillStyle: "chips" },
+  tech:      { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline",  skillStyle: "chips" },
+  creative:  { accentColor: "#7c3aed", fontFamily: "Lato",    headerStyle: "left",       headingStyle: "underline", skillStyle: "chips" },
+  academic:  { accentColor: "#2563eb", fontFamily: "Georgia", headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
+  gcc:       { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline",  skillStyle: "chips" },
+  portrait:  { accentColor: "#8a6fae", fontFamily: "Lato",    headerStyle: "left",       headingStyle: "fullline",  skillStyle: "classic" },
+  milestone: { accentColor: "#111827", fontFamily: "Roboto",  headerStyle: "left",       headingStyle: "fullline",  skillStyle: "nameonly" },
 };
 
 export const FONT_CSS_MAP: Record<string, string> = {
@@ -45,11 +47,11 @@ export const FONT_CSS_MAP: Record<string, string> = {
 
 export type TemplateId =
   | "classic" | "modern" | "minimal" | "executive"
-  | "tech" | "creative" | "academic" | "gcc";
+  | "tech" | "creative" | "academic" | "gcc" | "portrait" | "milestone";
 
 export type SectionType =
   | "personal_details" | "profile_summary" | "experience" | "education"
-  | "skills" | "languages" | "projects" | "courses" | "certificates"
+  | "skills" | "soft_skills" | "languages" | "projects" | "courses" | "certificates"
   | "awards" | "interests" | "publications" | "organizations"
   | "references" | "declaration";
 
@@ -58,7 +60,8 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   profile_summary: "Profile Summary",
   experience: "Experience",
   education: "Education",
-  skills: "Skills",
+  skills: "Technical Skills",
+  soft_skills: "Soft Skills",
   languages: "Languages",
   projects: "Projects",
   courses: "Courses",
@@ -74,7 +77,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
 export type SaveStatus = "idle" | "saving" | "saved";
 
 export const OPTIONAL_SECTIONS: SectionType[] = [
-  "profile_summary", "experience", "education", "skills", "languages",
+  "profile_summary", "experience", "education", "skills", "soft_skills", "languages",
   "projects", "courses", "certificates", "awards", "interests",
   "publications", "organizations", "references", "declaration",
 ];
@@ -83,6 +86,11 @@ export const REPEATABLE_SECTION_TYPES: SectionType[] = [
   "experience", "education", "projects", "courses",
   "certificates", "awards", "publications", "organizations",
 ];
+
+export interface SectionLayout {
+  marginBottom?: number;
+  lineHeight?: number;
+}
 
 export interface CVSection {
   id: number;

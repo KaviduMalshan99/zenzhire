@@ -1211,6 +1211,7 @@ const FORM_MAP: Record<string, React.ComponentType<FormProps>> = {
   experience: ExperienceForm,
   education: EducationForm,
   skills: SkillsForm,
+  soft_skills: SkillsForm,
   languages: LanguagesForm,
   projects: ProjectsForm,
   courses: CoursesForm,

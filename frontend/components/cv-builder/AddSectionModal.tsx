@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Check, User, FileText, Briefcase, GraduationCap, Zap, Globe, Rocket, BookOpen, Award, Trophy, Heart, Book, Users, UserCheck, ClipboardList } from "lucide-react";
+import { X, Check, User, FileText, Briefcase, GraduationCap, Zap, Globe, Rocket, BookOpen, Award, Trophy, Heart, Book, Users, UserCheck, ClipboardList, HeartHandshake } from "lucide-react";
 import type { SectionType } from "@/types";
 import { SECTION_LABELS } from "@/types";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,8 @@ const SECTION_META: Record<SectionType, SectionMeta> = {
   profile_summary:  { icon: FileText, description: "A short intro about yourself" },
   experience:       { icon: Briefcase, description: "Add multiple jobs and work history" },
   education:        { icon: GraduationCap, description: "Add degrees and qualifications" },
-  skills:           { icon: Zap, description: "Technical and soft skills with levels" },
+  skills:           { icon: Zap, description: "Programming languages, tools and technical skills" },
+  soft_skills:      { icon: HeartHandshake, description: "Communication, teamwork and other soft skills" },
   languages:        { icon: Globe, description: "Languages you speak" },
   projects:         { icon: Rocket, description: "Add personal or professional projects" },
   courses:          { icon: BookOpen, description: "Add training and online courses" },
@@ -37,7 +38,7 @@ const SECTION_META: Record<SectionType, SectionMeta> = {
 
 const ALL_SECTIONS: SectionType[] = [
   "personal_details", "profile_summary", "experience", "education",
-  "skills", "languages", "projects", "courses", "certificates",
+  "skills", "soft_skills", "languages", "projects", "courses", "certificates",
   "awards", "interests", "publications", "organizations", "references", "declaration",
 ];
 
