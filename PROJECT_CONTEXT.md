@@ -1,6 +1,6 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-03 (later same day). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-03 (session 3). Working directory: `c:\xampp\htdocs\zenzhire\`
 
 ---
 
@@ -13,7 +13,7 @@ ZenzHire is an **AI-powered career and talent intelligence platform**. The prima
 - Optimize the CV to pass Applicant Tracking Systems (ATS) with an **honest, trustworthy** scoring system
 - Get AI-generated feedback and improvement suggestions via Claude API
 
-**Phase 1 (built):** Full CV builder (10 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
+**Phase 1 (built):** Full CV builder (12 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
 
 **Phase 2 (next):** Stripe payments, Landing page, Admin panel, Production deployment.
 
@@ -120,7 +120,9 @@ F:\zenzhire\zenzhire\
 │   │   │       ├── AcademicTemplate.tsx  # "Inline" in UI
 │   │   │       ├── GCCTemplate.tsx
 │   │   │       ├── PortraitTemplate.tsx  # "Portrait" in UI, photo-header + 2-col body
-│   │   │       └── MilestoneTemplate.tsx # NEW — "Milestone" in UI, timeline-marker experience + 2-col body
+│   │   │       ├── MilestoneTemplate.tsx # "Milestone" in UI, timeline-marker experience + 2-col body
+│   │   │       ├── CorporateTemplate.tsx # "Halo" in UI, dot-accent header + mirrored 2-col body (FREE)
+│   │   │       └── VegaTemplate.tsx      # "Vega" in UI, colored header band + ■ square-marker headings + 2-col body (PRO)
 │   │   └── ats-checker/
 │   │       ├── ScoreGauge.tsx
 │   │       ├── LayerCard.tsx
@@ -234,19 +236,22 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
   academic:  { accentColor: "#2563eb", fontFamily: "Georgia",  headerStyle: "centered",   headingStyle: "fullline" },
   gcc:       { accentColor: "#2563eb", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "fullline" },
   portrait:  { accentColor: "#8a6fae", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "fullline" },
-  milestone: { accentColor: "#111827", fontFamily: "Roboto",   headerStyle: "left",       headingStyle: "fullline" },
+  milestone:  { accentColor: "#111827", fontFamily: "Roboto",   headerStyle: "left",       headingStyle: "fullline",  skillStyle: "nameonly" },
+  corporate:  { accentColor: "#111827", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
+  vega:       { accentColor: "#2c3e50", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
 };
 ```
 
 ---
 
-## 6. The 10 CV Templates
+## 6. The 12 CV Templates
 
 | template_id | Component | UI Name | Free/Pro | Category |
 |---|---|---|---|---|
 | `classic` | ClassicTemplate.tsx | Classic | **FREE** | Simple |
 | `academic` | AcademicTemplate.tsx | Inline | **FREE** | Simple |
 | `minimal` | MinimalTemplate.tsx | Colorful | **FREE** | Creative |
+| `corporate` | CorporateTemplate.tsx | Halo | **FREE** | Professional |
 | `modern` | ModernTemplate.tsx | Modern | PRO | Modern |
 | `tech` | TechTemplate.tsx | Bordered | PRO | Modern |
 | `creative` | CreativeTemplate.tsx | Timeline | PRO | Creative |
@@ -254,6 +259,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 | `gcc` | GCCTemplate.tsx | GCC | PRO | Professional |
 | `portrait` | PortraitTemplate.tsx | Portrait | PRO | Professional |
 | `milestone` | MilestoneTemplate.tsx | Milestone | PRO | Professional |
+| `vega` | VegaTemplate.tsx | Vega | PRO | Professional |
 
 ⚠️ Note: `creative` is already named "Timeline" in the UI (left accent line + date-column layout) — `milestone` is a *different* design (circular timeline markers/connector line specifically on the Experience section). Don't confuse the two when picking a name for a future template.
 
@@ -278,6 +284,10 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 **Portrait** — Square-framed photo top-left with a thin `accentColor` border, name to the right with the last word in `accentColor` (rest in near-black — derived by splitting `full_name` at the last space, not a separate stored field), full-width divider below the header, then a 2-column body: left column (~34% width, right-bordered) holds Contact/Education/Skills/Soft Skills/Certificates/Languages/Interests, right column holds Summary/Experience/Projects/Courses/Awards/Organizations/Publications/References/Declaration. Section placement into sidebar-vs-main is a hardcoded `SIDEBAR_TYPES` set in the component (same pattern as ModernTemplate), not user-configurable.
 
 **Milestone** — NEW (2026-07-03). No photo. Plain bold uppercase name + title header, full-width divider, then a full-width Career Summary, then a 2-column body (Contact/Education/Skills/Soft Skills/Certificates/Languages/Interests on the left ~34%; Experience/Projects/Courses/Awards/Organizations/Publications/Declaration on the right), then a full-width References grid at the very bottom (outside the 2-column area, always spans both columns). Experience entries render as a vertical timeline — each entry is a flex row with a small circle marker in a fixed-width left column and the connecting line between markers drawn as `position:absolute; top:20px; bottom:-entryGap` inside that column. The line's height comes from CSS flexbox `align-items:stretch` (default) making the marker column match the row's real content height — no JS measurement needed, and it survives PDF pagination the same way every other `.cv-entry` does (`page-break-inside:avoid`). Same hardcoded `SIDEBAR_TYPES` pattern as Portrait/Modern.
+
+**Halo (Corporate)** — NEW (2026-07-03). No photo (photo_shape/photo_size ignored). Left-aligned header: large bold name, muted job title below, then a contact row (SVG icons + phone/email/links inline), with a decorative scattered dot grid SVG in the top-right corner of the header. Thin full-width divider below header. 2-column body **MIRRORED** vs Portrait/Milestone — LEFT column (~65%) is main content (Summary, Work Experience, Projects, etc.); RIGHT column (~35%, `borderLeft` separator) is sidebar (Education, Skills, Languages, etc.). This is the opposite of Portrait/Milestone's sidebar-on-left layout. Section headings use a custom `CH` function local to CorporateTemplate.tsx (does NOT use SectionHeading.tsx — same exception pattern as TechTemplate), rendering `⊙ SECTION NAME` with accent-colored glyph, uppercase, letter-spaced. Skills and Languages in the sidebar always render as plain bullet lists (skill name only) regardless of the `skillStyle` customization — this is intentional and noted in a comment in the component. References render full-width at the bottom outside the 2-column area, as a 2-column card grid (same as Milestone). Alembic migration: `006_add_corporate_template_id.py`.
+
+**Vega** — NEW (2026-07-03). PRO. No photo. **Full-width accent-colored header band**: large bold uppercase name in white, job title below in `rgba(255,255,255,0.7)` letter-spaced, contact items stacked on the right with white SVG icons — all rendered on `backgroundColor: accentColor`. No separate divider line; the colored header provides natural visual separation. 2-column body same orientation as Halo — LEFT (~62%, main content: Summary, Work Experience, Projects, etc.), RIGHT (~38%, `borderLeft: 1.5px solid #e5e7eb` sidebar: Education, Skills, Languages, etc.). Section headings use a custom `SH` function local to VegaTemplate.tsx (does NOT use SectionHeading.tsx), rendering `■ SECTION NAME` with `2px solid accentColor` bottom border spanning the full heading width — the ■ square glyph is the defining visual motif. Work Experience entries also use `■` before the date range (consistent visual rhythm with headings), followed by employer | location, then bold job title, then bullets/description. Education in sidebar: year range in gray, institution in bold uppercase, degree as `● degree` with accent bullet, GPA below. Skills and Languages always render as plain `●` bullet lists (ignores `skillStyle`) — same rationale as Halo. References render full-width at the bottom outside the 2-column area, as a 2-column card grid. Alembic migration: `007_add_vega_template_id.py`.
 
 ### Photo Options (all templates):
 - Shape: circle / rounded / square / hexagon (stored as `photo_shape` in personal_details data)
@@ -311,7 +321,7 @@ This page renders CV template components directly with no data-fetching gate (`S
 `template_id` isn't just a frontend `TemplateId` string union — the backend has its own `TemplateId(str, enum.Enum)` in `app/models/cv_document.py`, backed by a **native Postgres enum type** (`templateid`, created in `000_initial_schema.py`). Registering a new template only on the frontend (all the files listed above) lets the CV *builder UI* show the template, but selecting it calls `PUT /cv/{id}` with `template_id: "yourtemplate"`, which the backend rejects — surfaces in the UI as a generic "Failed to update CV" toast, not an obviously-backend error. Adding a new template requires **all** of:
 1. Frontend registration (6 files: `types/index.ts` ×2 places, `LeftPanel.tsx`, `CentrePanel.tsx`, `cv-print/[cvId]/page.tsx`, `cv-template-preview/[templateId]/page.tsx`, `(dashboard)/templates/page.tsx`)
 2. Add the value to `TemplateId` in `backend/app/models/cv_document.py`
-3. A new Alembic migration: `ALTER TYPE templateid ADD VALUE IF NOT EXISTS 'yourtemplate'` inside `op.get_context().autocommit_block()` (Postgres requires `ADD VALUE` to run outside a transaction block — see `003_add_soft_skills_section_type.py` or `004_add_portrait_template_id.py` for the exact pattern), then `alembic upgrade head`
+3. A new Alembic migration: `ALTER TYPE templateid ADD VALUE IF NOT EXISTS 'yourtemplate'` inside `op.get_context().autocommit_block()` (Postgres requires `ADD VALUE` to run outside a transaction block — see `006_add_corporate_template_id.py` or `007_add_vega_template_id.py` for the exact pattern), then `alembic upgrade head`
 4. No backend restart needed if running with `--reload` — it picks up the model change automatically; confirm via `GET /openapi.json` and checking the `TemplateId` enum values
 
 ---
@@ -353,7 +363,7 @@ Score displays below institution in all CV templates as:
 
 ## 9. Section Heading Styles (SectionHeading.tsx)
 
-9 styles total (all except TechTemplate which uses its own SH function):
+9 styles total (all except TechTemplate, CorporateTemplate, and VegaTemplate which each own their own heading renderer function — `SH`, `CH`, and `SH` respectively — and do NOT use SectionHeading.tsx):
 
 | Value | Preview |
 |---|---|
@@ -492,8 +502,8 @@ POST /api/generate-cl-pdf { content, templateId, customization, jobTitle, compan
 - All / Simple / Modern / Creative / Professional
 
 ### Free/Pro split:
-- FREE: Classic (Simple), Inline (Simple), Colorful (Creative)
-- PRO: Modern, Bordered, Timeline, Executive, GCC, Portrait, Milestone
+- FREE: Classic (Simple), Inline (Simple), Colorful (Creative), Halo (Professional)
+- PRO: Modern, Bordered, Timeline, Executive, GCC, Portrait, Milestone, Vega
 
 ### Template card features:
 - iframe preview using `/cv-template-preview/[templateId]`

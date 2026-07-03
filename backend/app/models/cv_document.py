@@ -17,6 +17,8 @@ class TemplateId(str, enum.Enum):
     gcc = "gcc"
     portrait = "portrait"
     milestone = "milestone"
+    corporate = "corporate"
+    vega = "vega"
 
 
 class SectionType(str, enum.Enum):
