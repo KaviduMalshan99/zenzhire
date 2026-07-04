@@ -17,7 +17,6 @@ const TEMPLATES = [
     plan: "free",
     popular: true,
     description: "Clean and traditional. Perfect for corporate and professional roles.",
-    accentColor: "#111827",
   },
   {
     id: "academic",
@@ -26,7 +25,6 @@ const TEMPLATES = [
     plan: "free",
     popular: false,
     description: "Elegant inline layout with icon contacts. Great for any industry.",
-    accentColor: "#2563eb",
   },
   {
     id: "minimal",
@@ -35,7 +33,6 @@ const TEMPLATES = [
     plan: "free",
     popular: true,
     description: "Bold color banner header. Makes your CV stand out from the crowd.",
-    accentColor: "#e11d48",
   },
   {
     id: "modern",
@@ -44,7 +41,6 @@ const TEMPLATES = [
     plan: "pro",
     popular: true,
     description: "Two-column layout with colored sidebar. Contemporary and stylish.",
-    accentColor: "#2563eb",
   },
   {
     id: "tech",
@@ -53,7 +49,6 @@ const TEMPLATES = [
     plan: "pro",
     popular: false,
     description: "Elegant border frame design. Professional and distinctive.",
-    accentColor: "#2563eb",
   },
   {
     id: "creative",
@@ -62,7 +57,6 @@ const TEMPLATES = [
     plan: "pro",
     popular: false,
     description: "Left accent line with timeline layout. Perfect for creatives.",
-    accentColor: "#7c3aed",
   },
   {
     id: "executive",
@@ -71,7 +65,6 @@ const TEMPLATES = [
     plan: "pro",
     popular: false,
     description: "Sophisticated centered layout. Ideal for senior professionals.",
-    accentColor: "#111827",
   },
   {
     id: "gcc",
@@ -80,7 +73,6 @@ const TEMPLATES = [
     plan: "pro",
     popular: false,
     description: "Dark header design tailored for Gulf and Middle East applications.",
-    accentColor: "#2563eb",
   },
   {
     id: "portrait",
@@ -89,7 +81,6 @@ const TEMPLATES = [
     plan: "pro",
     popular: false,
     description: "Photo-forward header with a clean two-column body. Elegant and refined.",
-    accentColor: "#8a6fae",
   },
   {
     id: "milestone",
@@ -98,7 +89,6 @@ const TEMPLATES = [
     plan: "pro",
     popular: false,
     description: "Timeline-style experience with a clean sidebar. Structured and confident.",
-    accentColor: "#111827",
   },
   {
     id: "corporate",
@@ -107,7 +97,6 @@ const TEMPLATES = [
     plan: "free",
     popular: false,
     description: "Left-aligned header with dot accent, clean two-column body. Polished and modern.",
-    accentColor: "#111827",
   },
   {
     id: "vega",
@@ -116,11 +105,20 @@ const TEMPLATES = [
     plan: "pro",
     popular: false,
     description: "Square-marker headings with accent underline. Bold name header, two-column body. Sharp and confident.",
-    accentColor: "#2c3e50",
   },
 ] as const;
 
 type Template = typeof TEMPLATES[number];
+
+// Gallery-only live preview colors — purely client-side, never persisted or sent to the API.
+const PREVIEW_COLORS = [
+  { name: "Black", value: "#111827" },
+  { name: "Blue", value: "#2563eb" },
+  { name: "Green", value: "#16a34a" },
+  { name: "Purple", value: "#7c3aed" },
+  { name: "Orange", value: "#ea580c" },
+  { name: "Red", value: "#dc2626" },
+];
 
 const CATEGORIES = [
   { id: "all", label: "All Templates" },
@@ -209,6 +207,9 @@ function TemplateCard({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const isLocked = template.plan === "pro" && !isPro;
 
+  const defaultAccent = TEMPLATE_DEFAULT_CUSTOMIZATION[template.id]?.accentColor ?? DEFAULT_CUSTOMIZATION.accentColor;
+  const [previewColor, setPreviewColor] = useState(defaultAccent);
+
   return (
     <div
       className={cn(
@@ -250,7 +251,7 @@ function TemplateCard({
 
         <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "hidden" }}>
           <iframe
-            src={`/cv-template-preview/${template.id}`}
+            src={`/cv-template-preview/${template.id}?accentColor=${encodeURIComponent(previewColor)}`}
             style={{
               width: "794px",
               height: "1122px",
@@ -304,12 +305,39 @@ function TemplateCard({
           <h3 className="text-[#e6edf3] font-semibold text-sm">{template.name}</h3>
           <span
             className="text-[10px] font-medium capitalize"
-            style={{ color: template.accentColor === "#111827" ? "#6b7280" : template.accentColor }}
+            style={{ color: defaultAccent === "#111827" ? "#6b7280" : defaultAccent }}
           >
             {template.category}
           </span>
         </div>
         <p className="text-[#8b949e] text-[11px] leading-relaxed">{template.description}</p>
+
+        {/* Live preview color swatches — client-side only, does not affect the stored template default */}
+        <div
+          className="flex items-center gap-1.5 mt-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {PREVIEW_COLORS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              title={c.name}
+              aria-label={`Preview ${template.name} in ${c.name}`}
+              onClick={() => {
+                setPreviewColor(c.value);
+                setIframeLoaded(false);
+              }}
+              className="w-4 h-4 rounded-full transition-all"
+              style={{
+                backgroundColor: c.value,
+                boxShadow:
+                  previewColor === c.value
+                    ? "0 0 0 2px #161b22, 0 0 0 3.5px #e6edf3"
+                    : "0 0 0 1px rgba(255,255,255,0.15)",
+              }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

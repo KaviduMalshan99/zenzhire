@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
 import { SkillEntry } from "./SkillEntry";
@@ -133,7 +133,6 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
   const renderSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -141,7 +140,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Profile", "profile_summary", section)}
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 11, color: "#374151", fontFamily: fontCSS, lineHeight: 1.65 }} />
           </div>
@@ -150,7 +149,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Experience", "experience", section)}
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 16, marginBottom: Math.round(14 * sp), ...eb }}>
@@ -179,7 +178,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Education", "education", section)}
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 16, marginBottom: Math.round(12 * sp), ...eb }}>
@@ -211,7 +210,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
         const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";
         const finalCols = gridCols;
         return (
-          <div className="cv-section" style={{ ...eb, marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ ...eb }}>
             {section.section_type === "skills" ? sh("Technical Skills", "skills", section) : sh("Soft Skills", "soft_skills", section)}
             <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(5 * sp)}px ${Math.round(16 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((s: any, i: number) => (
@@ -227,7 +226,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Languages", "languages", section)}
             {entries.map((l: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: Math.round(8 * sp), ...eb }}>
@@ -244,7 +243,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Projects", "projects", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: Math.round(12 * sp), ...eb }}>
@@ -265,7 +264,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Certifications", "certificates", section)}
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
@@ -280,7 +279,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Awards", "awards", section)}
             {entries.map((a: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
@@ -298,7 +297,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Courses & Training", "courses", section)}
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
@@ -313,7 +312,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Publications", "publications", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 5, fontFamily: fontCSS, ...eb }}>
@@ -331,7 +330,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Organizations", "organizations", section)}
             {entries.map((o: any, i: number) => (
               <div key={i} className="cv-entry" style={{ fontSize: 11, marginBottom: 6, fontFamily: fontCSS, ...eb }}>
@@ -353,7 +352,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ ...eb, marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ ...eb }}>
             {sh("Interests", "interests", section)}
             <div style={{ fontSize: 11, color: "#374151", fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join("  ·  ")}
@@ -364,7 +363,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("References", "references", section)}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: `6px ${Math.round(24 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((r: any, i: number) => (
@@ -388,7 +387,7 @@ export function TechTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Declaration", "declaration", section)}
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 11, color: "#374151", fontStyle: "italic", marginBottom: 8, fontFamily: fontCSS }} />
             {d.signature && (

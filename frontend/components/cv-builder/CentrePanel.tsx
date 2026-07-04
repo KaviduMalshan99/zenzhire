@@ -9,6 +9,7 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { CVDocument, CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION } from "@/types";
+import { PAGE_HEIGHT_A4, extractPageChunks, computePageBreaks } from "@/lib/pagination";
 import { CVEditProvider } from "./templates/edit/CVEditContext";
 import { ClassicTemplate } from "./templates/ClassicTemplate";
 import { ModernTemplate } from "./templates/ModernTemplate";
@@ -36,7 +37,7 @@ interface Props {
 }
 
 const A4_W = 794;
-const A4_H = 1123;
+const A4_H = PAGE_HEIGHT_A4;
 const PAGE_GAP = 20;
 
 interface PageLayout {
@@ -46,50 +47,14 @@ interface PageLayout {
   sectionPage: Map<number, number>;
 }
 
-// Breaks at .cv-section boundaries by default, but for sections with multiple
-// stacked .cv-entry children (experience, education, projects, etc.) each
-// entry after the first is its own break candidate too — so a long section
-// can spill onto the next page without dragging along entries that already
-// fit, instead of leaving a big gap and pushing the whole section over.
-// Entries laid out side-by-side (skill/reference grids) are detected by
-// sharing a top with a sibling and kept as a single unbreakable chunk, since
-// splitting mid-row would cut a row in half.
+// Break-point decisions (which chunk starts a new page) are computed by the
+// shared computePageBreaks() in lib/pagination.ts — the same function
+// generate-pdf/route.ts uses for Classic's PDF export, so the preview and
+// the PDF can't independently disagree on where a page break belongs.
 function calcPageLayout(el: HTMLElement): PageLayout {
-  const sections = Array.from(el.querySelectorAll<HTMLElement>(".cv-section"));
+  const chunks = extractPageChunks(el);
+  const { starts } = computePageBreaks(chunks, A4_H);
   const baseTop = el.getBoundingClientRect().top;
-
-  let starts: number[] = [0];
-  if (sections.length) {
-    const chunks: { top: number; bottom: number }[] = [];
-
-    for (const sec of sections) {
-      const secRect = sec.getBoundingClientRect();
-      const entries = Array.from(sec.querySelectorAll<HTMLElement>(".cv-entry"));
-      const isGrid =
-        entries.length > 1 &&
-        Math.abs(entries[0].getBoundingClientRect().top - entries[1].getBoundingClientRect().top) < 4;
-
-      if (entries.length <= 1 || isGrid) {
-        chunks.push({ top: secRect.top - baseTop, bottom: secRect.bottom - baseTop });
-      } else {
-        // Heading stays with its first entry so it's never orphaned alone at a page bottom.
-        const firstRect = entries[0].getBoundingClientRect();
-        chunks.push({ top: secRect.top - baseTop, bottom: firstRect.bottom - baseTop });
-        for (let i = 1; i < entries.length; i++) {
-          const r = entries[i].getBoundingClientRect();
-          chunks.push({ top: r.top - baseTop, bottom: r.bottom - baseTop });
-        }
-      }
-    }
-
-    let pageBottom = A4_H;
-    for (const c of chunks) {
-      if (c.bottom > pageBottom && c.top > starts[starts.length - 1] + 20) {
-        starts.push(c.top);
-        pageBottom = c.top + A4_H;
-      }
-    }
-  }
 
   // Every SortableSection (main-column sections and, in Modern, sidebar
   // sections too) tags itself with data-section-id regardless of whether

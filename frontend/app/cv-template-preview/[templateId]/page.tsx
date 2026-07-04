@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { ClassicTemplate } from "@/components/cv-builder/templates/ClassicTemplate";
 import { ModernTemplate } from "@/components/cv-builder/templates/ModernTemplate";
 import { MinimalTemplate } from "@/components/cv-builder/templates/MinimalTemplate";
@@ -23,11 +24,14 @@ export default function TemplatePreviewPage({
   params: { templateId: string };
 }) {
   const { templateId } = params;
+  const searchParams = useSearchParams();
+  const accentColorOverride = searchParams.get("accentColor");
 
   const templateDefaults = TEMPLATE_DEFAULT_CUSTOMIZATION[templateId] ?? {};
   const customization: CVCustomization = {
     ...DEFAULT_CUSTOMIZATION,
     ...templateDefaults,
+    ...(accentColorOverride ? { accentColor: accentColorOverride } : {}),
     spacing: "normal",
     skillStyle: "classic",
     skillColumns: 2,

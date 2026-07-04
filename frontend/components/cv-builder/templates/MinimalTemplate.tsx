@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
 import { SectionHeading } from "../SectionHeading";
@@ -104,7 +104,6 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
   const renderSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -112,7 +111,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS, textAlign: "justify", lineHeight: 1.6 }} />
           </div>
@@ -121,7 +120,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
@@ -145,7 +144,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
@@ -174,7 +173,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";
         const finalCols = gridCols;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight, ...eb }}>
+          <div className="cv-section" style={{ marginBottom: mb, ...eb }}>
             <SectionHeading section={section} title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(6 * sp)}px ${Math.round(16 * sp)}px` }}>
               {entries.map((s: any, i: number) => (
@@ -190,7 +189,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", gap: "8px 32px", flexWrap: "wrap", fontFamily: fontCSS }}>
               {entries.map((l: any, i: number) => (
@@ -206,7 +205,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: entryMb, ...eb }}>
@@ -226,7 +225,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, marginBottom: 4, fontFamily: fontCSS, color: "#111827", ...eb }}>
@@ -240,7 +239,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 6, fontFamily: fontCSS, ...eb }}>
@@ -256,7 +255,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 4, ...eb }}>
@@ -273,7 +272,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 5, fontFamily: fontCSS, ...eb }}>
@@ -289,7 +288,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Organizations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} className="cv-entry" style={{ marginBottom: 6, fontFamily: fontCSS, ...eb }}>
@@ -307,7 +306,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS }}>
               {entries.map((item: any, i: number) => (
@@ -323,7 +322,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: `6px ${Math.round(24 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((r: any, i: number) => (
@@ -347,7 +346,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
             {d.signature && (

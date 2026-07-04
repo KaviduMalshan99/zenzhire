@@ -22,10 +22,21 @@ export const DEFAULT_CUSTOMIZATION: CVCustomization = {
   skillColumns: 2,
 };
 
+/**
+ * Always returns a fully-populated CVCustomization, regardless of whether
+ * `saved` (whatever the backend returned) is null, {}, or missing keys —
+ * the single place preview (cv-builder) and PDF export (cv-print) both
+ * resolve customization through, so they can't independently fall back to
+ * different per-field defaults for the same incomplete data.
+ */
+export function mergeCustomization(saved?: Partial<CVCustomization> | null): CVCustomization {
+  return { ...DEFAULT_CUSTOMIZATION, ...(saved ?? {}) };
+}
+
 export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomization>> = {
   classic:   { accentColor: "#111827", fontFamily: "Arial",   headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
   modern:    { accentColor: "#2563eb", fontFamily: "Roboto",  headerStyle: "left",       headingStyle: "underline" },
-  minimal:   { accentColor: "#e11d48", fontFamily: "Lato",    headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
+  minimal:   { accentColor: "#111827", fontFamily: "Lato",    headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
   executive: { accentColor: "#111827", fontFamily: "Georgia", headerStyle: "twocolumn",  headingStyle: "fullline",  skillStyle: "chips" },
   tech:      { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline",  skillStyle: "chips" },
   creative:  { accentColor: "#7c3aed", fontFamily: "Lato",    headerStyle: "left",       headingStyle: "underline", skillStyle: "chips" },

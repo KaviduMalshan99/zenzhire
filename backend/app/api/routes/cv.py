@@ -14,6 +14,29 @@ from app.services.ai_service import improve_cv_text
 
 router = APIRouter(prefix="/cv", tags=["cv"])
 
+# ── Default customization ──────────────────────────────────────────────────────
+# Mirrors frontend/types/index.ts's DEFAULT_CUSTOMIZATION exactly. Kept in sync
+# manually since the two live in separate apps/languages; the invariant this
+# protects (customization is always a complete object, never {} or partial) is
+# also enforced client-side via mergeCustomization() -- this is the second,
+# defense-in-depth layer so a partial payload from any future/other caller
+# can't silently reintroduce per-field default drift between preview and PDF.
+DEFAULT_CUSTOMIZATION: dict = {
+    "accentColor": "#111827",
+    "fontFamily": "Arial",
+    "spacing": "normal",
+    "headerStyle": "centered",
+    "headingStyle": "fullline",
+    "skillStyle": "chips",
+    "skillColumns": 2,
+}
+
+
+def _merge_customization(existing: dict | None, patch: dict | None = None) -> dict:
+    """Fills gaps with defaults, keeps existing saved values, applies patch on top."""
+    return {**DEFAULT_CUSTOMIZATION, **(existing or {}), **(patch or {})}
+
+
 # ── Default section data ───────────────────────────────────────────────────────
 
 _DEFAULT_DATA: dict[SectionType, dict] = {
@@ -106,7 +129,7 @@ def create_cv(
         user_id=current_user.id,
         title=payload.title,
         template_id=payload.template_id,
-        customization=payload.customization or {},
+        customization=_merge_customization(None, payload.customization),
         is_primary=False,
     )
     db.add(cv)
@@ -149,7 +172,7 @@ def update_cv(
     if payload.template_id is not None:
         cv.template_id = payload.template_id
     if payload.customization is not None:
-        cv.customization = payload.customization
+        cv.customization = _merge_customization(cv.customization, payload.customization)
     db.commit()
     db.refresh(cv)
     return cv

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Layers, Sparkles, X } from "lucide-react";
 import api from "@/lib/api";
 import type { CVDocument, CVSection, CVCustomization, SectionType, TemplateId, SaveStatus } from "@/types";
-import { DEFAULT_CUSTOMIZATION } from "@/types";
+import { DEFAULT_CUSTOMIZATION, mergeCustomization } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { LeftPanel } from "@/components/cv-builder/LeftPanel";
 import { CentrePanel } from "@/components/cv-builder/CentrePanel";
@@ -206,9 +206,7 @@ export default function CVEditorPage() {
       setCV(res.data);
       setSections(res.data.sections.sort((a, b) => a.display_order - b.display_order));
       setActiveSection((prev) => (prev ? res.data.sections.find((s) => s.id === prev.id) ?? null : null));
-      if (res.data.customization && Object.keys(res.data.customization).length > 0) {
-        setCustomizationState({ ...DEFAULT_CUSTOMIZATION, ...(res.data.customization as CVCustomization) });
-      }
+      setCustomizationState(mergeCustomization(res.data.customization as Partial<CVCustomization> | null));
     } catch {
       toast.error("Failed to restore that step");
     } finally {
@@ -241,9 +239,7 @@ export default function CVEditorPage() {
         setCV(res.data);
         setSections(res.data.sections.sort((a, b) => a.display_order - b.display_order));
         setActiveSection(res.data.sections[0] ?? null);
-        if (res.data.customization && Object.keys(res.data.customization).length > 0) {
-          setCustomizationState({ ...DEFAULT_CUSTOMIZATION, ...(res.data.customization as CVCustomization) });
-        }
+        setCustomizationState(mergeCustomization(res.data.customization as Partial<CVCustomization> | null));
       } catch {
         toast.error("Failed to load CV");
         router.push("/cv-builder");

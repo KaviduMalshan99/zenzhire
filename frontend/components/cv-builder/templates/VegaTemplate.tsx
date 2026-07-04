@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { EditableText } from "./edit/EditableText";
 import { EditableHtml } from "./edit/EditableHtml";
@@ -102,14 +102,13 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
   const renderSidebarSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setEntry = makeEntrySetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Education", section)}
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(12 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -143,7 +142,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "soft_skills":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh(section.section_type === "skills" ? "Skills" : "Soft Skills", section)}
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((s: any, i: number) => (
@@ -159,7 +158,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Certifications", section)}
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((c: any, i: number) => (
@@ -185,7 +184,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Languages", section)}
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((l: any, i: number) => (
@@ -206,7 +205,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Interests", section)}
             <div style={{ fontSize: 11.5, color: MID, fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join(" · ")}
@@ -222,7 +221,6 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
   const renderMainSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -230,7 +228,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Profile", section)}
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS }} />
           </div>
@@ -240,7 +238,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Work Experience", section)}
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(14 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -282,7 +280,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Projects", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(8 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -300,7 +298,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Courses & Training", section)}
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -317,7 +315,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Awards & Recognition", section)}
             {entries.map((a: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -334,7 +332,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Memberships & Associations", section)}
             {entries.map((o: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(5 * sp), fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -355,7 +353,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Publications", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -371,7 +369,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {sh("Declaration", section)}
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: MID, lineHeight: 1.8, marginBottom: 8, fontFamily: fontCSS }} />
             <div style={{ display: "flex", gap: 32, fontSize: 12, fontFamily: fontCSS }}>
@@ -391,11 +389,10 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
   // References render full-width at the bottom, outside the 2-column area — same pattern as MilestoneTemplate and CorporateTemplate.
   const renderReferences = (section: CVSection) => {
     const entries = section.data?.entries ?? [];
-    const layout: SectionLayout = section.data?._layout ?? {};
     const setEntry = makeEntrySetter(section, onFieldChange);
     if (!entries.length) return null;
     return (
-      <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+      <div className="cv-section">
         {sh("References", section)}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
           {entries.map((r: any, i: number) => (

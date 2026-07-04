@@ -1,6 +1,8 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-03 (session 3). Working directory: `c:\xampp\htdocs\zenzhire\`
+> Last updated: 2026-07-03 (session 4 — full template-registration audit). Working directory: `F:\zenzhire\zenzhire\`
+
+**Audit note (session 4):** Re-verified the CV template count against the actual codebase (there was a belief it had grown to ~16). It has **not** — it is still exactly **12**, and all 12 are fully and consistently registered across every required file (frontend `types/index.ts` ×2, `LeftPanel.tsx`, `CentrePanel.tsx`, `cv-print/[cvId]/page.tsx`, `cv-template-preview/[templateId]/page.tsx`, `(dashboard)/templates/page.tsx`, backend `TemplateId` enum, and a matching Alembic migration for each of the 4 newest ones). No orphaned/half-registered templates found. One real drift was found and fixed below: a `skillStyle: "chips"` option was added to the customization system (now the default) but was never documented.
 
 ---
 
@@ -212,8 +214,8 @@ interface CVCustomization {
   spacing: "compact"|"normal"|"spacious";
   headerStyle: "left"|"centered"|"twocolumn";
   headingStyle: "fullline"|"underline"|"boxed"|"plain"|"doubleline"|"leftbar"|"dotted"|"accentbadge"|"centerlines";
-  skillStyle: "classic"|"progressbar"|"dotrating"|"percentage"|"starrating"|"nameonly";
-  skillColumns: 1|2|3;
+  skillStyle?: "classic"|"progressbar"|"dotrating"|"percentage"|"starrating"|"nameonly"|"chips";  // NEW: "chips" (2026-07-03), now optional
+  skillColumns?: 1|2|3;     // now optional (was required)
 }
 
 export const DEFAULT_CUSTOMIZATION: CVCustomization = {
@@ -222,25 +224,27 @@ export const DEFAULT_CUSTOMIZATION: CVCustomization = {
   spacing: "normal",
   headerStyle: "centered",
   headingStyle: "fullline",
-  skillStyle: "classic",
+  skillStyle: "chips",      // CHANGED: default was "classic", now "chips"
   skillColumns: 2,
 };
 
 export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomization>> = {
-  classic:   { accentColor: "#111827", fontFamily: "Arial",    headerStyle: "centered",   headingStyle: "fullline" },
+  classic:   { accentColor: "#111827", fontFamily: "Arial",    headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
   modern:    { accentColor: "#2563eb", fontFamily: "Roboto",   headerStyle: "left",       headingStyle: "underline" },
-  minimal:   { accentColor: "#e11d48", fontFamily: "Lato",     headerStyle: "centered",   headingStyle: "fullline" },
-  executive: { accentColor: "#111827", fontFamily: "Georgia",  headerStyle: "twocolumn",  headingStyle: "fullline" },
-  tech:      { accentColor: "#2563eb", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "fullline" },
-  creative:  { accentColor: "#7c3aed", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "underline" },
-  academic:  { accentColor: "#2563eb", fontFamily: "Georgia",  headerStyle: "centered",   headingStyle: "fullline" },
-  gcc:       { accentColor: "#2563eb", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "fullline" },
-  portrait:  { accentColor: "#8a6fae", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "fullline" },
+  minimal:   { accentColor: "#e11d48", fontFamily: "Lato",     headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
+  executive: { accentColor: "#111827", fontFamily: "Georgia",  headerStyle: "twocolumn",  headingStyle: "fullline",  skillStyle: "chips" },
+  tech:      { accentColor: "#2563eb", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "fullline",  skillStyle: "chips" },
+  creative:  { accentColor: "#7c3aed", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "underline", skillStyle: "chips" },
+  academic:  { accentColor: "#2563eb", fontFamily: "Georgia",  headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips" },
+  gcc:       { accentColor: "#2563eb", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "fullline",  skillStyle: "chips" },
+  portrait:  { accentColor: "#8a6fae", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "fullline",  skillStyle: "classic" },
   milestone:  { accentColor: "#111827", fontFamily: "Roboto",   headerStyle: "left",       headingStyle: "fullline",  skillStyle: "nameonly" },
   corporate:  { accentColor: "#111827", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
   vega:       { accentColor: "#2c3e50", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
 };
 ```
+
+⚠️ `TEMPLATE_DEFAULT_CUSTOMIZATION` now sets `skillStyle` explicitly for every template except `modern` (previously none of classic/minimal/executive/tech/creative/academic/gcc had a `skillStyle` override, and all silently inherited whatever `DEFAULT_CUSTOMIZATION.skillStyle` was). Now that the global default changed to `"chips"`, those seven were given an explicit `skillStyle: "chips"` entry so their look doesn't silently shift if the global default changes again — `modern` is the one remaining template still relying on the global default falling through.
 
 ---
 
@@ -301,6 +305,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 - percentage: name + % bar
 - starrating: name + stars (right side)
 - nameonly: just the name
+- chips: **NEW** (2026-07-03) — rounded accent-colored pill/badge, bold name + `· Level` suffix in accent color when a level is set; this is now `DEFAULT_CUSTOMIZATION.skillStyle` (was `classic`)
 - If level is empty → shows name only regardless of style
 
 ### ⚠️ Important rendering gotcha (discovered during ATS rebuild)
@@ -763,3 +768,6 @@ Priority order:
 6. **Email verification** — not implemented in auth
 7. **ATS target_role optional but high-impact** — no UI warning yet when left empty (see section 18)
 8. **sentence-transformers / semantic keyword matching** — uses lazy-loaded `_get_sentence_model()`; not yet confirmed whether this is reliably installed/working in all environments — falls back to exact-match silently if unavailable. Should be verified before production.
+9. **Stale template count in Pro upsell copy** (found during session 4 template audit) — `(dashboard)/templates/page.tsx`'s `ProUpgradeModal` hardcodes the feature bullet `"5 premium CV templates"`, but there are actually **8** Pro templates (modern, tech, creative, executive, gcc, portrait, milestone, vega). This copy was presumably accurate when Modern/Bordered/Timeline/Executive/GCC (5) were the only Pro templates and was never updated when Portrait, Milestone, Corporate†, and Vega were added. (†Corporate/Halo shipped as FREE, so it didn't change the Pro count itself, but Portrait/Milestone/Vega did.) Fix: bump the copy to "8 premium CV templates" or derive the count from `TEMPLATES.filter(t => t.plan === "pro").length` so it can't drift again.
+10. **Orphaned `cv_sections.data._layout` field** ({marginBottom, lineHeight}) — leftover from the removed per-section spacing/line-height steppers in `SortableSection.tsx`'s toolbar. No template reads it anymore (all 12 now derive spacing solely from the global `CVCustomization.spacing` value). Safe to ignore — existing stored values are inert, not read anywhere — but clean up with a migration (drop the key from `data` JSONB, or leave it since it's harmless dead data) before production deployment.
+11. **`duplicate_cv` doesn't copy `customization`** (found during the preview/PDF pagination-drift investigation, 2026-07-04) — `backend/app/api/routes/cv.py`'s `duplicate_cv` route copies `title`/`template_id`/sections but never sets `customization=source.customization` on the new `CVDocument`, so a duplicated CV silently resets to `DEFAULT_CUSTOMIZATION` instead of keeping the original's accent color/font/spacing/etc. Distinct from the {}-customization preview/PDF drift bug (which is fixed — see `mergeCustomization()` in `frontend/types/index.ts` and `_merge_customization()` in `cv.py`); this one is about losing a user's actual style choices on duplicate, not a rendering inconsistency. Fix: add `customization=_merge_customization(source.customization, None)` to `duplicate_cv`'s `CVDocument(...)` call. Not yet fixed — deliberately deferred.

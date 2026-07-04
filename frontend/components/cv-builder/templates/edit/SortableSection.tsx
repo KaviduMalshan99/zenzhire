@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { GripVertical, Minus, Plus } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CVSection, SectionLayout } from "@/types";
+import type { CVSection } from "@/types";
 import { useCVEdit } from "./CVEditContext";
 
 interface Props {
@@ -12,42 +12,6 @@ interface Props {
   defaultMarginBottom: number;
   defaultLineHeight?: number;
   children: React.ReactNode;
-}
-
-function Stepper({
-  label,
-  value,
-  onDecrement,
-  onIncrement,
-}: {
-  label: string;
-  value: string;
-  onDecrement: () => void;
-  onIncrement: () => void;
-}) {
-  return (
-    <div
-      className="flex items-center gap-0.5"
-      title={label}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <button
-        type="button"
-        onClick={onDecrement}
-        className="w-4 h-4 flex items-center justify-center text-[#e5e7eb] hover:text-white"
-      >
-        <Minus size={9} />
-      </button>
-      <span className="text-[9px] text-[#9ca3af] w-6 text-center select-none">{value}</span>
-      <button
-        type="button"
-        onClick={onIncrement}
-        className="w-4 h-4 flex items-center justify-center text-[#e5e7eb] hover:text-white"
-      >
-        <Plus size={9} />
-      </button>
-    </div>
-  );
 }
 
 /**
@@ -60,23 +24,11 @@ function Stepper({
  * with dnd-kit at the same time, while still letting every section be
  * dragged from — and dropped onto — any page. See SortableSection below.
  */
-function SortableSectionInner({ section, defaultMarginBottom, defaultLineHeight = 1.5, children }: Props) {
-  const { onFieldChange } = useCVEdit();
+function SortableSectionInner({ section, children }: Props) {
   const [hovered, setHovered] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
   });
-
-  const layout: SectionLayout = section.data?._layout ?? {};
-  const marginBottom = layout.marginBottom ?? defaultMarginBottom;
-  const lineHeight = layout.lineHeight ?? defaultLineHeight;
-
-  const setLayout = (patch: Partial<SectionLayout>) => {
-    onFieldChange(section, {
-      ...section.data,
-      _layout: { marginBottom, lineHeight, ...layout, ...patch },
-    });
-  };
 
   const wrapperStyle: React.CSSProperties = {
     position: "relative",
@@ -111,18 +63,6 @@ function SortableSectionInner({ section, defaultMarginBottom, defaultLineHeight 
           >
             <GripVertical size={12} />
           </button>
-          <Stepper
-            label="Section spacing"
-            value={String(marginBottom)}
-            onDecrement={() => setLayout({ marginBottom: Math.max(0, marginBottom - 2) })}
-            onIncrement={() => setLayout({ marginBottom: Math.min(120, marginBottom + 2) })}
-          />
-          <Stepper
-            label="Line height"
-            value={lineHeight.toFixed(1)}
-            onDecrement={() => setLayout({ lineHeight: Math.max(1, Math.round((lineHeight - 0.1) * 10) / 10) })}
-            onIncrement={() => setLayout({ lineHeight: Math.min(2.2, Math.round((lineHeight + 0.1) * 10) / 10) })}
-          />
         </div>
       )}
       {children}

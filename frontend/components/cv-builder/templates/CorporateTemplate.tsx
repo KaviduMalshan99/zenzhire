@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { EditableText } from "./edit/EditableText";
 import { EditableHtml } from "./edit/EditableHtml";
@@ -122,14 +122,13 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
   const renderSidebarSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setEntry = makeEntrySetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Education", section)}
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(10 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -161,7 +160,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "soft_skills":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch(section.section_type === "skills" ? "Skills" : "Soft Skills", section)}
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((s: any, i: number) => (
@@ -177,7 +176,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Certifications", section)}
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((c: any, i: number) => (
@@ -204,7 +203,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Languages", section)}
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((l: any, i: number) => (
@@ -225,7 +224,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Interests", section)}
             <div style={{ fontSize: 11.5, color: MID, fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join(" · ")}
@@ -241,7 +240,6 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
   const renderMainSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -249,7 +247,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Summary", section)}
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS }} />
           </div>
@@ -259,7 +257,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Work Experience", section)}
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(12 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -297,7 +295,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Projects", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(8 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -315,7 +313,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Courses & Training", section)}
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -332,7 +330,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Awards & Recognition", section)}
             {entries.map((a: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -349,7 +347,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Memberships & Associations", section)}
             {entries.map((o: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(5 * sp), fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -370,7 +368,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Publications", section)}
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -386,7 +384,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             {ch("Declaration", section)}
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: MID, lineHeight: 1.8, marginBottom: 8, fontFamily: fontCSS }} />
             <div style={{ display: "flex", gap: 32, fontSize: 12, fontFamily: fontCSS }}>
@@ -406,11 +404,10 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
   // References render full-width at the bottom, outside the 2-column area — same pattern as MilestoneTemplate.
   const renderReferences = (section: CVSection) => {
     const entries = section.data?.entries ?? [];
-    const layout: SectionLayout = section.data?._layout ?? {};
     const setEntry = makeEntrySetter(section, onFieldChange);
     if (!entries.length) return null;
     return (
-      <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+      <div className="cv-section">
         {ch("References", section)}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
           {entries.map((r: any, i: number) => (

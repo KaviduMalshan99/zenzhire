@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
 import { SectionHeading } from "../SectionHeading";
@@ -89,7 +89,6 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
   const renderSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -97,7 +96,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#374151", fontFamily: fontCSS, lineHeight: 1.65 }} />
           </div>
@@ -106,7 +105,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Experience" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: entryMb, ...eb }}>
@@ -133,7 +132,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((e: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: entryMb, ...eb }}>
@@ -161,7 +160,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: entryMb, ...eb }}>
@@ -187,7 +186,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
         const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";
         const finalCols = gridCols;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(6 * sp)}px ${Math.round(16 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((s: any, i: number) => (
@@ -203,7 +202,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             <div style={{ display: "flex", gap: "8px 32px", flexWrap: "wrap", fontFamily: fontCSS }}>
               {entries.map((l: any, i: number) => (
@@ -219,7 +218,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Certifications" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: 5, ...eb }}>
@@ -235,7 +234,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Awards" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: 6, ...eb }}>
@@ -253,7 +252,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: 5, ...eb }}>
@@ -270,7 +269,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: 5, ...eb }}>
@@ -288,7 +287,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Organizations" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} className="cv-entry" style={{ display: "flex", gap: 20, marginBottom: 6, ...eb }}>
@@ -308,7 +307,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Interests" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             <div style={{ fontSize: 12, color: "#374151", fontFamily: fontCSS }}>{entries.map((item: any) => item.title).join(" · ")}</div>
           </div>
@@ -317,7 +316,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="References" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: `6px ${Math.round(24 * sp)}px`, fontFamily: fontCSS }}>
               {entries.map((r: any, i: number) => (
@@ -341,7 +340,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom ?? mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
             {d.signature && (

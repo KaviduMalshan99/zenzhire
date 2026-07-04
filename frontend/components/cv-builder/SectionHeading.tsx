@@ -117,11 +117,11 @@ export function SectionHeading({ title, section, accentColor, headingStyle, font
   if (headingStyle === "dotted") {
     return (
       <div style={{ marginBottom: 8, marginTop: 10, pageBreakAfter: "avoid", breakAfter: "avoid" }}>
-        <div className="cv-section-header" style={{ display: "table", width: "100%" }}>
-          <div style={{ display: "table-cell", whiteSpace: "nowrap", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: accentColor, fontFamily, paddingRight: 8, verticalAlign: "bottom", lineHeight: "1.4" }}>
+        <div className="cv-section-header" style={{ display: "flex", alignItems: "flex-end", width: "100%" }}>
+          <div style={{ whiteSpace: "nowrap", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: accentColor, fontFamily, paddingRight: 8, lineHeight: "1.4" }}>
             {titleNode}
           </div>
-          <div style={{ display: "table-cell", verticalAlign: "bottom", paddingBottom: "4px", width: "100%" }}>
+          <div style={{ flex: 1, paddingBottom: "4px" }}>
             <div style={{ borderBottom: `1.5px dotted ${accentColor}`, width: "100%" }} />
           </div>
         </div>
@@ -144,14 +144,14 @@ export function SectionHeading({ title, section, accentColor, headingStyle, font
   if (headingStyle === "centerlines") {
     return (
       <div style={{ marginBottom: 8, marginTop: 10, pageBreakAfter: "avoid", breakAfter: "avoid" }}>
-        <div className="cv-section-header" style={{ display: "table", width: "100%" }}>
-          <div style={{ display: "table-cell", verticalAlign: "middle", paddingBottom: "2px", width: "50%" }}>
+        <div className="cv-section-header" style={{ display: "flex", alignItems: "center", width: "100%" }}>
+          <div style={{ flex: 1, paddingBottom: "2px" }}>
             <div style={{ height: "1.5px", backgroundColor: accentColor, width: "100%" }} />
           </div>
-          <div style={{ display: "table-cell", whiteSpace: "nowrap", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: accentColor, fontFamily, textAlign: "center", padding: "0 10px", verticalAlign: "middle" }}>
+          <div style={{ whiteSpace: "nowrap", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: accentColor, fontFamily, textAlign: "center", padding: "0 10px" }}>
             {titleNode}
           </div>
-          <div style={{ display: "table-cell", verticalAlign: "middle", paddingBottom: "2px", width: "50%" }}>
+          <div style={{ flex: 1, paddingBottom: "2px" }}>
             <div style={{ height: "1.5px", backgroundColor: accentColor, width: "100%" }} />
           </div>
         </div>
@@ -159,17 +159,15 @@ export function SectionHeading({ title, section, accentColor, headingStyle, font
     );
   }
 
-  // fullline (default) — display:table/table-cell renders identically in both
-  // browser and html2canvas; flexbox alignItems:center drifts in html2canvas
+  // fullline (default)
   return (
     <div style={{ marginBottom: 8, marginTop: 10, pageBreakAfter: "avoid", breakAfter: "avoid" }}>
       <div
         className="cv-section-header"
-        style={{ display: "table", width: "100%" }}
+        style={{ display: "flex", alignItems: "flex-end", width: "100%" }}
       >
         <div
           style={{
-            display: "table-cell",
             whiteSpace: "nowrap",
             fontSize: 10.5,
             fontWeight: 700,
@@ -178,13 +176,12 @@ export function SectionHeading({ title, section, accentColor, headingStyle, font
             color: accentColor,
             fontFamily,
             paddingRight: 10,
-            verticalAlign: "bottom",
             lineHeight: "1.4",
           }}
         >
           {titleNode}
         </div>
-        <div style={{ display: "table-cell", verticalAlign: "bottom", paddingBottom: "5px", width: "100%" }}>
+        <div style={{ flex: 1, paddingBottom: "5px" }}>
           <div style={{ height: "1.5px", backgroundColor: accentColor, width: "100%" }} />
         </div>
       </div>

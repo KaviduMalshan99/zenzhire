@@ -23,8 +23,10 @@ export const SAMPLE_CV_DATA: CVSection[] = [
       marital_status: "Single",
       religion: "",
       nic: "",
-      photo_url: "/sample-avatar.png",
+      photo_url: "/person.png",
       photo_base64: "",
+      photo_shape: "circle",
+      photo_size: 80,
       links: [
         { id: "1", platform: "LinkedIn", url: "linkedin.com/in/alexchen" },
         { id: "2", platform: "GitHub", url: "github.com/alexchen" },

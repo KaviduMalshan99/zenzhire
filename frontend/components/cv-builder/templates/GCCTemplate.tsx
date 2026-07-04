@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { SectionHeading } from "../SectionHeading";
 import { SkillEntry } from "./SkillEntry";
@@ -48,7 +48,6 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
   const renderSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -56,7 +55,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Career Objective" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, marginBottom: 4, textAlign: "justify", fontFamily: fontCSS }} />
           </div>
@@ -65,7 +64,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Work Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: mb, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -89,7 +88,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Education & Qualifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(7 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -116,7 +115,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
         const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";
         const finalCols = gridCols;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(8 * sp)}px ${Math.round(20 * sp)}px` }}>
               {entries.map((s: any, i: number) => (
@@ -132,7 +131,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 20px" }}>
               {entries.map((l: any, i: number) => (
@@ -145,7 +144,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(6 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -161,7 +160,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -175,7 +174,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Awards & Recognition" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -192,7 +191,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -206,7 +205,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Memberships & Associations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(5 * sp), fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -223,7 +222,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Personal Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ fontSize: 12, fontFamily: fontCSS }}>{entries.map((item: any) => item.title).join(" · ")}</div>
           </div>
@@ -232,7 +231,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -246,7 +245,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px" }}>
               {entries.map((r: any, i: number) => (
@@ -266,7 +265,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ border: "1px solid #d1d9e0", borderRadius: 4, padding: "10px 14px", backgroundColor: "#fafbfc" }}>
               <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: MID, lineHeight: 1.8, marginBottom: 8, fontFamily: fontCSS }} />

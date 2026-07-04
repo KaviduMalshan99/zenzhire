@@ -15,7 +15,7 @@ import { MilestoneTemplate } from "@/components/cv-builder/templates/MilestoneTe
 import { CorporateTemplate } from "@/components/cv-builder/templates/CorporateTemplate";
 import { VegaTemplate } from "@/components/cv-builder/templates/VegaTemplate";
 import type { CVSection, CVCustomization } from "@/types";
-import { DEFAULT_CUSTOMIZATION } from "@/types";
+import { DEFAULT_CUSTOMIZATION, mergeCustomization } from "@/types";
 
 export default function CVPrintPage() {
   const params = useParams();
@@ -52,9 +52,15 @@ export default function CVPrintPage() {
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setTemplateId(data.template_id || "classic");
+        const resolvedTemplateId = data.template_id || "classic";
+        setTemplateId(resolvedTemplateId);
         setSections((data.sections || []).filter((s: CVSection) => s.is_visible));
-        if (data.customization) setCustomization(data.customization);
+        setCustomization(mergeCustomization(data.customization));
+        // Exposes the resolved template to generate-pdf/route.ts's Puppeteer
+        // script, which can't otherwise know which template loaded until
+        // this fetch resolves client-side — lets it branch pagination logic
+        // per template without changing what any template renders.
+        (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__ = resolvedTemplateId;
         setReady(true);
       } catch (e) {
         setError(String(e));

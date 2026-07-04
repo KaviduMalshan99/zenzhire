@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { SectionHeading } from "../SectionHeading";
 import { SkillEntry } from "./SkillEntry";
@@ -79,14 +79,13 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
   const renderSidebarSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setEntry = makeEntrySetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(10 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -115,7 +114,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "soft_skills":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title={section.section_type === "skills" ? "Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", flexDirection: "column", gap: Math.round(6 * sp) }}>
               {entries.map((s: any, i: number) => (
@@ -133,7 +132,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Certification" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((c: any, i: number) => (
@@ -158,7 +157,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "languages":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontFamily: fontCSS }}>
               {entries.map((l: any, i: number) => (
@@ -174,7 +173,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ fontSize: 11.5, color: MID, fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join(" · ")}
@@ -190,7 +189,6 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
   const renderMainSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -198,7 +196,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Work Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => {
               const isLast = i === entries.length - 1;
@@ -259,7 +257,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(8 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -277,7 +275,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -291,7 +289,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Awards & Recognition" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -308,7 +306,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Memberships & Associations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(5 * sp), fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -325,7 +323,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
@@ -339,7 +337,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+          <div className="cv-section">
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: MID, lineHeight: 1.8, marginBottom: 8, fontFamily: fontCSS }} />
             <div style={{ display: "flex", gap: 32, fontSize: 12, fontFamily: fontCSS }}>
@@ -358,11 +356,10 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
 
   const renderReferences = (section: CVSection) => {
     const entries = section.data?.entries ?? [];
-    const layout: SectionLayout = section.data?._layout ?? {};
     const setEntry = makeEntrySetter(section, onFieldChange);
     if (!entries.length) return null;
     return (
-      <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+      <div className="cv-section">
         <SectionHeading section={section} title="Reference" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
           {entries.map((r: any, i: number) => (
@@ -414,9 +411,8 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
               const d = summarySection.data;
               if (!d.summary || d.summary === "<p></p>") return null;
               const setField = makeFieldSetter(summarySection, onFieldChange);
-              const layout: SectionLayout = d._layout ?? {};
               return (
-                <div className="cv-section" style={{ marginBottom: layout.marginBottom, lineHeight: layout.lineHeight }}>
+                <div className="cv-section">
                   <SectionHeading section={summarySection} title="Career Summary" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
                   <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS }} />
                 </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import type { CVSection, CVCustomization, SectionLayout } from "@/types";
+import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
 import { SectionHeading } from "../SectionHeading";
@@ -89,11 +89,6 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
   const langEntries = langSection?.data?.entries ?? [];
   const interestEntries = interestsSection?.data?.entries ?? [];
   const declaration = get(sections, "declaration");
-  const skillsLayout: SectionLayout = skillsSection?.data?._layout ?? {};
-  const softSkillsLayout: SectionLayout = softSkillsSection?.data?._layout ?? {};
-  const langLayout: SectionLayout = langSection?.data?._layout ?? {};
-  const interestsLayout: SectionLayout = interestsSection?.data?._layout ?? {};
-  const declarationLayout: SectionLayout = declarationSection?.data?._layout ?? {};
   const setSkillEntry = skillsSection ? makeEntrySetter(skillsSection, onFieldChange) : () => {};
   const setSoftSkillEntry = softSkillsSection ? makeEntrySetter(softSkillsSection, onFieldChange) : () => {};
   const setLangEntry = langSection ? makeEntrySetter(langSection, onFieldChange) : () => {};
@@ -107,8 +102,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
   const renderMainSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const layout: SectionLayout = d._layout ?? {};
-    const mb = layout.marginBottom ?? Math.round(14 * sp);
+    const mb = Math.round(14 * sp);
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -116,7 +110,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#374151", textAlign: "justify", marginBottom: 4, fontFamily: fontCSS }} />
           </div>
@@ -125,7 +119,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "experience":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(8 * sp) }} className="cv-entry">
@@ -157,7 +151,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "education":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((entry: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(6 * sp) }} className="cv-entry">
@@ -184,7 +178,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "projects":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: Math.round(6 * sp) }} className="cv-entry">
@@ -211,7 +205,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "certificates":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Certifications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS }}>
@@ -225,7 +219,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "awards":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Awards" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((a: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS }} className="cv-entry">
@@ -244,7 +238,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "courses":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((c: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontFamily: fontCSS }} className="cv-entry">
@@ -263,7 +257,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "publications":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((p: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS }} className="cv-entry">
@@ -283,7 +277,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "organizations":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Organizations & Volunteering" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             {entries.map((o: any, i: number) => (
               <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS }} className="cv-entry">
@@ -306,7 +300,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "references":
         if (!entries.length) return null;
         return (
-          <div className="cv-section" style={{ marginBottom: mb, lineHeight: layout.lineHeight }}>
+          <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="References" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px" }}>
               {entries.map((r: any, i: number) => (
@@ -337,10 +331,10 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
   const skillsContent = skillsSection && skillEntries.length > 0 ? (
     <>
-      <div style={{ ...sideHeading, marginTop: skillsLayout.marginBottom ?? sideHeading.marginTop }}>
+      <div style={{ ...sideHeading }}>
         <EditableText value={skillsSection?.data?._title || "Technical Skills"} onCommit={(v) => skillsSection && onFieldChange(skillsSection, { ...skillsSection.data, _title: v })} placeholder="Technical Skills" />
       </div>
-      <div style={{ fontSize: 11, lineHeight: skillsLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
+      <div style={{ fontSize: 11, lineHeight: 1.8, fontFamily: fontCSS }}>
         {skillEntries.map((s: any, i: number) => (
           <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -358,10 +352,10 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
   const softSkillsContent = softSkillsSection && softSkillEntries.length > 0 ? (
     <>
-      <div style={{ ...sideHeading, marginTop: softSkillsLayout.marginBottom ?? sideHeading.marginTop }}>
+      <div style={{ ...sideHeading }}>
         <EditableText value={softSkillsSection?.data?._title || "Soft Skills"} onCommit={(v) => softSkillsSection && onFieldChange(softSkillsSection, { ...softSkillsSection.data, _title: v })} placeholder="Soft Skills" />
       </div>
-      <div style={{ fontSize: 11, lineHeight: softSkillsLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
+      <div style={{ fontSize: 11, lineHeight: 1.8, fontFamily: fontCSS }}>
         {softSkillEntries.map((s: any, i: number) => (
           <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -379,10 +373,10 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
   const langContent = langSection && langEntries.length > 0 ? (
     <>
-      <div style={{ ...sideHeading, marginTop: langLayout.marginBottom ?? sideHeading.marginTop }}>
+      <div style={{ ...sideHeading }}>
         <EditableText value={langSection?.data?._title || "Languages"} onCommit={(v) => langSection && onFieldChange(langSection, { ...langSection.data, _title: v })} placeholder="Languages" />
       </div>
-      <div style={{ fontSize: 11, lineHeight: langLayout.lineHeight ?? 1.8, fontFamily: fontCSS }}>
+      <div style={{ fontSize: 11, lineHeight: 1.8, fontFamily: fontCSS }}>
         {langEntries.map((l: any, i: number) => (
           <div key={i}>
             <span style={{ color: "#e2e8f0", fontWeight: "bold" }}><EditableText value={l.language} onCommit={(v) => setLangEntry(i, "language", v)} /></span>
@@ -395,10 +389,10 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
   const interestsContent = interestsSection && interestEntries.length > 0 ? (
     <>
-      <div style={{ ...sideHeading, marginTop: interestsLayout.marginBottom ?? sideHeading.marginTop }}>
+      <div style={{ ...sideHeading }}>
         <EditableText value={interestsSection?.data?._title || "Interests"} onCommit={(v) => interestsSection && onFieldChange(interestsSection, { ...interestsSection.data, _title: v })} placeholder="Interests" />
       </div>
-      <div style={{ fontSize: 11, color: "#cbd5e1", lineHeight: interestsLayout.lineHeight ?? 1.7, fontFamily: fontCSS }}>
+      <div style={{ fontSize: 11, color: "#cbd5e1", lineHeight: 1.7, fontFamily: fontCSS }}>
         {interestEntries.map((item: any, i: number) => (
           <div key={i}><EditableText value={item.title} onCommit={(v) => setInterestEntry(i, "title", v)} /></div>
         ))}
@@ -408,10 +402,10 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
   const declarationContent = declarationSection && declaration.text && declaration.text !== "<p></p>" ? (
     <>
-      <div style={{ ...sideHeading, marginTop: declarationLayout.marginBottom ?? sideHeading.marginTop }}>
+      <div style={{ ...sideHeading }}>
         <EditableText value={declarationSection?.data?._title || "Declaration"} onCommit={(v) => declarationSection && onFieldChange(declarationSection, { ...declarationSection.data, _title: v })} placeholder="Declaration" />
       </div>
-      <EditableHtml html={declaration.text} onCommit={(v) => setDeclaration("text", v)} style={{ fontSize: 10, color: "#94a3b8", lineHeight: declarationLayout.lineHeight ?? 1.6, fontFamily: fontCSS }} />
+      <EditableHtml html={declaration.text} onCommit={(v) => setDeclaration("text", v)} style={{ fontSize: 10, color: "#94a3b8", lineHeight: 1.6, fontFamily: fontCSS }} />
       {declaration.signature && (
         <div style={{ marginTop: 6, fontFamily: "'Dancing Script', cursive", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
           <EditableText value={declaration.signature} onCommit={(v) => setDeclaration("signature", v)} />
