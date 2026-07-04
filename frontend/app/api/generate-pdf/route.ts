@@ -96,15 +96,15 @@ export async function POST(request: NextRequest) {
     await page.evaluateHandle(() => document.fonts.ready);
 
     // cv-print/[cvId]/page.tsx exposes the resolved template on window once
-    // it knows it — read it so Classic (Phase 1 of the pagination rebuild)
-    // can use the new shared-function pipeline below while every other
-    // template keeps going through the exact pipeline it always has.
+    // it knows it — read it so Classic and Modern (the templates migrated so
+    // far onto the shared-function pipeline) can use it below while every
+    // other template keeps going through the legacy pipeline it always has.
     const templateId = await page.evaluate(
       () => (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__
     );
 
-    if (templateId === "classic") {
-      // ── Classic: shared-pagination pipeline ────────────────────────────
+    if (templateId === "classic" || templateId === "modern") {
+      // ── Classic & Modern: shared-pagination pipeline ───────────────────
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
       // Unlike the legacy pipeline below, .cv-section does NOT get
       // page-break-inside:avoid — a long section (e.g. Experience, Projects)
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
       // called here as a normal import, not passed into page.evaluate(), so
       // there's no function-serialization concern: it's plain data in, plain
       // data out.
-      const { breakChunkIndex } = computePageBreaks(chunkMeasurements, PAGE_HEIGHT_A4);
+      const { breakChunkIndex, starts } = computePageBreaks(chunkMeasurements, PAGE_HEIGHT_A4);
 
       // Apply the decision: force an explicit page break at exactly the
       // chosen elements (tagged above), and give continuation pages the
@@ -214,6 +214,47 @@ export async function POST(request: NextRequest) {
 
       // Let the reflow from the spacing above settle before pagination.
       await new Promise((r) => setTimeout(r, 100));
+
+      // ── Modern's sidebar color band ─────────────────────────────────────
+      // Modern's .modern-sidebar colors itself via CSS flexbox
+      // (align-items:stretch), which tracks correctly in normal on-screen
+      // rendering but is NOT reliable once Chrome paginates the flex row for
+      // print: Chromium's print-fragmentation support for flex/grid
+      // containers is known to be unreliable, so the sidebar's own
+      // background can end short of a physical page, leaving it white.
+      // Instead of trusting flex-stretch (or a position:fixed div, which
+      // depends on Puppeteer's page.pdf() correctly repeating fixed
+      // elements per page — also not guaranteed), paint one explicit,
+      // absolutely-positioned band per page, sized to exactly PAGE_HEIGHT_A4
+      // and stacked at exact multiples of it — the same coordinate space
+      // Chrome slices physical pages at, so alignment is guaranteed
+      // regardless of how the flex layout itself fragments.
+      if (templateId === "modern") {
+        await page.evaluate(
+          (pageCount: number, pageHeight: number) => {
+            const sidebar = document.querySelector<HTMLElement>(".modern-sidebar");
+            if (!sidebar) return;
+            const color = getComputedStyle(sidebar).backgroundColor;
+            const outer = document.querySelector<HTMLElement>(".modern-outer");
+            if (outer) outer.style.position = "relative";
+            for (let i = 0; i < pageCount; i++) {
+              const band = document.createElement("div");
+              band.setAttribute("data-modern-sidebar-band", String(i));
+              band.style.position = "absolute";
+              band.style.top = `${i * pageHeight}px`;
+              band.style.left = "0";
+              band.style.width = "35%";
+              band.style.height = `${pageHeight}px`;
+              band.style.backgroundColor = color;
+              band.style.zIndex = "0";
+              band.style.pointerEvents = "none";
+              outer?.insertBefore(band, outer.firstChild);
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4
+        );
+      }
     } else {
       // ── Every other template: unchanged legacy pipeline ────────────────
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.

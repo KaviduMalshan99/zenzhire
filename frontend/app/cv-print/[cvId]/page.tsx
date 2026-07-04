@@ -125,22 +125,14 @@ export default function CVPrintPage() {
         />
       )}
 
-      {/* Fixed sidebar background — fills every PDF page for modern template */}
-      {templateId === "modern" && (
-        <div
-          style={{
-            position: "fixed",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: "35%",
-            backgroundColor: customization.accentColor,
-            zIndex: 0,
-            pointerEvents: "none",
-            WebkitPrintColorAdjust: "exact",
-          } as React.CSSProperties}
-        />
-      )}
+      {/* Modern's per-page sidebar color band is now injected by
+          generate-pdf/route.ts itself (one absolutely-positioned div per
+          computed page, at exact PAGE_HEIGHT_A4 multiples) rather than drawn
+          here as a single position:fixed div. That relied on Puppeteer's
+          page.pdf() reliably repeating a fixed-position element on every
+          physical page, which isn't guaranteed -- .modern-sidebar's own
+          flexbox alignItems:stretch background is enough for any non-paginated
+          rendering of this page (e.g. the dashboard's iframe thumbnail). */}
 
       {renderTemplate()}
     </div>

@@ -312,7 +312,6 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
               // Compensate for transform not affecting layout height
               marginBottom: `${totalPagesNaturalHeight * (scale - 1)}px`,
               ...(isCreative ? { borderLeft: `5px solid ${customization.accentColor}` } : {}),
-              ...(isModern ? { background: `linear-gradient(to right, ${customization.accentColor} 35%, transparent 35%)` } : {}),
             }}
           >
             {Array.from({ length: pageCount }, (_, i) => (
@@ -332,6 +331,29 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                     overflow: "hidden",
                   }}
                 >
+                  {/* Modern's sidebar color band, drawn per page-card at exactly this
+                      card's own dimensions (0 to A4_H) â€” the same source of truth
+                      (pageCount from computePageBreaks()) the content and masks below
+                      use, instead of trusting the template's own flex "stretch" to
+                      track page boundaries (which it can't, since each page-card here
+                      is a clipped window onto one continuous flex row) or a single
+                      whole-column gradient (which had no per-page boundary awareness
+                      at all). No explicit z-index here -- it's declared before the
+                      content/mask siblings below, so plain DOM order already paints
+                      it underneath them without needing one. */}
+                  {isModern && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "35%",
+                        height: A4_H,
+                        backgroundColor: customization.accentColor,
+                      }}
+                    />
+                  )}
+
                   {/* Template content â€” page 1 starts at Y=0 (template has native 40px padding);
                       pages 2+ shift up so the section lands 40px from the card top */}
                   <div
@@ -347,13 +369,15 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                   </div>
 
                   {/* Top mask for pages 2+: covers the 40px of previous-section content
-                      that shifts into view due to the +40 offset, leaving blank top padding */}
+                      that shifts into view due to the +40 offset, leaving blank top padding.
+                      For Modern, starts at 35% instead of 0 so it doesn't paint over (and
+                      hide) the sidebar band above, which must stay uninterrupted. */}
                   {i > 0 && (
                     <div
                       style={{
                         position: "absolute",
                         top: 0,
-                        left: 0,
+                        left: isModern ? "35%" : 0,
                         right: 0,
                         height: 40,
                         backgroundColor: "#ffffff",
@@ -363,7 +387,8 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                   )}
 
                   {/* Bottom mask: hides content belonging to the next page.
-                      Formula differs for page 1 (top=0) vs pages 2+ (top=40-pageStartY[i]). */}
+                      Formula differs for page 1 (top=0) vs pages 2+ (top=40-pageStartY[i]).
+                      Same 35% carve-out as the top mask, for the same reason. */}
                   {i < pageCount - 1 && (
                     <div
                       style={{
@@ -371,7 +396,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                         top: i === 0
                           ? pageStartY[i + 1]
                           : 40 + pageStartY[i + 1] - pageStartY[i],
-                        left: 0,
+                        left: isModern ? "35%" : 0,
                         right: 0,
                         bottom: 0,
                         backgroundColor: "#ffffff",
