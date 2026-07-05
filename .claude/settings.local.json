@@ -65,7 +65,13 @@
       "Bash(rm -f \"F:/zenzhire/zenzhire/frontend/__investigate.js\" \"F:/zenzhire/zenzhire/frontend/__deepdive.js\")",
       "Bash(rm -rf \"C:/Users/kavidu/AppData/Local/Temp/pagination-bug-investigation-profile\")",
       "Bash(venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('app/api/routes/cv.py'\\).read\\(\\)\\)\")",
-      "Bash(python -c \"import ast; ast.parse\\(open\\('app/api/routes/cv.py'\\).read\\(\\)\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/api/routes/cv.py'\\).read\\(\\)\\)\")",
+      "Bash(NODE_PATH=\"/f/zenzhire/zenzhire/frontend/node_modules\" node \"C:/Users/kavidu/AppData/Local/Temp/claude/F--zenzhire-zenzhire/873b1f7e-4f0c-4970-a971-27caaf89b2d5/scratchpad/executive_repro.js\")",
+      "Bash(nohup npm run dev)",
+      "Bash(disown)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(NODE_PATH=\"/f/zenzhire/zenzhire/frontend/node_modules\" node *)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

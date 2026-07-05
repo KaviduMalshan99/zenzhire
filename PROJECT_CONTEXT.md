@@ -1,6 +1,6 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-03 (session 4 — full template-registration audit). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-05 (session 5 — shared pagination engine rolled out to Classic, Academic, Modern, Minimal, Executive). Working directory: `F:\zenzhire\zenzhire\`
 
 **Audit note (session 4):** Re-verified the CV template count against the actual codebase (there was a belief it had grown to ~16). It has **not** — it is still exactly **12**, and all 12 are fully and consistently registered across every required file (frontend `types/index.ts` ×2, `LeftPanel.tsx`, `CentrePanel.tsx`, `cv-print/[cvId]/page.tsx`, `cv-template-preview/[templateId]/page.tsx`, `(dashboard)/templates/page.tsx`, backend `TemplateId` enum, and a matching Alembic migration for each of the 4 newest ones). No orphaned/half-registered templates found. One real drift was found and fixed below: a `skillStyle: "chips"` option was added to the customization system (now the default) but was never documented.
 
@@ -271,7 +271,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 
 **Classic** — Clean traditional, SVG icons in contact row, supports all headerStyles, centered default
 
-**Modern** — Two-column sidebar layout, sidebar has skills/languages/interests, main has everything else, fixed sidebar with `position:fixed` overlay in PDF for full-height color
+**Modern** — Two-column sidebar layout, sidebar has skills/languages/interests, main has everything else. Migrated to the shared pagination engine (section 10.2) — sidebar full-height color is now one explicit `position:absolute` band per real page, sized/positioned from `computePageBreaks()`'s own output in both `CentrePanel.tsx` and `generate-pdf/route.ts`, not a `position:fixed` overlay (Puppeteer doesn't guarantee those repeat per printed page, and Chromium's flex/grid print-fragmentation is unreliable).
 
 **Colorful (Minimal)** — Bold full-width color banner header, photo in header, full-bleed in PDF (margin:0 top/left/right)
 
@@ -394,25 +394,19 @@ CentrePanel "Download PDF" button
 → POST /api/generate-pdf { cvId, token, fileName, templateId }
 → Puppeteer launches Chrome
 → Chrome loads /cv-print/[cvId]?token=JWT
-→ cv-print page fetches CV, renders template
+→ cv-print page fetches CV, renders template, exposes window.__CV_TEMPLATE_ID__
 → Adds <div id="cv-ready-marker"> when ready
 → Puppeteer waits for #cv-ready-marker
-→ Injects CSS (print-color-adjust, page-break-inside:avoid)
-→ page.evaluate() nudges continuation-page break elements down 40px (see below)
+→ Branches on templateId: shared pagination engine (10.1) for the 5 migrated
+  templates, legacy pipeline (10.3) for the other 7
 → page.pdf() → streams as download
 ```
 
-### Critical Puppeteer settings (generate-pdf/route.ts):
+### Critical Puppeteer settings (generate-pdf/route.ts, both pipelines):
 ```typescript
 await page.emulateMediaType("screen");  // CRITICAL — prevents @media print stripping
 await page.waitForSelector("#cv-ready-marker", { timeout: 15000 });
 await page.evaluateHandle(() => document.fonts.ready);
-
-await page.addStyleTag({ content: `
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  html, body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
-  .cv-section, .cv-entry { page-break-inside: avoid !important; break-inside: avoid !important; }
-` });
 
 // margin: { top:"0", right:"0", bottom:"0", left:"0" } for ALL templates —
 // every template bakes its own visual inset into its own root padding
@@ -422,18 +416,59 @@ await page.addStyleTag({ content: `
 // land in different places than what the user saw while editing.
 ```
 
-### ⚠️ PDF section-gap / page-2-margin history (fixed 2026-07-03 — don't reintroduce either bug)
+### 10.1 Shared Pagination Engine (`lib/pagination.ts`) — background & root cause
+
+Until 2026-07-04, the on-screen preview (`CentrePanel.tsx`'s `calcPageLayout`) and the PDF export (`generate-pdf/route.ts`) each computed page breaks with their **own, independently-maintained** logic. This let them silently disagree. The most visible symptom: a multi-entry section that didn't fully fit on the current page would get **wholesale-shoved to the next page in the PDF** (via a blanket `.cv-section { page-break-inside: avoid }`), while the on-screen preview correctly split it between entries — so what the user saw while editing was not what they downloaded. A related, separate bug (customization defaults resolving inconsistently between the two pages — see section 5 and `mergeCustomization()` below) compounded the drift on some CVs.
+
+**Fix:** a new shared module, `frontend/lib/pagination.ts`, exporting two functions used **identically** by both `CentrePanel.tsx` and `generate-pdf/route.ts`:
+- **`extractPageChunks(root)`** — DOM-reading. Walks `.cv-section` elements; a section with ≤1 entry (or a same-row "grid," e.g. a skills grid) becomes one atomic chunk, a section with multiple stacked entries splits into a `[heading + first entry]` chunk (so the heading is never orphaned alone at a page bottom) plus one chunk per remaining entry.
+- **`computePageBreaks(chunks, pageHeight)`** — PURE, DOM-free. Given the chunk extents, decides where each page starts (`starts[]`) and which chunk index begins each page after the first (`breakChunkIndex[]`). Same inputs always produce the same outputs, so preview and PDF can't independently diverge.
+
+In the PDF pipeline, `.cv-section` no longer gets `page-break-inside:avoid` — only `.cv-entry` and `.cv-heading-group` (the true atomic units) do — and an explicit `break-before: page` / `page-break-before: always` is applied at exactly the DOM elements `computePageBreaks()` names, instead of hoping Chrome's own CSS-avoid fragmentation independently lands on the same answer the preview shows. Continuation pages (2+) get a real `margin-top: 40px` nudge at the break element (`CONTINUATION_TOP_GAP`) so they don't sit flush against the top — mirroring the 40px clip/offset the preview already gives page 2+ purely for display.
+
+Per-template JSX changes needed to opt in: wrap each multi-entry section's heading + first entry in a `<div className="cv-heading-group" style={{ breakInside:"avoid", pageBreakInside:"avoid" }}>` (see 10.2 for exactly which sections, per template). `generate-pdf/route.ts` then branches on `templateId` — only templates in that branch's list use the shared engine; everything else still runs the legacy pipeline (10.3) untouched.
+
+### 10.2 Templates Migrated to Shared Pagination Engine (5 of 12)
+
+| template_id | Status |
+|---|---|
+| `classic` | ✅ Migrated |
+| `academic` | ✅ Migrated |
+| `modern` | ✅ Migrated |
+| `minimal` | ✅ Migrated |
+| `executive` | ✅ Migrated |
+| `tech`, `creative`, `gcc`, `portrait`, `milestone`, `corporate`, `vega` | ⏳ Still on legacy pipeline (10.3) |
+
+**Classic** (first template migrated, 2026-07-04) — also fixed a related bug in `SectionHeading.tsx`: the `fullline`/`dotted`/`centerlines` heading styles used `display:table`, which has measurement/fragmentation quirks that fought the new chunk-based extraction; converted to flexbox (pixel-identical visual output, verified via before/after screenshots). Separately fixed a **customization drift bug**: CVs with incomplete/empty `customization` (`{}` or `null`) rendered inconsistently between preview and PDF (e.g. `skillStyle` resolving to `"chips"` on one page and `"classic"` on the other) because the two pages filled in missing keys differently. Fixed via a shared `mergeCustomization()` helper (`frontend/types/index.ts`, see section 5) used by both `CentrePanel.tsx`'s data load and `cv-print/[cvId]/page.tsx`, plus a one-time backend data migration that backfilled 60 of 63 existing CVs with complete customization objects. The backend also got defense-in-depth (`_merge_customization()` in `backend/app/api/routes/cv.py`) so this can't reoccur via any API consumer, including ones that bypass the frontend.
+
+**Academic (Inline)** — same shared pattern applied to its entry-listing sections; verified zero-px preview/PDF match.
+
+**Modern** — same pattern, plus a template-specific fix: the sidebar background band (previously a CSS gradient trick in preview + a `position:fixed` div in PDF) didn't reliably track real page boundaries — Chromium's print-fragmentation for flex containers is unreliable, and Puppeteer doesn't guarantee `position:fixed` elements repeat per printed page. Fixed by deriving the band's position/height directly from `computePageBreaks()`'s own output in both contexts: one explicit `position:absolute` band per real page, sized to exactly `PAGE_HEIGHT_A4` and stacked at exact multiples of it, instead of trusting flex-stretch or a fixed overlay. Also fixed: Certificates entries weren't tagged `.cv-entry`, so a multi-certificate section couldn't split across pages at all (silently fell back to whole-section behavior). Two small follow-up polish items: page 1/2 padding symmetry, and a suspected last-page sidebar-band height bug that turned out to be a **headless-screenshot-tool false alarm** (not a real rendering bug) — confirmed via direct DOM inspection rather than trusting the screenshot. (See section 22 known-issues item — headless Chromium screenshot/compositing has produced false alarms on this project before; prefer a real, non-headless browser window or direct DOM measurement when verifying pagination fixes.)
+
+**Colorful (Minimal)** — same shared pattern applied to its full-bleed banner header + photo layout; verified zero-px preview/PDF match.
+
+**Executive** (2026-07-05) — same shared pattern applied across its 8 multi-entry sections (Experience, Education, Projects, Certificates, Awards, Courses, Publications, Organizations). Its two-column header needed **no special handling** — plain flex row, no `position:fixed`/`absolute`, renders once in normal document flow (same as Classic's header), unlike Modern's sidebar or Tech's border overlay. Verified zero-px preview/PDF DOM match on short/medium/long fixtures, plus a real PDF re-export confirming content placement (not just page *count*) now matches the preview — before the fix, the entire 7-entry Experience section landed wholesale on page 2 with page 1 mostly blank; after, entries split 6/1 across pages 1/2 exactly as the preview shows.
+
+⚠️ **Known gap, found during Executive's verification (2026-07-05), affects all 5 migrated templates equally:** on a fixture where a single-entry section sits within a few px of a computed page boundary, the pre-existing `CONTINUATION_TOP_GAP` (40px) — inserted at the *upstream* break, after `computePageBreaks()` already decided breaks using gap-less measurements — can eat that section's remaining margin and bump it (and everything after it) onto its own near-blank page. Root cause: `computePageBreaks()` decides break points using measurements taken *before* any gap is injected, so it can't know a 40px gap inserted earlier in the flow will erode a tight downstream fit. This is a property of the shared engine itself (`generate-pdf/route.ts`), not any individual template — confirmed data-size-dependent, not template-dependent, by testing the same class of fixture against Minimal (didn't trigger it) vs. Executive (did). Deliberately left unfixed for now — see section 22, item 12 — since a real fix means changing pagination math all 5 migrated templates run through, not a per-template change.
+
+### 10.3 Legacy Pipeline — remaining 7 templates (Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega)
+
+These still use the pre-2026-07-04 approach: `.cv-section` **and** `.cv-entry` both get `page-break-inside:avoid`, so a section that doesn't fit gets pushed wholesale to the next page rather than splitting between entries (the same class of bug the shared engine fixes — not yet fixed here). Also still relies on `position:fixed` overlays in `cv-print/[cvId]/page.tsx` for template-specific chrome:
+- `position:fixed` border overlay for Tech (Bordered)
+- `position:fixed` left line overlay for Creative (Timeline)
+- (Modern's former `position:fixed` sidebar overlay was replaced when Modern migrated — see 10.2 — it no longer uses this pattern)
+
+### ⚠️ PDF section-gap / page-2-margin history (fixed 2026-07-03 — don't reintroduce either bug, applies to both pipelines)
 There used to be a blanket `.cv-section { padding-top: 8px !important }` / `.cv-entry { padding-top: 4px !important }` injected only for the PDF (not the on-screen preview), meant to give continuation pages some breathing room at the top so content didn't sit flush against template borders (e.g. Bordered/Tech's 8px frame). Two bugs this caused, both now fixed:
 1. **It applied to every section/entry on every page, not just the first one on a new page** — so PDF gaps were silently 8px/4px larger than what `SortableSection`'s "Section spacing" stepper showed in the on-screen preview (which never applies this), for every section, cumulatively. Fixed by removing the hack entirely; `page-break-inside:avoid` alone is sufficient for the "don't split a section" correctness requirement — it doesn't add any visual gap.
-2. **Removing it above then left continuation pages (2+) with *zero* top margin** — the on-screen preview (`CentrePanel.tsx`) actually does give page 2+ a real 40px gap, but only as a display-only clip/offset trick (`top: i === 0 ? 0 : 40 - pageStartY[i]`, plus a white mask) that doesn't exist in the PDF's single continuous document flow. Fixed by porting `CentrePanel`'s `calcPageLayout` chunk/break-point algorithm into a `page.evaluate()` call that runs right before `page.pdf()`: it finds the actual DOM element that will start each new printed page and adds a real `margin-top: 40px` to it (page 1 is never a break element, so it's untouched — no double-inset). This means the gap exists in the real flowed document, not just a visual trick, so Chrome's own pagination naturally leaves room for it.
+2. **Removing it above then left continuation pages (2+) with *zero* top margin** — the on-screen preview (`CentrePanel.tsx`) actually does give page 2+ a real 40px gap, but only as a display-only clip/offset trick (`top: i === 0 ? 0 : 40 - pageStartY[i]`, plus a white mask) that doesn't exist in the PDF's single continuous document flow. Fixed by finding the actual DOM element that will start each new printed page (legacy pipeline: a bespoke `page.evaluate()` chunk walk right before `page.pdf()`; shared engine: the `breakChunkIndex` output of `computePageBreaks()`, see 10.1) and adding a real `margin-top: 40px` to it (page 1 is never a break element, so it's untouched — no double-inset). This means the gap exists in the real flowed document, not just a visual trick, so Chrome's own pagination naturally leaves room for it.
 
 If you touch `generate-pdf/route.ts` again: do not reach for a blanket per-section/per-entry padding as a quick fix for "page 2 looks cramped" — it silently breaks WYSIWYG for every other section on every page. The correct lever is the page-break-point-targeted `margin-top` nudge described above.
 
 ### cv-print page (/cv-print/[cvId]/page.tsx):
-- Renders template based on template_id
+- Renders template based on template_id, exposes `window.__CV_TEMPLATE_ID__` once resolved (lets `generate-pdf/route.ts` branch pipelines — see 10.1)
 - Has `position:fixed` border overlay for tech template
 - Has `position:fixed` left line overlay for creative template
-- Has `position:fixed` sidebar overlay for modern template
 - Adds `#cv-ready-marker` when loaded
 
 ### Chrome path (dev):
@@ -447,11 +482,12 @@ If you touch `generate-pdf/route.ts` again: do not reach for a blanket per-secti
 ## 11. CentrePanel Preview System
 
 - Template renders in hidden off-screen div (width=794px)
-- ResizeObserver watches it, runs `calcPageStarts()` on resize
-- Splits content into A4 pages (A4_H=1123px) using `.cv-section` elements
-- For Bordered: `position:absolute` border overlay on each page card
-- For Timeline: `borderLeft` on outer scaled column div (isCreative flag)
-- For Modern: `background: linear-gradient(to right, accentColor 35%, transparent 35%)` on outer wrapper (isModern flag)
+- ResizeObserver watches it, runs `calcPageLayout()` on resize
+- For the 5 templates on the shared pagination engine (section 10.1/10.2): `calcPageLayout()` delegates directly to `lib/pagination.ts`'s `extractPageChunks()` + `computePageBreaks()` — the exact same functions `generate-pdf/route.ts` uses, so the two can't independently disagree on break points
+- For the other 7 (legacy pipeline, section 10.3): splits content into A4 pages (A4_H=1123px) using `.cv-section` elements with its own bespoke chunk walk
+- For Bordered (Tech): `position:absolute` border overlay on each page card
+- For Timeline (Creative): `borderLeft` on outer scaled column div (isCreative flag)
+- For Modern: one `position:absolute` sidebar-color band per page card, sized/positioned from `computePageBreaks()`'s own `starts[]` output (isModern flag) — replaced the old single whole-column CSS gradient, which had no per-page boundary awareness
 
 ---
 
@@ -761,7 +797,7 @@ Priority order:
 ## 22. Known Issues / Pending Work
 
 1. **Debug screenshot** — `route.ts` saves to `C:/Users/kavidu/debug-screenshot.png` — REMOVE before production
-2. **Modern template PDF** — sidebar color tested with fixed overlay approach, verify on multi-page CVs
+2. ~~**Modern template PDF** — sidebar color tested with fixed overlay approach, verify on multi-page CVs~~ **RESOLVED 2026-07-04** — Modern migrated to the shared pagination engine; the sidebar band is now derived per-page from `computePageBreaks()`'s own output in both preview and PDF, not a `position:fixed` overlay. See section 10.2.
 3. **Stripe not set up** — Pro upgrade buttons go to `/pricing` (page not built yet)
 4. **CV upload parser** — planned feature, not built (see Phase 2 #4)
 5. **Mobile responsiveness** — not fully tested on mobile, including the new ATS sidebar layout (verify sidebar stacks correctly on narrow screens)
@@ -771,3 +807,5 @@ Priority order:
 9. **Stale template count in Pro upsell copy** (found during session 4 template audit) — `(dashboard)/templates/page.tsx`'s `ProUpgradeModal` hardcodes the feature bullet `"5 premium CV templates"`, but there are actually **8** Pro templates (modern, tech, creative, executive, gcc, portrait, milestone, vega). This copy was presumably accurate when Modern/Bordered/Timeline/Executive/GCC (5) were the only Pro templates and was never updated when Portrait, Milestone, Corporate†, and Vega were added. (†Corporate/Halo shipped as FREE, so it didn't change the Pro count itself, but Portrait/Milestone/Vega did.) Fix: bump the copy to "8 premium CV templates" or derive the count from `TEMPLATES.filter(t => t.plan === "pro").length` so it can't drift again.
 10. **Orphaned `cv_sections.data._layout` field** ({marginBottom, lineHeight}) — leftover from the removed per-section spacing/line-height steppers in `SortableSection.tsx`'s toolbar. No template reads it anymore (all 12 now derive spacing solely from the global `CVCustomization.spacing` value). Safe to ignore — existing stored values are inert, not read anywhere — but clean up with a migration (drop the key from `data` JSONB, or leave it since it's harmless dead data) before production deployment.
 11. **`duplicate_cv` doesn't copy `customization`** (found during the preview/PDF pagination-drift investigation, 2026-07-04) — `backend/app/api/routes/cv.py`'s `duplicate_cv` route copies `title`/`template_id`/sections but never sets `customization=source.customization` on the new `CVDocument`, so a duplicated CV silently resets to `DEFAULT_CUSTOMIZATION` instead of keeping the original's accent color/font/spacing/etc. Distinct from the {}-customization preview/PDF drift bug (which is fixed — see `mergeCustomization()` in `frontend/types/index.ts` and `_merge_customization()` in `cv.py`); this one is about losing a user's actual style choices on duplicate, not a rendering inconsistency. Fix: add `customization=_merge_customization(source.customization, None)` to `duplicate_cv`'s `CVDocument(...)` call. Not yet fixed — deliberately deferred.
+12. **Shared pagination engine: `CONTINUATION_TOP_GAP` gap-accounting edge case** (found during Executive's verification, 2026-07-05 — see section 10.2) — `computePageBreaks()` decides break points from gap-less measurements, but `generate-pdf/route.ts` then injects a real 40px `margin-top` at each break point afterward. If a section between two breaks fits with only a few px of margin in the gap-less math, that 40px insertion can erode the margin enough to bump it onto its own extra, near-blank page. Affects all 5 templates on the shared engine equally (Classic, Academic, Modern, Minimal, Executive) — confirmed data-size-dependent (only manifests on specific tightly-packed content), not template-dependent. A real fix means changing `computePageBreaks()`/gap-injection math itself, which all 5 migrated templates share — deliberately deferred rather than bundled into any single template's fix.
+13. **References section email/phone rendering in white/near-white text (unreadable)** — fixed on Classic and Modern only so far. Needs verifying/applying to the other 3 migrated templates (Academic, Minimal, Executive) and, eventually, the 7 legacy-pipeline templates too.

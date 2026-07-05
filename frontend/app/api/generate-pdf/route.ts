@@ -96,19 +96,19 @@ export async function POST(request: NextRequest) {
     await page.evaluateHandle(() => document.fonts.ready);
 
     // cv-print/[cvId]/page.tsx exposes the resolved template on window once
-    // it knows it — read it so Classic, Modern, and Minimal (the templates
-    // migrated so far onto the shared-function pipeline) can use it below
-    // while every other template keeps going through the legacy pipeline it
-    // always has. NOTE: Academic already has the .cv-heading-group wrapper
-    // wired into its own component (AcademicTemplate.tsx) but was never added
-    // to this branch condition — that's a pre-existing gap, not something
-    // this Minimal-only change touches.
+    // it knows it — read it so Classic, Modern, Minimal, and Executive (the
+    // templates migrated so far onto the shared-function pipeline) can use
+    // it below while every other template keeps going through the legacy
+    // pipeline it always has. NOTE: Academic already has the .cv-heading-group
+    // wrapper wired into its own component (AcademicTemplate.tsx) but was
+    // never added to this branch condition — that's a pre-existing gap, not
+    // something this Executive-only change touches.
     const templateId = await page.evaluate(
       () => (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__
     );
 
-    if (templateId === "classic" || templateId === "modern" || templateId === "minimal") {
-      // ── Classic, Modern & Minimal: shared-pagination pipeline ───────────
+    if (templateId === "classic" || templateId === "modern" || templateId === "minimal" || templateId === "executive") {
+      // ── Classic, Modern, Minimal & Executive: shared-pagination pipeline ─
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
       // Unlike the legacy pipeline below, .cv-section does NOT get
       // page-break-inside:avoid — a long section (e.g. Experience, Projects)
