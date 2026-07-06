@@ -75,7 +75,8 @@
       "Bash(git stash *)",
       "Bash(python -c ' *)",
       "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select c.id, u.email, c.data->>'template_id' as template_id, c.title, c.updated_at from cvs c join users u on u.id=c.user_id order by c.updated_at desc nulls last limit 25;\")",
-      "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select id, template_id, title from cv_documents where id=132;\")"
+      "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select id, template_id, title from cv_documents where id=132;\")",
+      "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select data->'entries' from cv_sections where cv_id=135 and section_type='projects';\")"
     ]
   }
 }

@@ -20,7 +20,7 @@ import { CreativeTemplate } from "./templates/CreativeTemplate";
 import { AcademicTemplate } from "./templates/AcademicTemplate";
 import { GCCTemplate } from "./templates/GCCTemplate";
 import { PortraitTemplate, PORTRAIT_SIDEBAR_TYPES } from "./templates/PortraitTemplate";
-import { MilestoneTemplate } from "./templates/MilestoneTemplate";
+import { MilestoneTemplate, MILESTONE_SIDEBAR_TYPES } from "./templates/MilestoneTemplate";
 import { CorporateTemplate } from "./templates/CorporateTemplate";
 import { VegaTemplate } from "./templates/VegaTemplate";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,11 @@ const PAGE_GAP = 20;
 // per-page-card divider overlay at the same X the template's own (suppressed
 // inside .cv-page-card) borderRight would have landed at.
 const PORTRAIT_DIVIDER_X = 32 + 0.34 * (A4_W - 64);
+// MilestoneTemplate's own fixed layout constants — identical 32px horizontal
+// page padding and 34%-width sidebar as Portrait, kept as its own named
+// constant (rather than reusing PORTRAIT_DIVIDER_X) so the two templates'
+// layouts can diverge independently later without silently affecting each other.
+const MILESTONE_DIVIDER_X = 32 + 0.34 * (A4_W - 64);
 
 interface PageLayout {
   /** Template-space Y coordinate where each page begins. */
@@ -58,6 +63,10 @@ interface PageLayout {
    *  template. Used to keep the per-page-card divider overlay from crossing
    *  through the header on page 1 (see the isPortrait divider JSX below). */
   bodyTop: number;
+  /** Portrait/Milestone: Y coordinate where the sidebar's real content ends.
+   *  Infinity for every other template. Used by Milestone's sidebar overlay
+   *  to stop revealing content once the sidebar has nothing left to show. */
+  sidebarBottom: number;
   /** section.id -> the page index it visually starts on, used to decide which page-card is allowed to register that section as a drag source/target. */
   sectionPage: Map<number, number>;
 }
@@ -131,16 +140,27 @@ function calcPageLayout(el: HTMLElement): PageLayout {
   const { starts } = computePageBreaks(chunks, A4_H);
   const baseTop = el.getBoundingClientRect().top;
 
-  const sidebarEl = el.querySelector<HTMLElement>(".portrait-sidebar");
+  // Portrait and Milestone share the same two-column sidebar shape; only one
+  // of these selectors can ever match a given template's render.
+  const sidebarEl = el.querySelector<HTMLElement>(".portrait-sidebar, .milestone-sidebar");
   const sidebarStarts = sidebarEl
     ? computeSidebarPageStart(starts, extractSidebarChunks(sidebarEl, baseTop))
     : starts;
   const bodyTop = sidebarEl ? sidebarEl.getBoundingClientRect().top - baseTop : 0;
+  // Where the sidebar's real content ends (its box's own bottom, which
+  // align-items:stretch keeps in sync with whichever column is taller).
+  // Milestone's sidebar-only overlay (see isMilestone below) uses this to
+  // stop rendering once the sidebar has nothing left to show, instead of
+  // continuing to reveal whatever else exists in that X-range in the full
+  // template — for Milestone that's the full-width References section,
+  // which otherwise bleeds through at the wrong offset once the sidebar
+  // itself has run out of content.
+  const sidebarBottom = sidebarEl ? sidebarEl.getBoundingClientRect().bottom - baseTop : Infinity;
 
   // Every SortableSection (main-column sections and, in Modern, sidebar
   // sections too) tags itself with data-section-id regardless of whether
   // it's editable — bucket each one into the page it visually starts on.
-  // Sidebar-column markers (Portrait only) are bucketed against the
+  // Sidebar-column markers (Portrait/Milestone only) are bucketed against the
   // sidebar's own independent starts, not main's, so a section pushed onto
   // the next page-card by computeSidebarPageStart() above also gets its
   // drag-target registration pointed at that same page-card.
@@ -157,7 +177,7 @@ function calcPageLayout(el: HTMLElement): PageLayout {
     sectionPage.set(id, page);
   }
 
-  return { starts, sidebarStarts, bodyTop, sectionPage };
+  return { starts, sidebarStarts, bodyTop, sidebarBottom, sectionPage };
 }
 
 export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS, onSectionDataChange, onReorder }: Props) {
@@ -166,6 +186,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   const [pageStartY, setPageStartY] = useState<number[]>([0]);
   const [sidebarPageStart, setSidebarPageStart] = useState<number[]>([0]);
   const [bodyTop, setBodyTop] = useState(0);
+  const [sidebarBottom, setSidebarBottom] = useState(Infinity);
   const [sectionPage, setSectionPage] = useState<Map<number, number>>(new Map());
 
   const visibleSections = sections.filter((s) => s.is_visible);
@@ -173,6 +194,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   const isCreative = cv.template_id === "creative";
   const isModern = cv.template_id === "modern";
   const isPortrait = cv.template_id === "portrait";
+  const isMilestone = cv.template_id === "milestone";
   const scale = zoom / 100;
 
   const editable = !!(onSectionDataChange && onReorder);
@@ -206,6 +228,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       setPageStartY(layout.starts);
       setSidebarPageStart(layout.sidebarStarts);
       setBodyTop(layout.bodyTop);
+      setSidebarBottom(layout.sidebarBottom);
       setSectionPage(layout.sectionPage);
     });
     observer.observe(el);
@@ -282,15 +305,17 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   // is allowed to register it as a drag source/target, so a section can be
   // dragged from, or dropped onto, any page.
   //
-  // Portrait renders its sidebar as a second, independently-offset overlay per
-  // page-card (see the isPortrait branch below) — that overlay and the shared
-  // "main" content div both render the FULL template via this same function,
-  // so without `role` filtering a section landing on this pageIndex would
-  // register as a drag target in BOTH copies simultaneously, which dnd-kit's
-  // useSortable() can't tolerate (two elements claiming the same section id
-  // at once). `role` makes each copy only claim the sections that actually
-  // belong to it; every other template always passes no role and keeps the
-  // original single-copy behavior untouched.
+  // Portrait and Milestone render their sidebar as a second, independently-
+  // offset overlay per page-card (see the isPortrait/isMilestone branches
+  // below) — that overlay and the shared "main" content div both render the
+  // FULL template via this same function, so without `role` filtering a
+  // section landing on this pageIndex would register as a drag target in
+  // BOTH copies simultaneously, which dnd-kit's useSortable() can't tolerate
+  // (two elements claiming the same section id at once). `role` makes each
+  // copy only claim the sections that actually belong to it; every other
+  // template always passes no role and keeps the original single-copy
+  // behavior untouched.
+  const sidebarTypesForRole = isPortrait ? PORTRAIT_SIDEBAR_TYPES : isMilestone ? MILESTONE_SIDEBAR_TYPES : null;
   const renderEditableTemplate = (pageIndex: number, role?: "main" | "sidebar") => {
     if (!editable) return renderTemplate();
     return (
@@ -301,9 +326,9 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
           onReorder: (newSections) => onReorder!(newSections),
           isDragTarget: (sectionId) => {
             if ((sectionPage.get(sectionId) ?? 0) !== pageIndex) return false;
-            if (!isPortrait || !role) return true;
+            if (!sidebarTypesForRole || !role) return true;
             const section = sections.find((s) => s.id === sectionId);
-            const isSidebarSection = !!section && PORTRAIT_SIDEBAR_TYPES.has(section.section_type);
+            const isSidebarSection = !!section && sidebarTypesForRole.has(section.section_type);
             return role === "sidebar" ? isSidebarSection : !isSidebarSection;
           },
         }}
@@ -343,6 +368,10 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
           continuous element, so suppressed here in favor of the isPortrait
           per-page-card divider below, sized to that card's own A4 box. */}
       <style>{`.cv-page-card .portrait-sidebar { border-right: none; }`}</style>
+      {/* MilestoneTemplate's own sidebar divider — same reason as Portrait's
+          above, suppressed here in favor of the isMilestone per-page-card
+          divider below. */}
+      <style>{`.cv-page-card .milestone-sidebar { border-right: none; }`}</style>
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] flex-shrink-0 bg-[#0d1117]">
         <div className="flex items-center gap-1">
@@ -500,7 +529,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                       fontFamily: "Arial, sans-serif",
                     }}
                   >
-                    {renderEditableTemplate(i, isPortrait ? "main" : undefined)}
+                    {renderEditableTemplate(i, isPortrait || isMilestone ? "main" : undefined)}
                   </div>
 
                   {/* Top mask for pages 2+: covers the 40px of previous-section content
@@ -601,6 +630,71 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                     </div>
                   )}
 
+                  {/* Milestone: same sidebar-hider + independent-overlay pair as Portrait
+                      above, and for the same reason — the shared content div's single
+                      pageStartY-driven mask can't protect a sidebar entry that straddles
+                      that cut point, so the sidebar is blanked out here and re-rendered
+                      below at its own sidebarPageStart offset instead.
+                      Height is capped to milestoneSidebarVisibleHeight (0 once the
+                      sidebar's real content has fully ended on an earlier page) instead
+                      of unconditionally spanning the whole page: Milestone, unlike
+                      Portrait, has a full-width References section AFTER the two-column
+                      body, which lives in the same X-range as the sidebar — an
+                      uncapped overlay would keep revealing References (shifted to the
+                      sidebar's own, unrelated offset) on any page after the sidebar
+                      itself runs out of content, exactly the reported overlap bug. */}
+                  {isMilestone && (() => {
+                    const sidebarShift = i === 0 ? 0 : 40 - sidebarPageStart[i];
+                    const visibleHeight = Math.max(0, Math.min(A4_H, sidebarBottom + sidebarShift));
+                    if (visibleHeight <= 0) return null;
+                    return (
+                      <>
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: MILESTONE_DIVIDER_X,
+                            height: visibleHeight,
+                            backgroundColor: "#ffffff",
+                            zIndex: 2,
+                          }}
+                        />
+                        <div style={{ position: "absolute", top: 0, left: 0, width: MILESTONE_DIVIDER_X, height: visibleHeight, overflow: "hidden", zIndex: 3 }}>
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: sidebarShift,
+                              left: 0,
+                              width: A4_W,
+                              fontFamily: "Arial, sans-serif",
+                            }}
+                          >
+                            {renderEditableTemplate(i, "sidebar")}
+                          </div>
+                          {i > 0 && (
+                            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 40, backgroundColor: "#ffffff", zIndex: 2 }} />
+                          )}
+                          {i < pageCount - 1 && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: i === 0
+                                  ? sidebarPageStart[i + 1]
+                                  : 40 + sidebarPageStart[i + 1] - sidebarPageStart[i],
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: "#ffffff",
+                                zIndex: 2,
+                              }}
+                            />
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+
                   {/* Bordered template: overlay frame drawn on top of content and masks */}
                   {isTech && (
                     <div
@@ -660,6 +754,36 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                       }}
                     />
                   )}
+
+                  {/* Milestone's sidebar divider: same fix as Portrait's above, and for
+                      the same reason — page 1 only starts at bodyTop instead of 0, since
+                      Milestone's header zone (name/title, then a full-width Career
+                      Summary section) sits above the two-column body. Also capped to
+                      sidebarBottom (which, thanks to align-items:stretch, is exactly
+                      where the two-column body truly ends regardless of which column
+                      is taller) instead of running the full page height — Milestone's
+                      full-width References section can start partway down a page, and
+                      the divider must not run through it. */}
+                  {isMilestone && (() => {
+                    const top = i === 0 ? bodyTop : 0;
+                    const shift = i === 0 ? 0 : 40 - sidebarPageStart[i];
+                    const visibleBottom = Math.max(top, Math.min(A4_H, sidebarBottom + shift));
+                    if (visibleBottom <= top) return null;
+                    return (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top,
+                          left: MILESTONE_DIVIDER_X,
+                          height: visibleBottom - top,
+                          width: 1,
+                          backgroundColor: "#d1d5db",
+                          pointerEvents: "none",
+                          zIndex: 10,
+                        }}
+                      />
+                    );
+                  })()}
                 </div>
 
                 {/* Page number label in dark gap below each card */}

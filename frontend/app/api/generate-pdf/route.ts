@@ -97,9 +97,9 @@ export async function POST(request: NextRequest) {
 
     // cv-print/[cvId]/page.tsx exposes the resolved template on window once
     // it knows it — read it so Classic, Academic, Modern, Minimal, Executive,
-    // Tech, Creative, GCC, and Portrait (the templates migrated onto the
-    // shared-function pipeline) can use it below while every other template
-    // keeps going through the legacy pipeline it always has. Academic's own component
+    // Tech, Creative, GCC, Portrait, and Milestone (the templates migrated
+    // onto the shared-function pipeline) can use it below while every other
+    // template keeps going through the legacy pipeline it always has. Academic's own component
     // (AcademicTemplate.tsx) already had the .cv-heading-group wrapper wired
     // in but was never added to this branch condition — a pre-existing gap
     // that meant it was silently still running the legacy pipeline's own
@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
       () => (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__
     );
 
-    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait") {
-      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC & Portrait: shared-pagination pipeline ─
+    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait" || templateId === "milestone") {
+      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC, Portrait & Milestone: shared-pagination pipeline ─
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
       // Unlike the legacy pipeline below, .cv-section does NOT get
       // page-break-inside:avoid — a long section (e.g. Experience, Projects)
@@ -410,6 +410,64 @@ export async function POST(request: NextRequest) {
               strip.style.left = `${dividerX}px`;
               strip.style.width = "1px";
               strip.style.height = `${i * pageHeight + pageHeight - stripTop}px`;
+              strip.style.backgroundColor = color;
+              strip.style.pointerEvents = "none";
+              strip.style.zIndex = "10";
+              outer.appendChild(strip);
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4
+        );
+      }
+
+      // ── Milestone's sidebar divider ──────────────────────────────────────
+      // Same fix as Portrait's sidebar divider above, for the same reason
+      // (.milestone-sidebar's borderRight is a single CSS border on a box
+      // whose height was computed once, pre-pagination — not guaranteed to
+      // keep painting on every physical page). Page 1's strip starts at
+      // .milestone-sidebar's own measured top, not y=0 — Milestone's header
+      // zone is even taller than Portrait's (name/title block, then a
+      // full-width Career Summary section, THEN the two-column body), so
+      // hardcoding an offset would be wrong; measuring the sidebar's actual
+      // top handles whatever precedes it automatically.
+      //
+      // Every strip is also capped at bodyBottom (.milestone-sidebar's own
+      // measured bottom — align-items:stretch keeps this in sync with
+      // whichever column, sidebar or main, is taller, so it's exactly where
+      // the two-column body ends regardless of which one). Unlike Portrait,
+      // Milestone has a full-width References section directly below the
+      // two columns, which can start partway down a page once main content
+      // runs long (e.g. several Project entries) — an uncapped strip would
+      // run the divider straight through References instead of stopping
+      // where the two-column body actually ends.
+      if (templateId === "milestone") {
+        await page.evaluate(
+          (pageCount: number, pageHeight: number) => {
+            const outer = document.querySelector<HTMLElement>(".milestone-outer");
+            const sidebar = document.querySelector<HTMLElement>(".milestone-sidebar");
+            if (!outer || !sidebar) return;
+            const cs = getComputedStyle(sidebar);
+            const color = cs.borderRightColor;
+            const outerRect = outer.getBoundingClientRect();
+            const sidebarRect = sidebar.getBoundingClientRect();
+            const dividerX = sidebarRect.right - outerRect.left;
+            const bodyTop = sidebarRect.top - outerRect.top;
+            const bodyBottom = sidebarRect.bottom - outerRect.top;
+            sidebar.style.borderRightStyle = "none";
+            outer.style.position = "relative";
+            outer.style.minHeight = `${pageCount * pageHeight}px`;
+            for (let i = 0; i < pageCount; i++) {
+              const stripTop = i === 0 ? bodyTop : i * pageHeight;
+              const stripBottom = Math.min(i * pageHeight + pageHeight, bodyBottom);
+              if (stripBottom <= stripTop) continue;
+              const strip = document.createElement("div");
+              strip.setAttribute("data-milestone-divider", String(i));
+              strip.style.position = "absolute";
+              strip.style.top = `${stripTop}px`;
+              strip.style.left = `${dividerX}px`;
+              strip.style.width = "1px";
+              strip.style.height = `${stripBottom - stripTop}px`;
               strip.style.backgroundColor = color;
               strip.style.pointerEvents = "none";
               strip.style.zIndex = "10";

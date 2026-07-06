@@ -18,8 +18,12 @@ function get(sections: CVSection[], type: string) {
   return sections.find((s) => s.section_type === type)?.data ?? {};
 }
 
-// Sections that live in the left column regardless of order
-const SIDEBAR_TYPES = new Set(["education", "skills", "soft_skills", "certificates", "languages", "interests"]);
+// Sections that live in the left column regardless of order. Exported so
+// CentrePanel.tsx can tell sidebar sections apart from main-column ones when
+// rendering the sidebar as its own independently-paginated overlay (see the
+// isMilestone branch there) — mirrors PortraitTemplate.tsx's PORTRAIT_SIDEBAR_TYPES.
+export const MILESTONE_SIDEBAR_TYPES = new Set(["education", "skills", "soft_skills", "certificates", "languages", "interests"]);
+const SIDEBAR_TYPES = MILESTONE_SIDEBAR_TYPES;
 
 const DARK = "#111827";
 const MID = "#374151";
@@ -82,39 +86,44 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
     const setEntry = makeEntrySetter(section, onFieldChange);
 
     switch (section.section_type) {
-      case "education":
+      case "education": {
         if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            {entries.map((entry: any, i: number) => (
-              <div key={i} style={{ marginBottom: Math.round(10 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <div style={{ fontWeight: "bold", fontSize: 12, color: DARK, fontFamily: fontCSS }}>
-                  <EditableText value={entry.degree} onCommit={(v) => setEntry(i, "degree", v)} />
-                </div>
-                <div style={{ fontSize: 11, color: MID, fontFamily: fontCSS }}>
-                  <EditableText value={entry.institution} onCommit={(v) => setEntry(i, "institution", v)} />
-                </div>
-                <div style={{ ...dateStyle, marginTop: 2 }}>
-                  <EditableText value={entry.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />
-                  {entry.start_date && entry.end_date ? " – " : ""}
-                  <EditableText value={entry.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />
-                </div>
-                {entry.score_type && entry.score_value && (
-                  <div style={{ fontSize: 10, color: LIGHT, fontFamily: fontCSS, marginTop: 1 }}>
-                    {entry.score_type}: <span style={{ fontWeight: 600, color: MID }}><EditableText value={entry.score_value} onCommit={(v) => setEntry(i, "score_value", v)} /></span>
-                  </div>
-                )}
+        const renderEntry = (entry: any, i: number) => (
+          <div key={i} style={{ marginBottom: Math.round(10 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
+            <div style={{ fontWeight: "bold", fontSize: 12, color: DARK, fontFamily: fontCSS }}>
+              <EditableText value={entry.degree} onCommit={(v) => setEntry(i, "degree", v)} />
+            </div>
+            <div style={{ fontSize: 11, color: MID, fontFamily: fontCSS }}>
+              <EditableText value={entry.institution} onCommit={(v) => setEntry(i, "institution", v)} />
+            </div>
+            <div style={{ ...dateStyle, marginTop: 2 }}>
+              <EditableText value={entry.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />
+              {entry.start_date && entry.end_date ? " – " : ""}
+              <EditableText value={entry.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />
+            </div>
+            {entry.score_type && entry.score_value && (
+              <div style={{ fontSize: 10, color: LIGHT, fontFamily: fontCSS, marginTop: 1 }}>
+                {entry.score_type}: <span style={{ fontWeight: 600, color: MID }}><EditableText value={entry.score_value} onCommit={(v) => setEntry(i, "score_value", v)} /></span>
               </div>
-            ))}
+            )}
           </div>
         );
+        return (
+          <div>
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              {renderEntry(entries[0], 0)}
+            </div>
+            {entries.slice(1).map((entry: any, i: number) => renderEntry(entry, i + 1))}
+          </div>
+        );
+      }
 
       case "skills":
       case "soft_skills":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
+          <div>
             <SectionHeading section={section} title={section.section_type === "skills" ? "Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", flexDirection: "column", gap: Math.round(6 * sp) }}>
               {entries.map((s: any, i: number) => (
@@ -129,51 +138,69 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           </div>
         );
 
-      case "certificates":
+      case "certificates": {
         if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <SectionHeading section={section} title="Certification" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {entries.map((c: any, i: number) => (
-                <li key={i} style={{ display: "flex", gap: 7, marginBottom: Math.round(6 * sp), fontSize: 11.5, fontFamily: fontCSS, ...eb }} className="cv-entry">
-                  <span style={{ color: DARK, fontSize: 8, lineHeight: "1.6", flexShrink: 0 }}>●</span>
-                  <span style={{ color: MID }}>
-                    {c.link ? (
-                      <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-                        <EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} />
-                      </a>
-                    ) : (
-                      <EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} />
-                    )}
-                    {c.issuer && <span style={{ color: LIGHT }}> — <EditableText value={c.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        const renderEntry = (c: any, i: number) => (
+          <li key={i} style={{ display: "flex", gap: 7, marginBottom: Math.round(6 * sp), fontSize: 11.5, fontFamily: fontCSS, ...eb }} className="cv-entry">
+            <span style={{ color: DARK, fontSize: 8, lineHeight: "1.6", flexShrink: 0 }}>●</span>
+            <span style={{ color: MID }}>
+              {c.link ? (
+                <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                  <EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} />
+                </a>
+              ) : (
+                <EditableText value={c.certificate_name} onCommit={(v) => setEntry(i, "certificate_name", v)} />
+              )}
+              {c.issuer && <span style={{ color: LIGHT }}> — <EditableText value={c.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></span>}
+            </span>
+          </li>
         );
-
-      case "languages":
-        if (!entries.length) return null;
         return (
-          <div className="cv-section">
-            <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontFamily: fontCSS }}>
-              {entries.map((l: any, i: number) => (
-                <div key={i}>
-                  <span style={{ fontWeight: 600, color: DARK }}><EditableText value={l.language} onCommit={(v) => setEntry(i, "language", v)} /></span>
-                  {l.level && <span style={{ color: LIGHT }}> — <EditableText value={l.level} onCommit={(v) => setEntry(i, "level", v)} /></span>}
-                </div>
-              ))}
+          <div>
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Certification" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {renderEntry(entries[0], 0)}
+              </ul>
             </div>
+            {entries.length > 1 && (
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {entries.slice(1).map((c: any, i: number) => renderEntry(c, i + 1))}
+              </ul>
+            )}
           </div>
         );
+      }
+
+      case "languages": {
+        if (!entries.length) return null;
+        const renderEntry = (l: any, i: number) => (
+          <div key={i} className="cv-entry" style={{ ...eb }}>
+            <span style={{ fontWeight: 600, color: DARK }}><EditableText value={l.language} onCommit={(v) => setEntry(i, "language", v)} /></span>
+            {l.level && <span style={{ color: LIGHT }}> — <EditableText value={l.level} onCommit={(v) => setEntry(i, "level", v)} /></span>}
+          </div>
+        );
+        return (
+          <div>
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontFamily: fontCSS }}>
+                {renderEntry(entries[0], 0)}
+              </div>
+            </div>
+            {entries.length > 1 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontFamily: fontCSS }}>
+                {entries.slice(1).map((l: any, i: number) => renderEntry(l, i + 1))}
+              </div>
+            )}
+          </div>
+        );
+      }
 
       case "interests":
         if (!entries.length) return null;
         return (
-          <div className="cv-section">
+          <div>
             <SectionHeading section={section} title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ fontSize: 11.5, color: MID, fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join(" · ")}
@@ -193,146 +220,176 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
     const setEntry = makeEntrySetter(section, onFieldChange);
 
     switch (section.section_type) {
-      case "experience":
+      case "experience": {
         if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <SectionHeading section={section} title="Work Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            {entries.map((entry: any, i: number) => {
-              const isLast = i === entries.length - 1;
-              return (
-                <div key={i} className="cv-entry" style={{ display: "flex", gap: 12, ...eb }}>
-                  <div style={{ width: 22, flexShrink: 0, position: "relative" }}>
-                    <div
-                      style={{
-                        position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
-                        width: 20, height: 20, borderRadius: "50%",
-                        border: `2px solid ${accentColor}`, backgroundColor: "#fff", zIndex: 1,
-                      }}
-                    />
-                    {!isLast && (
-                      <div
-                        style={{
-                          position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)",
-                          width: 2, bottom: -entryGap, backgroundColor: RULE,
-                        }}
-                      />
-                    )}
+        const renderEntry = (entry: any, i: number) => {
+          const isLast = i === entries.length - 1;
+          return (
+            <div key={i} className="cv-entry" style={{ display: "flex", gap: 12, ...eb }}>
+              <div style={{ width: 22, flexShrink: 0, position: "relative" }}>
+                <div
+                  style={{
+                    position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+                    width: 20, height: 20, borderRadius: "50%",
+                    border: `2px solid ${accentColor}`, backgroundColor: "#fff", zIndex: 1,
+                  }}
+                />
+                {!isLast && (
+                  <div
+                    style={{
+                      position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)",
+                      width: 2, bottom: -entryGap, backgroundColor: RULE,
+                    }}
+                  />
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? 0 : entryGap }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
+                  <div style={{ fontWeight: "bold", fontSize: 13, color: DARK, fontFamily: fontCSS }}>
+                    <EditableText value={entry.job_title} onCommit={(v) => setEntry(i, "job_title", v)} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? 0 : entryGap }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
-                      <div style={{ fontWeight: "bold", fontSize: 13, color: DARK, fontFamily: fontCSS }}>
-                        <EditableText value={entry.job_title} onCommit={(v) => setEntry(i, "job_title", v)} />
-                      </div>
-                      <div style={dateStyle}>
-                        <EditableText value={entry.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />
-                        {entry.start_date && (entry.end_date || entry.current) ? " – " : ""}
-                        {entry.current ? "Present" : <EditableText value={entry.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: MID, fontFamily: fontCSS }}>
-                      {entry.employer_link ? (
-                        <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-                          <EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} />
-                        </a>
-                      ) : (
-                        <EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} />
-                      )}
-                      {entry.location ? ` · ${entry.location}` : ""}
-                    </div>
-                    {entry.description && entry.description !== "<p></p>" ? (
-                      <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS }} />
-                    ) : entry.bullets?.length > 0 ? (
-                      <ul style={{ margin: "4px 0 0 14px", padding: 0, listStyleType: "disc" }}>
-                        {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS }}>{b.text}</li>)}
-                      </ul>
-                    ) : null}
+                  <div style={dateStyle}>
+                    <EditableText value={entry.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />
+                    {entry.start_date && (entry.end_date || entry.current) ? " – " : ""}
+                    {entry.current ? "Present" : <EditableText value={entry.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        );
-
-      case "projects":
-        if (!entries.length) return null;
-        return (
-          <div className="cv-section">
-            <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            {entries.map((p: any, i: number) => (
-              <div key={i} style={{ marginBottom: Math.round(8 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <div style={{ fontWeight: "bold", fontSize: 12, color: DARK, fontFamily: fontCSS }}>
-                  {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}
+                <div style={{ fontSize: 12, color: MID, fontFamily: fontCSS }}>
+                  {entry.employer_link ? (
+                    <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                      <EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} />
+                    </a>
+                  ) : (
+                    <EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} />
+                  )}
+                  {entry.location ? ` · ${entry.location}` : ""}
                 </div>
-                {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
-                {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
-                {p.tech?.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 2, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
+                {entry.description && entry.description !== "<p></p>" ? (
+                  <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS }} />
+                ) : entry.bullets?.length > 0 ? (
+                  <ul style={{ margin: "4px 0 0 14px", padding: 0, listStyleType: "disc" }}>
+                    {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS }}>{b.text}</li>)}
+                  </ul>
+                ) : null}
               </div>
-            ))}
-          </div>
-        );
-
-      case "courses":
-        if (!entries.length) return null;
+            </div>
+          );
+        };
         return (
           <div className="cv-section">
-            <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            {entries.map((c: any, i: number) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b style={{ color: DARK }}><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b></a> : <b style={{ color: DARK }}><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b>}{c.institution ? <> — <EditableText value={c.institution} onCommit={(v) => setEntry(i, "institution", v)} /></> : ""}</span>
-                <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} /></span>
-              </div>
-            ))}
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Work Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              {renderEntry(entries[0], 0)}
+            </div>
+            {entries.slice(1).map((entry: any, i: number) => renderEntry(entry, i + 1))}
           </div>
         );
+      }
 
-      case "awards":
+      case "projects": {
         if (!entries.length) return null;
+        const renderEntry = (p: any, i: number) => (
+          <div key={i} style={{ marginBottom: Math.round(8 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
+            <div style={{ fontWeight: "bold", fontSize: 12, color: DARK, fontFamily: fontCSS }}>
+              {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}
+            </div>
+            {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
+            {p.tech?.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 2, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
+          </div>
+        );
         return (
           <div className="cv-section">
-            <SectionHeading section={section} title="Awards & Recognition" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            {entries.map((a: any, i: number) => (
-              <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                  <span><b style={{ color: DARK }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>{a.issuer ? <> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
-                  <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
-                </div>
-                {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
-              </div>
-            ))}
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              {renderEntry(entries[0], 0)}
+            </div>
+            {entries.slice(1).map((p: any, i: number) => renderEntry(p, i + 1))}
           </div>
         );
+      }
 
-      case "organizations":
+      case "courses": {
         if (!entries.length) return null;
+        const renderEntry = (c: any, i: number) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 3, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
+            <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b style={{ color: DARK }}><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b></a> : <b style={{ color: DARK }}><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b>}{c.institution ? <> — <EditableText value={c.institution} onCommit={(v) => setEntry(i, "institution", v)} /></> : ""}</span>
+            <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} /></span>
+          </div>
+        );
         return (
           <div className="cv-section">
-            <SectionHeading section={section} title="Memberships & Associations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            {entries.map((o: any, i: number) => (
-              <div key={i} style={{ marginBottom: Math.round(5 * sp), fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                  <span><b style={{ color: DARK }}><EditableText value={o.name} onCommit={(v) => setEntry(i, "name", v)} /></b>{o.position ? <> — <EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></> : ""}</span>
-                  <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={o.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</span>
-                </div>
-                {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
-              </div>
-            ))}
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              {renderEntry(entries[0], 0)}
+            </div>
+            {entries.slice(1).map((c: any, i: number) => renderEntry(c, i + 1))}
           </div>
         );
+      }
 
-      case "publications":
+      case "awards": {
         if (!entries.length) return null;
+        const renderEntry = (a: any, i: number) => (
+          <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+              <span><b style={{ color: DARK }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>{a.issuer ? <> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
+              <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
+            </div>
+            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+          </div>
+        );
         return (
           <div className="cv-section">
-            <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            {entries.map((p: any, i: number) => (
-              <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
-                <b style={{ color: DARK }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>{p.publisher && <span style={{ color: LIGHT }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}{p.date && <span style={{ color: LIGHT }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-                {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
-              </div>
-            ))}
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Awards & Recognition" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              {renderEntry(entries[0], 0)}
+            </div>
+            {entries.slice(1).map((a: any, i: number) => renderEntry(a, i + 1))}
           </div>
         );
+      }
+
+      case "organizations": {
+        if (!entries.length) return null;
+        const renderEntry = (o: any, i: number) => (
+          <div key={i} style={{ marginBottom: Math.round(5 * sp), fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+              <span><b style={{ color: DARK }}><EditableText value={o.name} onCommit={(v) => setEntry(i, "name", v)} /></b>{o.position ? <> — <EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></> : ""}</span>
+              <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={o.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</span>
+            </div>
+            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+          </div>
+        );
+        return (
+          <div className="cv-section">
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Memberships & Associations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              {renderEntry(entries[0], 0)}
+            </div>
+            {entries.slice(1).map((o: any, i: number) => renderEntry(o, i + 1))}
+          </div>
+        );
+      }
+
+      case "publications": {
+        if (!entries.length) return null;
+        const renderEntry = (p: any, i: number) => (
+          <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
+            <b style={{ color: DARK }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>{p.publisher && <span style={{ color: LIGHT }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}{p.date && <span style={{ color: LIGHT }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+          </div>
+        );
+        return (
+          <div className="cv-section">
+            <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+              <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              {renderEntry(entries[0], 0)}
+            </div>
+            {entries.slice(1).map((p: any, i: number) => renderEntry(p, i + 1))}
+          </div>
+        );
+      }
 
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
@@ -390,7 +447,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
   const bodyPad = Math.round(22 * sp);
 
   return (
-    <div style={{ backgroundColor: "#fff", fontSize: 12, color: MID, lineHeight: 1.6, fontFamily: fontCSS, minHeight: "297mm" }}>
+    <div className="milestone-outer" style={{ backgroundColor: "#fff", fontSize: 12, color: MID, lineHeight: 1.6, fontFamily: fontCSS, minHeight: "297mm" }}>
       <div style={{ padding: `${headerPad}px 32px 18px` }}>
         <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "0.02em", textTransform: "uppercase", lineHeight: 1.15, color: DARK, fontFamily: fontCSS }}>
           <EditableText value={personal.full_name} onCommit={(v) => setPersonal("full_name", v)} placeholder="Your Name" />
@@ -423,8 +480,8 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       </div>
 
       <div style={{ display: "flex", padding: `0 32px ${bodyPad}px`, gap: 24 }}>
-        <div style={{ width: "34%", flexShrink: 0, paddingRight: 22, borderRight: `1px solid ${RULE}` }}>
-          <div className="cv-section" style={{ marginBottom: 14 }}>
+        <div className="milestone-sidebar" style={{ width: "34%", flexShrink: 0, paddingRight: 22, borderRight: `1px solid ${RULE}` }}>
+          <div style={{ marginBottom: 14 }}>
             <SectionHeading section={personalSection} title="Contact" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ fontSize: 11.5, color: MID, fontFamily: fontCSS, display: "flex", flexDirection: "column", gap: 6 }}>
               {contactItems.map((item, i) => (
@@ -450,7 +507,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           ))}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="milestone-main" style={{ flex: 1, minWidth: 0 }}>
           {mainSections.map((section) => (
             <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(16 * sp)}>
               {renderMainSection(section)}
