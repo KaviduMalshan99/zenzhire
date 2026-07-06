@@ -15,6 +15,13 @@
 
 export const PAGE_HEIGHT_A4 = 1123;
 
+/** Blank top padding every page after the first gets — via a real
+ *  margin-top injection in the PDF pipeline (generate-pdf/route.ts), or a
+ *  clip-mask overlay in the live preview (CentrePanel.tsx). Both spend this
+ *  same 40px, so it must be reserved out of a continuation page's budget
+ *  here, not just applied visually afterward — see computePageBreaks(). */
+export const CONTINUATION_TOP_GAP = 40;
+
 /** Minimum forward progress (px) required before accepting a new break —
  *  guards against pathological back-to-back breaks on near-zero-height chunks. */
 const MIN_ADVANCE = 20;
@@ -76,6 +83,19 @@ export function extractPageChunks(root: HTMLElement): PageChunk[] {
  * fall. Same inputs always produce the same outputs, so the live preview
  * and the PDF export can call this identically and are guaranteed to agree
  * on every break point.
+ *
+ * Page 1 gets the full pageHeight budget (no gap). Every page after that
+ * only has (pageHeight - CONTINUATION_TOP_GAP) of real content room, because
+ * CONTINUATION_TOP_GAP of its height is always spent on blank top padding —
+ * whether that's a real margin-top injected into the flow (PDF pipeline) or
+ * a clip-mask covering the same span (live preview). Treating the full
+ * pageHeight as available for continuation pages (as an earlier version of
+ * this function did) systematically overpacked them: content that measured
+ * as "fits" here would then get shifted down by the gap at render time and
+ * genuinely overflow the physical page, forcing an extra page that this
+ * decision never accounted for — observed independently on Executive's LONG
+ * fixture and on Tech under normal spacing, both content shapes that happen
+ * to land a chunk within that reserved 40px.
  */
 export function computePageBreaks(chunks: PageChunkExtent[], pageHeight: number = PAGE_HEIGHT_A4): PageBreakResult {
   const starts: number[] = [0];
@@ -86,7 +106,7 @@ export function computePageBreaks(chunks: PageChunkExtent[], pageHeight: number 
     if (c.bottom > pageBottom && c.top > starts[starts.length - 1] + MIN_ADVANCE) {
       starts.push(c.top);
       breakChunkIndex.push(i);
-      pageBottom = c.top + pageHeight;
+      pageBottom = c.top + (pageHeight - CONTINUATION_TOP_GAP);
     }
   });
 

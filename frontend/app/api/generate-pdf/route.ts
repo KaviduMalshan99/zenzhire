@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import puppeteerCore from "puppeteer-core";
-import { PAGE_HEIGHT_A4, computePageBreaks } from "@/lib/pagination";
+import { PAGE_HEIGHT_A4, CONTINUATION_TOP_GAP, computePageBreaks } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -96,19 +96,22 @@ export async function POST(request: NextRequest) {
     await page.evaluateHandle(() => document.fonts.ready);
 
     // cv-print/[cvId]/page.tsx exposes the resolved template on window once
-    // it knows it — read it so Classic, Modern, Minimal, and Executive (the
-    // templates migrated so far onto the shared-function pipeline) can use
-    // it below while every other template keeps going through the legacy
-    // pipeline it always has. NOTE: Academic already has the .cv-heading-group
-    // wrapper wired into its own component (AcademicTemplate.tsx) but was
-    // never added to this branch condition — that's a pre-existing gap, not
-    // something this Executive-only change touches.
+    // it knows it — read it so Classic, Academic, Modern, Minimal, Executive,
+    // Tech, Creative, GCC, and Portrait (the templates migrated onto the
+    // shared-function pipeline) can use it below while every other template
+    // keeps going through the legacy pipeline it always has. Academic's own component
+    // (AcademicTemplate.tsx) already had the .cv-heading-group wrapper wired
+    // in but was never added to this branch condition — a pre-existing gap
+    // that meant it was silently still running the legacy pipeline's own
+    // (also gap-unaware) inline break logic below. Closed here as part of
+    // fixing the shared miscalculation once instead of finding it again the
+    // next time a template gets audited.
     const templateId = await page.evaluate(
       () => (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__
     );
 
-    if (templateId === "classic" || templateId === "modern" || templateId === "minimal" || templateId === "executive") {
-      // ── Classic, Modern, Minimal & Executive: shared-pagination pipeline ─
+    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait") {
+      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC & Portrait: shared-pagination pipeline ─
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
       // Unlike the legacy pipeline below, .cv-section does NOT get
       // page-break-inside:avoid — a long section (e.g. Experience, Projects)
@@ -192,15 +195,24 @@ export async function POST(request: NextRequest) {
       // The same shared, pure decision function the live preview uses —
       // called here as a normal import, not passed into page.evaluate(), so
       // there's no function-serialization concern: it's plain data in, plain
-      // data out.
+      // data out. computePageBreaks() itself now reserves CONTINUATION_TOP_GAP
+      // out of every continuation page's budget (see its own comment) — this
+      // used to be applied only as a post-decision marginTop injection below,
+      // which meant the decision above thought a full pageHeight was
+      // available on every continuation page when only
+      // (pageHeight - CONTINUATION_TOP_GAP) actually was. That silently
+      // overpacked continuation pages close to the boundary, surfacing as an
+      // unplanned extra physical page on Executive's LONG fixture and on Tech
+      // under normal spacing — not template-specific bugs, just this one
+      // shared miscalculation showing up wherever content happened to land
+      // in that reserved 40px.
       const { breakChunkIndex, starts } = computePageBreaks(chunkMeasurements, PAGE_HEIGHT_A4);
 
       // Apply the decision: force an explicit page break at exactly the
       // chosen elements (tagged above), and give continuation pages the
-      // same 40px top breathing room the on-screen preview's page 2+ cards
-      // get via its clip trick — now placed reliably, since we know exactly
+      // same top breathing room the on-screen preview's page 2+ cards get
+      // via its clip trick — now placed reliably, since we know exactly
       // which element starts each new page rather than guessing.
-      const CONTINUATION_TOP_GAP = 40;
       await page.evaluate(
         (breakIndices: number[], gap: number) => {
           for (const idx of breakIndices) {
@@ -253,6 +265,155 @@ export async function POST(request: NextRequest) {
               band.style.zIndex = "0";
               band.style.pointerEvents = "none";
               outer?.insertBefore(band, outer.firstChild);
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4
+        );
+      }
+
+      // ── Tech's border frame ──────────────────────────────────────────────
+      // .tech-outer draws its border frame via a single CSS outline around
+      // the entire multi-page-tall flow document, so — same problem as
+      // Modern's sidebar band — only the very top and bottom edges land on a
+      // real page; middle pages get no frame at all. Paint one absolutely-
+      // positioned bordered box per real page, sized to exactly
+      // PAGE_HEIGHT_A4 and stacked at exact multiples of it, instead of
+      // trusting a position:fixed overlay (which depends on Puppeteer's
+      // page.pdf() correctly repeating fixed elements per page — not
+      // guaranteed, and the reason this used to live in
+      // cv-print/[cvId]/page.tsx as a position:fixed div).
+      //
+      // This position math only holds if starts.length (computePageBreaks()'s
+      // predicted page count) exactly matches the real physical page count —
+      // testing originally caught a case where it didn't, traced to
+      // computePageBreaks() not reserving CONTINUATION_TOP_GAP on
+      // continuation pages (now fixed at the source in lib/pagination.ts,
+      // see its own comment) rather than anything Tech-specific.
+      if (templateId === "tech") {
+        await page.evaluate(
+          (pageCount: number, pageHeight: number) => {
+            const outer = document.querySelector<HTMLElement>(".tech-outer");
+            if (!outer) return;
+            const accent = getComputedStyle(outer).outlineColor;
+            outer.style.position = "relative";
+            // .tech-outer's own height is driven only by its in-flow
+            // children (position:absolute frames below don't count towards
+            // it, per CSS auto-height rules), so the last frame — which must
+            // reach all the way to the true bottom of the final physical
+            // page — overflows past .tech-outer's own box. That overflow
+            // renders fine on screen (overflow:visible is the default) but
+            // gets silently clipped during Chrome's print/PDF rasterization
+            // pass, cutting the last page's border off wherever the real
+            // content happened to end. Explicitly grow the container so the
+            // frames are fully in-bounds instead of relying on overflow.
+            outer.style.minHeight = `${pageCount * pageHeight}px`;
+            for (let i = 0; i < pageCount; i++) {
+              const frame = document.createElement("div");
+              frame.setAttribute("data-tech-border-frame", String(i));
+              frame.style.position = "absolute";
+              frame.style.top = `${i * pageHeight}px`;
+              frame.style.left = "0";
+              frame.style.width = "100%";
+              frame.style.height = `${pageHeight}px`;
+              frame.style.border = `8px solid ${accent}`;
+              frame.style.boxSizing = "border-box";
+              frame.style.pointerEvents = "none";
+              frame.style.zIndex = "10";
+              outer.appendChild(frame);
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4
+        );
+      }
+
+      // ── Creative's left accent line ──────────────────────────────────────
+      // CreativeTemplate.tsx draws its own accent as one absolutely-positioned
+      // strip spanning the full (auto) height of the continuous document —
+      // fine for a single physical page, but same category of problem as
+      // Modern's sidebar band and Tech's border frame once this flows across
+      // several: there's no guarantee Chrome's print pagination keeps a
+      // single box's background painted on every physical page it crosses.
+      // Hide the template's own strip and paint one absolutely-positioned
+      // strip per real page instead, sized to exactly PAGE_HEIGHT_A4 and
+      // stacked at exact multiples of it.
+      if (templateId === "creative") {
+        await page.evaluate(
+          (pageCount: number, pageHeight: number) => {
+            const outer = document.querySelector<HTMLElement>(".creative-outer");
+            if (!outer) return;
+            const line = outer.querySelector<HTMLElement>("[data-creative-accent-line]");
+            const color = line ? getComputedStyle(line).backgroundColor : "#7c3aed";
+            if (line) line.style.display = "none";
+            outer.style.position = "relative";
+            outer.style.minHeight = `${pageCount * pageHeight}px`;
+            for (let i = 0; i < pageCount; i++) {
+              const strip = document.createElement("div");
+              strip.setAttribute("data-creative-accent-strip", String(i));
+              strip.style.position = "absolute";
+              strip.style.top = `${i * pageHeight}px`;
+              strip.style.left = "0";
+              strip.style.width = "8px";
+              strip.style.height = `${pageHeight}px`;
+              strip.style.backgroundColor = color;
+              strip.style.pointerEvents = "none";
+              strip.style.zIndex = "10";
+              outer.appendChild(strip);
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4
+        );
+      }
+
+      // ── Portrait's sidebar divider ───────────────────────────────────────
+      // .portrait-sidebar draws its column divider via a single CSS
+      // borderRight on a flex item that's meant to run the full (auto)
+      // height of the continuous two-column document — same category of
+      // problem as Modern's sidebar band and Creative's accent line: a
+      // border on a box whose height was computed once, pre-pagination,
+      // isn't guaranteed to keep painting on every physical page once
+      // Chrome fragments the flex row for print. Hide the template's own
+      // border and paint one absolutely-positioned 1px divider per real
+      // page instead, at the sidebar's own right edge, sized to exactly
+      // PAGE_HEIGHT_A4 and stacked at exact multiples of it.
+      //
+      // Only page 1 needs an exception: the header (photo/name/contact strip)
+      // sits ABOVE the two-column body as a full-width block, so the sidebar
+      // (and its divider) only actually start at .portrait-sidebar's own top,
+      // not y=0 of the page. Continuation pages have no header to skip —
+      // they're pure body content (plus the unrelated 40px breathing-room
+      // gap every continuation page gets) — so they keep spanning the full
+      // page height, same as before.
+      if (templateId === "portrait") {
+        await page.evaluate(
+          (pageCount: number, pageHeight: number) => {
+            const outer = document.querySelector<HTMLElement>(".portrait-outer");
+            const sidebar = document.querySelector<HTMLElement>(".portrait-sidebar");
+            if (!outer || !sidebar) return;
+            const cs = getComputedStyle(sidebar);
+            const color = cs.borderRightColor;
+            const outerRect = outer.getBoundingClientRect();
+            const sidebarRect = sidebar.getBoundingClientRect();
+            const dividerX = sidebarRect.right - outerRect.left;
+            const bodyTop = sidebarRect.top - outerRect.top;
+            sidebar.style.borderRightStyle = "none";
+            outer.style.position = "relative";
+            outer.style.minHeight = `${pageCount * pageHeight}px`;
+            for (let i = 0; i < pageCount; i++) {
+              const stripTop = i === 0 ? bodyTop : i * pageHeight;
+              const strip = document.createElement("div");
+              strip.setAttribute("data-portrait-divider", String(i));
+              strip.style.position = "absolute";
+              strip.style.top = `${stripTop}px`;
+              strip.style.left = `${dividerX}px`;
+              strip.style.width = "1px";
+              strip.style.height = `${i * pageHeight + pageHeight - stripTop}px`;
+              strip.style.backgroundColor = color;
+              strip.style.pointerEvents = "none";
+              strip.style.zIndex = "10";
+              outer.appendChild(strip);
             }
           },
           starts.length,

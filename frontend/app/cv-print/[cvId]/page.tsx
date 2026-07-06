@@ -109,30 +109,15 @@ export default function CVPrintPage() {
       {/* Puppeteer polls for this element instead of document.title */}
       <div id="cv-ready-marker" style={{ display: "none" }} />
 
-      {/* Fixed border overlay — renders on every PDF page in Puppeteer */}
-      {templateId === "tech" && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            border: `8px solid ${customization.accentColor}`,
-            pointerEvents: "none",
-            zIndex: 9999,
-          }}
-        />
-      )}
-
-      {/* Modern's per-page sidebar color band is now injected by
-          generate-pdf/route.ts itself (one absolutely-positioned div per
-          computed page, at exact PAGE_HEIGHT_A4 multiples) rather than drawn
-          here as a single position:fixed div. That relied on Puppeteer's
-          page.pdf() reliably repeating a fixed-position element on every
-          physical page, which isn't guaranteed -- .modern-sidebar's own
-          flexbox alignItems:stretch background is enough for any non-paginated
-          rendering of this page (e.g. the dashboard's iframe thumbnail). */}
+      {/* Modern's per-page sidebar color band and Tech's per-page border frame
+          are now injected by generate-pdf/route.ts itself (one absolutely-
+          positioned div per computed page, at exact PAGE_HEIGHT_A4 multiples)
+          rather than drawn here as a single position:fixed div. That relied
+          on Puppeteer's page.pdf() reliably repeating a fixed-position element
+          on every physical page, which isn't guaranteed -- .modern-sidebar's
+          own flexbox alignItems:stretch background and .tech-outer's own
+          outline are enough for any non-paginated rendering of this page
+          (e.g. the dashboard's iframe thumbnail). */}
 
       {renderTemplate()}
     </div>
