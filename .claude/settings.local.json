@@ -76,7 +76,9 @@
       "Bash(python -c ' *)",
       "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select c.id, u.email, c.data->>'template_id' as template_id, c.title, c.updated_at from cvs c join users u on u.id=c.user_id order by c.updated_at desc nulls last limit 25;\")",
       "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select id, template_id, title from cv_documents where id=132;\")",
-      "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select data->'entries' from cv_sections where cv_id=135 and section_type='projects';\")"
+      "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select data->'entries' from cv_sections where cv_id=135 and section_type='projects';\")",
+      "Bash(xargs -I{} echo {})",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:3000/cv-template-preview/corporate\" -UseBasicParsing -TimeoutSec 15; \"STATUS: $\\($r.StatusCode\\)\"; $r.Content.Substring\\(0, [Math]::Min\\(500,$r.Content.Length\\)\\) } catch { \"ERROR: $\\($_.Exception.Message\\)\"; if \\($_.Exception.Response\\) { $stream = $_.Exception.Response.GetResponseStream\\(\\); $reader = New-Object System.IO.StreamReader\\($stream\\); $reader.ReadToEnd\\(\\) } })"
     ]
   }
 }
