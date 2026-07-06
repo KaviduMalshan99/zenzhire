@@ -106,6 +106,14 @@ const TEMPLATES = [
     popular: false,
     description: "Square-marker headings with accent underline. Bold name header, two-column body. Sharp and confident.",
   },
+  {
+    id: "aurora",
+    name: "Aurora",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Two-tone sidebar with a circular photo straddling the color transition. Soft, modern, and polished.",
+  },
 ] as const;
 
 type Template = typeof TEMPLATES[number];

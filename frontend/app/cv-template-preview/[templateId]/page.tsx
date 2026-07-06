@@ -13,6 +13,7 @@ import { PortraitTemplate } from "@/components/cv-builder/templates/PortraitTemp
 import { MilestoneTemplate } from "@/components/cv-builder/templates/MilestoneTemplate";
 import { CorporateTemplate } from "@/components/cv-builder/templates/CorporateTemplate";
 import { VegaTemplate } from "@/components/cv-builder/templates/VegaTemplate";
+import { AuroraTemplate } from "@/components/cv-builder/templates/AuroraTemplate";
 import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
 import type { CVCustomization } from "@/types";
 import { SAMPLE_CV_DATA } from "@/lib/sample-cv-data";
@@ -51,6 +52,7 @@ export default function TemplatePreviewPage({
     case "milestone":  return <MilestoneTemplate {...props} />;
     case "corporate":  return <CorporateTemplate {...props} />;
     case "vega":       return <VegaTemplate {...props} />;
+    case "aurora":     return <AuroraTemplate {...props} />;
     default:           return <ClassicTemplate {...props} />;
   }
 }

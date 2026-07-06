@@ -23,6 +23,7 @@ import { PortraitTemplate, PORTRAIT_SIDEBAR_TYPES } from "./templates/PortraitTe
 import { MilestoneTemplate, MILESTONE_SIDEBAR_TYPES } from "./templates/MilestoneTemplate";
 import { CorporateTemplate, CORPORATE_SIDEBAR_TYPES } from "./templates/CorporateTemplate";
 import { VegaTemplate, VEGA_SIDEBAR_TYPES } from "./templates/VegaTemplate";
+import { AuroraTemplate, AURORA_SIDEBAR_TYPES, AURORA_GRAY_ZONE_HEIGHT, AURORA_GRAY_ZONE_COLOR } from "./templates/AuroraTemplate";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -63,6 +64,12 @@ const CORPORATE_DIVIDER_X = 32 + 0.65 * (A4_W - 64);
 // instead of 35%. Same derivation: main's actual width is (0.62 * rowWidth) - gap,
 // so the divider (sidebar's own left edge) sits at 32 + 0.62 * (A4_W - 64).
 const VEGA_DIVIDER_X = 32 + 0.62 * (A4_W - 64);
+// AuroraTemplate's own fixed layout constant — same LEFT-sidebar orientation as
+// Portrait/Milestone, but full-bleed (no 32px page padding on the sidebar side,
+// unlike Portrait/Milestone's bordered divider) since Aurora's sidebar is a solid
+// colored block flush with the page edge, not a hairline-divided column. 31% of
+// the full page width, not the padded row content width.
+const AURORA_SIDEBAR_X = 0.31 * A4_W;
 
 interface PageLayout {
   /** Template-space Y coordinate where each page begins. */
@@ -156,10 +163,10 @@ function calcPageLayout(el: HTMLElement): PageLayout {
   const { starts } = computePageBreaks(chunks, A4_H);
   const baseTop = el.getBoundingClientRect().top;
 
-  // Portrait, Milestone, Corporate, and Vega share the same two-column sidebar
-  // shape (Corporate/Vega mirrored — sidebar on the right); only one of these
-  // selectors can ever match a given template's render.
-  const sidebarEl = el.querySelector<HTMLElement>(".portrait-sidebar, .milestone-sidebar, .corporate-sidebar, .vega-sidebar");
+  // Portrait, Milestone, Corporate, Vega, and Aurora share the same two-column
+  // sidebar shape (Corporate/Vega mirrored — sidebar on the right); only one of
+  // these selectors can ever match a given template's render.
+  const sidebarEl = el.querySelector<HTMLElement>(".portrait-sidebar, .milestone-sidebar, .corporate-sidebar, .vega-sidebar, .aurora-sidebar");
   const sidebarStarts = sidebarEl
     ? computeSidebarPageStart(starts, extractSidebarChunks(sidebarEl, baseTop))
     : starts;
@@ -214,6 +221,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   const isMilestone = cv.template_id === "milestone";
   const isCorporate = cv.template_id === "corporate";
   const isVega = cv.template_id === "vega";
+  const isAurora = cv.template_id === "aurora";
   const scale = zoom / 100;
 
   const editable = !!(onSectionDataChange && onReorder);
@@ -314,6 +322,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       case "milestone":  return <MilestoneTemplate {...props} />;
       case "corporate":  return <CorporateTemplate {...props} />;
       case "vega":       return <VegaTemplate {...props} />;
+      case "aurora":     return <AuroraTemplate {...props} />;
       default:           return <ClassicTemplate {...props} />;
     }
   };
@@ -324,10 +333,10 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   // is allowed to register it as a drag source/target, so a section can be
   // dragged from, or dropped onto, any page.
   //
-  // Portrait, Milestone, Corporate, and Vega render their sidebar as a second,
-  // independently-offset overlay per page-card (see the isPortrait/
-  // isMilestone/isCorporate/isVega branches below) — that overlay and the
-  // shared "main" content div both render the FULL template via this same
+  // Portrait, Milestone, Corporate, Vega, and Aurora render their sidebar as a
+  // second, independently-offset overlay per page-card (see the isPortrait/
+  // isMilestone/isCorporate/isVega/isAurora branches below) — that overlay and
+  // the shared "main" content div both render the FULL template via this same
   // function, so without `role` filtering a
   // section landing on this pageIndex would register as a drag target in
   // BOTH copies simultaneously, which dnd-kit's useSortable() can't tolerate
@@ -335,7 +344,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   // copy only claim the sections that actually belong to it; every other
   // template always passes no role and keeps the original single-copy
   // behavior untouched.
-  const sidebarTypesForRole = isPortrait ? PORTRAIT_SIDEBAR_TYPES : isMilestone ? MILESTONE_SIDEBAR_TYPES : isCorporate ? CORPORATE_SIDEBAR_TYPES : isVega ? VEGA_SIDEBAR_TYPES : null;
+  const sidebarTypesForRole = isPortrait ? PORTRAIT_SIDEBAR_TYPES : isMilestone ? MILESTONE_SIDEBAR_TYPES : isCorporate ? CORPORATE_SIDEBAR_TYPES : isVega ? VEGA_SIDEBAR_TYPES : isAurora ? AURORA_SIDEBAR_TYPES : null;
   const renderEditableTemplate = (pageIndex: number, role?: "main" | "sidebar") => {
     if (!editable) return renderTemplate();
     return (
@@ -401,6 +410,15 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
           (sidebar on the right, borderLeft), suppressed here in favor of the
           isVega per-page-card divider below. */}
       <style>{`.cv-page-card .vega-sidebar { border-left: none; }`}</style>
+      {/* AuroraTemplate's own sidebar background (a two-tone CSS gradient, meant
+          for non-paginated rendering e.g. the gallery thumbnail) is suppressed
+          here — the isAurora per-page-card mask+band below is the authoritative
+          background inside a paginated page-card, since a plain CSS background
+          on a per-page-card copy of the template can't reliably track real page
+          boundaries any better than Modern's sidebar band could (see that
+          comment below) — same reasoning, just with an added two-tone split
+          instead of one solid color. */}
+      <style>{`.cv-page-card .aurora-sidebar { background: none; }`}</style>
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] flex-shrink-0 bg-[#0d1117]">
         <div className="flex items-center gap-1">
@@ -558,7 +576,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                       fontFamily: "Arial, sans-serif",
                     }}
                   >
-                    {renderEditableTemplate(i, isPortrait || isMilestone || isCorporate || isVega ? "main" : undefined)}
+                    {renderEditableTemplate(i, isPortrait || isMilestone || isCorporate || isVega || isAurora ? "main" : undefined)}
                   </div>
 
                   {/* Top mask for pages 2+: covers the 40px of previous-section content
@@ -843,6 +861,95 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                                 right: 0,
                                 bottom: 0,
                                 backgroundColor: "#ffffff",
+                                zIndex: 2,
+                              }}
+                            />
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {/* Aurora: same sidebar-hider + independent-overlay pair as
+                      Corporate/Vega above, at its own AURORA_SIDEBAR_X (LEFT
+                      side, like Portrait/Milestone). The one addition vs. those
+                      templates: this mask is never plain white — it's Aurora's
+                      real background (gray zone + accentColor band), since the
+                      sidebar carries a colored background rather than a plain
+                      white page with a hairline divider. The gray zone only
+                      ever occupies the first AURORA_GRAY_ZONE_HEIGHT px of the
+                      whole continuous document (right where the header/photo
+                      sit), so it only ever renders on page index 0 — pages 1+
+                      get a pure accentColor mask, with no special-casing beyond
+                      checking `i === 0`, since sidebarShift on any later page
+                      pushes that top strip's local position far above the
+                      visible page-card window on its own.
+                      Always fills the full page height (A4_H) on every page,
+                      including the last — unlike Corporate/Vega/Milestone/
+                      Portrait, Aurora no longer has a full-width section below
+                      the two-column body to protect (References was moved
+                      into the main column), so there's nothing left to bleed
+                      into. This matches the accepted Modern/Tech/Creative
+                      convention of a band/frame spanning the full page
+                      regardless of content — not a bug, an intentional choice
+                      once the bleed concern this cap existed for no longer
+                      applies. */}
+                  {isAurora && (() => {
+                    const sidebarShift = i === 0 ? 0 : 40 - sidebarPageStart[i];
+                    const visibleHeight = A4_H;
+                    const grayHeight = i === 0 ? Math.min(AURORA_GRAY_ZONE_HEIGHT, visibleHeight) : 0;
+                    return (
+                      <>
+                        {grayHeight > 0 && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: AURORA_SIDEBAR_X,
+                              height: grayHeight,
+                              backgroundColor: AURORA_GRAY_ZONE_COLOR,
+                              zIndex: 2,
+                            }}
+                          />
+                        )}
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: grayHeight,
+                            left: 0,
+                            width: AURORA_SIDEBAR_X,
+                            height: visibleHeight - grayHeight,
+                            backgroundColor: customization.accentColor,
+                            zIndex: 2,
+                          }}
+                        />
+                        <div style={{ position: "absolute", top: 0, left: 0, width: AURORA_SIDEBAR_X, height: visibleHeight, overflow: "hidden", zIndex: 3 }}>
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: sidebarShift,
+                              left: 0,
+                              width: A4_W,
+                              fontFamily: "Arial, sans-serif",
+                            }}
+                          >
+                            {renderEditableTemplate(i, "sidebar")}
+                          </div>
+                          {i > 0 && (
+                            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 40, backgroundColor: customization.accentColor, zIndex: 2 }} />
+                          )}
+                          {i < pageCount - 1 && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: i === 0
+                                  ? sidebarPageStart[i + 1]
+                                  : 40 + sidebarPageStart[i + 1] - sidebarPageStart[i],
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: customization.accentColor,
                                 zIndex: 2,
                               }}
                             />

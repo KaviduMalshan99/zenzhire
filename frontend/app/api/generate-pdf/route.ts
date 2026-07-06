@@ -97,21 +97,22 @@ export async function POST(request: NextRequest) {
 
     // cv-print/[cvId]/page.tsx exposes the resolved template on window once
     // it knows it — read it so Classic, Academic, Modern, Minimal, Executive,
-    // Tech, Creative, GCC, Portrait, Milestone, Corporate, and Vega (the
-    // templates migrated onto the shared-function pipeline) can use it below
-    // while every other template keeps going through the legacy pipeline it
-    // always has. Academic's own component (AcademicTemplate.tsx) already had
-    // the .cv-heading-group wrapper wired in but was never added to this
-    // branch condition — a pre-existing gap that meant it was silently still
-    // running the legacy pipeline's own (also gap-unaware) inline break
-    // logic below. Closed here as part of fixing the shared miscalculation
-    // once instead of finding it again the next time a template gets audited.
+    // Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega, and Aurora
+    // (the templates migrated onto the shared-function pipeline) can use it
+    // below while every other template keeps going through the legacy
+    // pipeline it always has. Academic's own component (AcademicTemplate.tsx)
+    // already had the .cv-heading-group wrapper wired in but was never added
+    // to this branch condition — a pre-existing gap that meant it was
+    // silently still running the legacy pipeline's own (also gap-unaware)
+    // inline break logic below. Closed here as part of fixing the shared
+    // miscalculation once instead of finding it again the next time a
+    // template gets audited.
     const templateId = await page.evaluate(
       () => (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__
     );
 
-    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait" || templateId === "milestone" || templateId === "corporate" || templateId === "vega") {
-      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC, Portrait, Milestone, Corporate & Vega: shared-pagination pipeline ─
+    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait" || templateId === "milestone" || templateId === "corporate" || templateId === "vega" || templateId === "aurora") {
+      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega & Aurora: shared-pagination pipeline ─
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
       // Unlike the legacy pipeline below, .cv-section does NOT get
       // page-break-inside:avoid — a long section (e.g. Experience, Projects)
@@ -588,6 +589,95 @@ export async function POST(request: NextRequest) {
           },
           starts.length,
           PAGE_HEIGHT_A4
+        );
+      }
+
+      // ── Aurora's sidebar band ─────────────────────────────────────────────
+      // Unlike Corporate/Milestone/Vega's thin 1px divider line, Aurora's
+      // sidebar carries an actual colored background (a gray zone behind the
+      // photo, transitioning to accentColor for the rest) — same class of
+      // problem as Modern's sidebar band: a real Chrome print pass fragments
+      // flex/grid backgrounds unreliably across physical pages, so one
+      // authoritative, absolutely-positioned rectangle is painted per real
+      // page instead of trusting the template's own continuous-flow CSS
+      // gradient. The gray zone only ever occupies the first
+      // AURORA_GRAY_ZONE_HEIGHT px below the sidebar's own top (right at the
+      // photo/header), so it's only ever painted on whichever page that
+      // absolute range falls on (in practice always page 0) — every other
+      // page gets a pure accentColor rectangle.
+      //
+      // Each rectangle now fills the FULL page height unconditionally (no
+      // more capping at the sidebar's real content end) — matching the
+      // accepted Modern/Tech/Creative convention of a band/frame spanning
+      // every physical page regardless of content. The earlier version
+      // capped this to protect a full-width References section that used to
+      // sit below the two-column body; References now renders inside the
+      // main column instead (AuroraTemplate.tsx), so there's nothing left
+      // below the two-column body to bleed into.
+      //
+      // AURORA_GRAY_ZONE_HEIGHT/AURORA_GRAY_ZONE_COLOR are duplicated here
+      // (not imported) to match this file's existing convention — every other
+      // per-template pixel constant in this shared-pipeline branch (Modern's
+      // "35%" sidebar width, Corporate/Vega's divider-X derivations) is
+      // likewise a hardcoded value kept in sync with its template's source by
+      // comment, not by cross-import. Must stay equal to the same-named
+      // exports in AuroraTemplate.tsx.
+      if (templateId === "aurora") {
+        const AURORA_GRAY_ZONE_HEIGHT = 120;
+        const AURORA_GRAY_ZONE_COLOR = "#e2e2e2";
+        await page.evaluate(
+          (pageCount: number, pageHeight: number, grayZoneHeight: number, grayColor: string) => {
+            const outer = document.querySelector<HTMLElement>(".aurora-outer");
+            const sidebar = document.querySelector<HTMLElement>(".aurora-sidebar");
+            if (!outer || !sidebar) return;
+            const accent = getComputedStyle(sidebar).getPropertyValue("--aurora-accent").trim();
+            const outerRect = outer.getBoundingClientRect();
+            const sidebarRect = sidebar.getBoundingClientRect();
+            const sidebarWidth = sidebarRect.width;
+            const bodyTop = sidebarRect.top - outerRect.top;
+            sidebar.style.background = "none";
+            outer.style.position = "relative";
+            outer.style.minHeight = `${pageCount * pageHeight}px`;
+            const grayAbsTop = bodyTop;
+            const grayAbsBottom = bodyTop + grayZoneHeight;
+            for (let i = 0; i < pageCount; i++) {
+              const stripTop = i * pageHeight;
+              const stripBottom = stripTop + pageHeight;
+              const graySegTop = Math.max(stripTop, grayAbsTop);
+              const graySegBottom = Math.min(stripBottom, grayAbsBottom);
+              if (graySegBottom > graySegTop) {
+                const grayBand = document.createElement("div");
+                grayBand.setAttribute("data-aurora-band-gray", String(i));
+                grayBand.style.position = "absolute";
+                grayBand.style.top = `${graySegTop}px`;
+                grayBand.style.left = "0";
+                grayBand.style.width = `${sidebarWidth}px`;
+                grayBand.style.height = `${graySegBottom - graySegTop}px`;
+                grayBand.style.backgroundColor = grayColor;
+                grayBand.style.pointerEvents = "none";
+                grayBand.style.zIndex = "0";
+                outer.insertBefore(grayBand, outer.firstChild);
+              }
+              const accentSegTop = graySegBottom > graySegTop ? graySegBottom : stripTop;
+              if (stripBottom > accentSegTop) {
+                const accentBand = document.createElement("div");
+                accentBand.setAttribute("data-aurora-band-accent", String(i));
+                accentBand.style.position = "absolute";
+                accentBand.style.top = `${accentSegTop}px`;
+                accentBand.style.left = "0";
+                accentBand.style.width = `${sidebarWidth}px`;
+                accentBand.style.height = `${stripBottom - accentSegTop}px`;
+                accentBand.style.backgroundColor = accent;
+                accentBand.style.pointerEvents = "none";
+                accentBand.style.zIndex = "0";
+                outer.insertBefore(accentBand, outer.firstChild);
+              }
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4,
+          AURORA_GRAY_ZONE_HEIGHT,
+          AURORA_GRAY_ZONE_COLOR
         );
       }
     } else {

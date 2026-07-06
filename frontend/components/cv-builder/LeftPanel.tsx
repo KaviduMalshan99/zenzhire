@@ -34,6 +34,7 @@ const TEMPLATE_OPTIONS: { id: TemplateId; label: string }[] = [
   { id: "milestone", label: "Milestone" },
   { id: "corporate", label: "Halo" },
   { id: "vega", label: "Vega" },
+  { id: "aurora", label: "Aurora" },
 ];
 
 interface Props {

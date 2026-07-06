@@ -46,6 +46,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
   milestone:  { accentColor: "#111827", fontFamily: "Roboto",  headerStyle: "left",       headingStyle: "fullline",  skillStyle: "nameonly" },
   corporate:  { accentColor: "#111827", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
   vega:       { accentColor: "#2c3e50", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
+  aurora:     { accentColor: "#6b8f71", fontFamily: "Lato",    headerStyle: "left",       headingStyle: "fullline",  skillStyle: "nameonly" },
 };
 
 export const FONT_CSS_MAP: Record<string, string> = {
@@ -60,7 +61,7 @@ export const FONT_CSS_MAP: Record<string, string> = {
 
 export type TemplateId =
   | "classic" | "modern" | "minimal" | "executive"
-  | "tech" | "creative" | "academic" | "gcc" | "portrait" | "milestone" | "corporate" | "vega";
+  | "tech" | "creative" | "academic" | "gcc" | "portrait" | "milestone" | "corporate" | "vega" | "aurora";
 
 export type SectionType =
   | "personal_details" | "profile_summary" | "experience" | "education"

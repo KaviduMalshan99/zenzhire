@@ -1,8 +1,12 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-06 (session 6 — shared pagination engine migration completed for all remaining templates: Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-06 (session 7 — added the 13th CV template, Aurora). Working directory: `F:\zenzhire\zenzhire\`
 
-**CV pagination migration (all 12 templates) completed and verified as of this session.** Every template's `generate-pdf/route.ts` PDF export and `CentrePanel.tsx` live preview now agree on page breaks via the single shared `lib/pagination.ts` engine — confirmed directly against the code, not from memory (see section 10.2).
+**CV pagination migration (all 12 templates as of session 6, now 13 with Aurora) completed and verified.** Every template's `generate-pdf/route.ts` PDF export and `CentrePanel.tsx` live preview now agree on page breaks via the single shared `lib/pagination.ts` engine — confirmed directly against the code, not from memory (see section 10.2).
+
+**Session 7 — Aurora (13th template) added.** Full frontend+backend registration, its own Alembic migration (`008_add_aurora_template_id.py`, applied and confirmed — `alembic current == alembic heads == 008_add_aurora`), and shared-pagination-engine support built in from the start rather than retrofitted. Two things worth remembering for any future template:
+- **A colored (non-white) sidebar background breaks `SectionHeading.tsx` and `SkillEntry.tsx`.** Both hardcode `accentColor`/`#111827` text assuming a white page behind them — on Aurora's accentColor-filled sidebar this made every heading and skill level **completely invisible** (identical text/background color) until fixed with a dedicated `SidebarHeading` renderer and a plain bullet+name skills list. See section 6's Aurora entry and the ⚠️ callout under "Skills Display."
+- **Not every two-column template needs the sidebarBottom-capping lesson (10.4, lesson 5d).** That capping exists specifically to stop a sidebar overlay/band from bleeding into a full-width section (References) below the two-column body. Aurora moved References into the main column instead, so nothing sits below the two-column body anymore — its band deliberately fills the full page height on every page instead (the Modern/Tech/Creative convention), and lesson 5(d) does not apply to it. Check whether a new template actually has a trailing full-width section before assuming the cap is needed.
 
 **Audit note (session 6):** Full re-audit of this file against actual codebase state (not just appending from conversation memory). Corrections found and fixed:
 - Section 10.2/22's "`CONTINUATION_TOP_GAP` gap-accounting edge case," previously logged as an open/deferred bug, is **already fixed** in the current `lib/pagination.ts` source (`computePageBreaks()` reserves the gap during the break decision itself, not after) — the doc had gone stale on this.
@@ -28,7 +32,7 @@ ZenzHire is an **AI-powered career and talent intelligence platform**. The prima
 - Optimize the CV to pass Applicant Tracking Systems (ATS) with an **honest, trustworthy** scoring system
 - Get AI-generated feedback and improvement suggestions via Claude API
 
-**Phase 1 (built):** Full CV builder (12 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
+**Phase 1 (built):** Full CV builder (13 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
 
 **Phase 2 (next):** Stripe payments, Landing page, Admin panel, Production deployment.
 
@@ -137,7 +141,8 @@ F:\zenzhire\zenzhire\
 │   │   │       ├── PortraitTemplate.tsx  # "Portrait" in UI, photo-header + 2-col body
 │   │   │       ├── MilestoneTemplate.tsx # "Milestone" in UI, timeline-marker experience + 2-col body
 │   │   │       ├── CorporateTemplate.tsx # "Halo" in UI, dot-accent header + mirrored 2-col body (FREE)
-│   │   │       └── VegaTemplate.tsx      # "Vega" in UI, colored header band + ■ square-marker headings + 2-col body (PRO)
+│   │   │       ├── VegaTemplate.tsx      # "Vega" in UI, colored header band + ■ square-marker headings + 2-col body (PRO)
+│   │   │       └── AuroraTemplate.tsx    # "Aurora" in UI, two-tone sidebar + photo straddle + 2-col body, References in main col (PRO)
 │   │   └── ats-checker/
 │   │       ├── ScoreGauge.tsx
 │   │       ├── LayerCard.tsx
@@ -254,6 +259,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
   milestone:  { accentColor: "#111827", fontFamily: "Roboto",   headerStyle: "left",       headingStyle: "fullline",  skillStyle: "nameonly" },
   corporate:  { accentColor: "#111827", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
   vega:       { accentColor: "#2c3e50", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
+  aurora:     { accentColor: "#6b8f71", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "fullline", skillStyle: "nameonly" },
 };
 ```
 
@@ -261,7 +267,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 
 ---
 
-## 6. The 12 CV Templates
+## 6. The 13 CV Templates
 
 | template_id | Component | UI Name | Free/Pro | Category |
 |---|---|---|---|---|
@@ -277,6 +283,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 | `portrait` | PortraitTemplate.tsx | Portrait | PRO | Professional |
 | `milestone` | MilestoneTemplate.tsx | Milestone | PRO | Professional |
 | `vega` | VegaTemplate.tsx | Vega | PRO | Professional |
+| `aurora` | AuroraTemplate.tsx | Aurora | PRO | Professional |
 
 ⚠️ Note: `creative` is already named "Timeline" in the UI (left accent line + date-column layout) — `milestone` is a *different* design (circular timeline markers/connector line specifically on the Experience section). Don't confuse the two when picking a name for a future template.
 
@@ -306,6 +313,18 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 
 **Vega** — NEW (2026-07-03). PRO. No photo. **Full-width accent-colored header band**: large bold uppercase name in white, job title below in `rgba(255,255,255,0.7)` letter-spaced, contact items stacked on the right with white SVG icons — all rendered on `backgroundColor: accentColor`. No separate divider line; the colored header provides natural visual separation. 2-column body same orientation as Halo — LEFT (~62%, main content: Summary, Work Experience, Projects, etc.), RIGHT (~38%, `borderLeft: 1.5px solid #e5e7eb` sidebar: Education, Skills, Languages, etc.). Section headings use a custom `SH` function local to VegaTemplate.tsx (does NOT use SectionHeading.tsx), rendering `■ SECTION NAME` with `2px solid accentColor` bottom border spanning the full heading width — the ■ square glyph is the defining visual motif. Work Experience entries also use `■` before the date range (consistent visual rhythm with headings), followed by employer | location, then bold job title, then bullets/description. Education in sidebar: year range in gray, institution in bold uppercase, degree as `● degree` with accent bullet, GPA below. Skills and Languages always render as plain `●` bullet lists (ignores `skillStyle`) — same rationale as Halo. References render full-width at the bottom outside the 2-column area, as a 2-column card grid. Alembic migration: `007_add_vega_template_id.py`.
 
+**Aurora** — NEW (2026-07-06). PRO. Sidebar on the LEFT (~31%, same orientation as Portrait/Milestone, not mirrored like Halo/Vega). **Two-tone sidebar background**: a light neutral-gray zone (`AURORA_GRAY_ZONE_COLOR = "#e2e2e2"`, fixed height `AURORA_GRAY_ZONE_HEIGHT = 120px`) at the top, transitioning via a hard-stop CSS gradient into a solid `accentColor` band for the rest of the sidebar's height. A circular photo (`AURORA_PHOTO_SIZE = 125px` default, `AURORA_PHOTO_TOP = 36px` from the top, white `box-shadow` ring) is centered in the sidebar and deliberately positioned so it straddles the gray/accent boundary — the circle itself never changes color. To the right, the main column's header is just the top of that column: large bold name in `accentColor`, then a full-width (of the main column) solid `accentColor` bar with the job title in white uppercase letter-spaced text — there is no separate full-width header row above the two-column body the way Corporate/Vega/Milestone have one; the header IS the top slice of each column.
+
+Sidebar: Contact/Education/Skills/Languages (same `AURORA_SIDEBAR_TYPES` set pattern as every other two-column template). Main column: Profile/Experience/Projects/etc., **plus References** — deliberately relocated into the main column as a single-column stacked list (not the 2-column grid every other two-column template — Portrait/Milestone/Corporate/Vega — uses full-width for it), because Aurora's main column is only ~490px wide (vs. ~700px+ full-page-width elsewhere) and a 2-column grid at that width left too little room per card for name+title+organization+phone+email without cramped wrapping.
+
+**Two things needed because the sidebar itself is colored, not white** (a first for this codebase — every other sidebar template's sidebar sits on a plain white background):
+1. `SectionHeading.tsx` draws its "pop" color (text, underline, badge fill) **in** `accentColor`, assuming a white background behind it. On Aurora's `accentColor`-filled sidebar that assumption breaks completely — heading text becomes literally the same color as what's behind it, fully invisible. Fixed with a dedicated **`SidebarHeading`** function local to AuroraTemplate.tsx (same exception category as Tech/Corporate/Vega's own heading renderers, but scoped to sidebar headings only — main-column headings still use `SectionHeading` normally, since the main column is white). Establishes a 3-tier text-contrast scheme for anything sitting on the colored band: bold `#ffffff` for titles, `rgba(255,255,255,0.92)` for primary body text (degree, institution, skill/language names, contact info), `rgba(255,255,255,0.68)` for secondary/meta text (dates, GPA, skill levels).
+2. `SkillEntry.tsx` hardcodes `color: "#111827"` internally with no prop to override it (see the ⚠️ callout under "Skills Display" below) — unreadable against any colored background. Aurora's sidebar Skills section bypasses `SkillEntry` entirely in favor of a plain bullet + name list at the same white/rgba-white color, matching Corporate/Vega's own stated rationale for doing the same thing.
+
+**Pagination — deliberately diverges from lesson 5(d) (section 10.4):** every other two-column template caps its sidebar overlay/divider at `sidebarBottom` specifically to avoid bleeding into a full-width References section below the two-column body. Aurora has no such section anymore (References moved into the main column, above) — so its colored band instead fills the **full page height on every page, including the last**, matching the Modern/Tech/Creative convention of a band/frame spanning every physical page regardless of content. Don't assume every two-column template needs the sidebarBottom cap — check whether it actually has a trailing full-width section first.
+
+Alembic migration: `008_add_aurora_template_id.py`.
+
 ### Photo Options (all templates):
 - Shape: circle / rounded / square / hexagon (stored as `photo_shape` in personal_details data)
 - Size: 50-150px slider (stored as `photo_size`)
@@ -320,6 +339,8 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 - nameonly: just the name
 - chips: **NEW** (2026-07-03) — rounded accent-colored pill/badge, bold name + `· Level` suffix in accent color when a level is set; this is now `DEFAULT_CUSTOMIZATION.skillStyle` (was `classic`)
 - If level is empty → shows name only regardless of style
+
+⚠️ **`SkillEntry.tsx` hardcodes `color: "#111827"` internally, with no prop to override it** (found while building Aurora, 2026-07-06). Every style branch's base text color is this fixed near-black value — fine on the white background every skills-list-using template so far has had behind it, but unreadable on any **colored** sidebar/section background. Corporate, Vega, and now Aurora all sidestep this the same way: bypass `SkillEntry` entirely for their sidebar Skills section and render a plain bullet + skill name directly at a color that actually contrasts with their own background, ignoring the `skillStyle` customization value for that one section. **Any future template with a colored sidebar/section background needs to do the same** — don't wire `SkillEntry` straight in and assume it'll adapt; it won't.
 
 ### ⚠️ Important rendering gotcha (discovered during ATS rebuild)
 When cloning `SAMPLE_CV_DATA` (e.g. via `JSON.parse(JSON.stringify(...))`) for re-use in a NEW preview context (different from the original template gallery usage), **always reassign fresh unique `id` values** to each section after cloning:
@@ -381,7 +402,7 @@ Score displays below institution in all CV templates as:
 
 ## 9. Section Heading Styles (SectionHeading.tsx)
 
-9 styles total (all except TechTemplate, CorporateTemplate, and VegaTemplate which each own their own heading renderer function — `SH`, `CH`, and `SH` respectively — and do NOT use SectionHeading.tsx):
+9 styles total (all except TechTemplate, CorporateTemplate, and VegaTemplate which each own their own heading renderer function — `SH`, `CH`, and `SH` respectively — and do NOT use SectionHeading.tsx at all). AuroraTemplate.tsx is a **partial** exception: its main-column headings use `SectionHeading` normally (that column is white), but its sidebar headings use a dedicated local `SidebarHeading` function instead, since `SectionHeading` draws its text in `accentColor` — invisible against Aurora's `accentColor`-filled sidebar. See section 6's Aurora entry.
 
 | Value | Preview |
 |---|---|
@@ -410,10 +431,10 @@ CentrePanel "Download PDF" button
 → cv-print page fetches CV, renders template, exposes window.__CV_TEMPLATE_ID__
 → Adds <div id="cv-ready-marker"> when ready
 → Puppeteer waits for #cv-ready-marker
-→ Branches on templateId: all 12 templates now run the shared pagination
+→ Branches on templateId: all 13 templates now run the shared pagination
   engine (10.1/10.2) — the legacy pipeline branch (10.3) still exists in
   the code as an `else` fallback but is unreachable dead code for every
-  current template; it only matters again if a future 13th template is
+  current template; it only matters again if a future 14th template is
   added without being migrated immediately
 → page.pdf() → streams as download
 ```
