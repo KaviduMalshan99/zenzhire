@@ -97,12 +97,12 @@ export async function POST(request: NextRequest) {
 
     // cv-print/[cvId]/page.tsx exposes the resolved template on window once
     // it knows it — read it so Classic, Academic, Modern, Minimal, Executive,
-    // Tech, Creative, GCC, Portrait, Milestone, and Corporate (the templates
-    // migrated onto the shared-function pipeline) can use it below while
-    // every other template keeps going through the legacy pipeline it always
-    // has. Academic's own component (AcademicTemplate.tsx) already had the
-    // .cv-heading-group wrapper wired in but was never added to this branch
-    // condition — a pre-existing gap that meant it was silently still
+    // Tech, Creative, GCC, Portrait, Milestone, Corporate, and Vega (the
+    // templates migrated onto the shared-function pipeline) can use it below
+    // while every other template keeps going through the legacy pipeline it
+    // always has. Academic's own component (AcademicTemplate.tsx) already had
+    // the .cv-heading-group wrapper wired in but was never added to this
+    // branch condition — a pre-existing gap that meant it was silently still
     // running the legacy pipeline's own (also gap-unaware) inline break
     // logic below. Closed here as part of fixing the shared miscalculation
     // once instead of finding it again the next time a template gets audited.
@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
       () => (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__
     );
 
-    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait" || templateId === "milestone" || templateId === "corporate") {
-      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC, Portrait, Milestone & Corporate: shared-pagination pipeline ─
+    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait" || templateId === "milestone" || templateId === "corporate" || templateId === "vega") {
+      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC, Portrait, Milestone, Corporate & Vega: shared-pagination pipeline ─
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
       // Unlike the legacy pipeline below, .cv-section does NOT get
       // page-break-inside:avoid — a long section (e.g. Experience, Projects)
@@ -521,6 +521,60 @@ export async function POST(request: NextRequest) {
               if (stripBottom <= stripTop) continue;
               const strip = document.createElement("div");
               strip.setAttribute("data-corporate-divider", String(i));
+              strip.style.position = "absolute";
+              strip.style.top = `${stripTop}px`;
+              strip.style.left = `${dividerX}px`;
+              strip.style.width = "1px";
+              strip.style.height = `${stripBottom - stripTop}px`;
+              strip.style.backgroundColor = color;
+              strip.style.pointerEvents = "none";
+              strip.style.zIndex = "10";
+              outer.appendChild(strip);
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4
+        );
+      }
+
+      // ── Vega's sidebar divider ───────────────────────────────────────────
+      // Same fix as Corporate's sidebar divider above, and for the same
+      // reason (.vega-sidebar's borderLeft is a single CSS border on a box
+      // whose height was computed once, pre-pagination). Same mirrored shape
+      // as Corporate — sidebar on the RIGHT with a borderLeft divider,
+      // dividerX measured from the sidebar's own LEFT edge. Page 1's strip
+      // starts at .vega-sidebar's own measured top, below Vega's full-width
+      // accent-colored header band (name/title/contact), not y=0.
+      //
+      // Every strip is also capped at bodyBottom (.vega-sidebar's own
+      // measured bottom — align-items:stretch keeps this in sync with
+      // whichever column is taller). Vega, like Corporate, has a full-width
+      // References section directly below the two columns, which can start
+      // partway down a page once main content runs long — an uncapped strip
+      // would run the divider straight through References instead of
+      // stopping where the two-column body actually ends.
+      if (templateId === "vega") {
+        await page.evaluate(
+          (pageCount: number, pageHeight: number) => {
+            const outer = document.querySelector<HTMLElement>(".vega-outer");
+            const sidebar = document.querySelector<HTMLElement>(".vega-sidebar");
+            if (!outer || !sidebar) return;
+            const cs = getComputedStyle(sidebar);
+            const color = cs.borderLeftColor;
+            const outerRect = outer.getBoundingClientRect();
+            const sidebarRect = sidebar.getBoundingClientRect();
+            const dividerX = sidebarRect.left - outerRect.left;
+            const bodyTop = sidebarRect.top - outerRect.top;
+            const bodyBottom = sidebarRect.bottom - outerRect.top;
+            sidebar.style.borderLeftStyle = "none";
+            outer.style.position = "relative";
+            outer.style.minHeight = `${pageCount * pageHeight}px`;
+            for (let i = 0; i < pageCount; i++) {
+              const stripTop = i === 0 ? bodyTop : i * pageHeight;
+              const stripBottom = Math.min(i * pageHeight + pageHeight, bodyBottom);
+              if (stripBottom <= stripTop) continue;
+              const strip = document.createElement("div");
+              strip.setAttribute("data-vega-divider", String(i));
               strip.style.position = "absolute";
               strip.style.top = `${stripTop}px`;
               strip.style.left = `${dividerX}px`;

@@ -1,6 +1,19 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-05 (session 5 — shared pagination engine rolled out to Classic, Academic, Modern, Minimal, Executive). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-06 (session 6 — shared pagination engine migration completed for all remaining templates: Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega). Working directory: `F:\zenzhire\zenzhire\`
+
+**CV pagination migration (all 12 templates) completed and verified as of this session.** Every template's `generate-pdf/route.ts` PDF export and `CentrePanel.tsx` live preview now agree on page breaks via the single shared `lib/pagination.ts` engine — confirmed directly against the code, not from memory (see section 10.2).
+
+**Audit note (session 6):** Full re-audit of this file against actual codebase state (not just appending from conversation memory). Corrections found and fixed:
+- Section 10.2/22's "`CONTINUATION_TOP_GAP` gap-accounting edge case," previously logged as an open/deferred bug, is **already fixed** in the current `lib/pagination.ts` source (`computePageBreaks()` reserves the gap during the break decision itself, not after) — the doc had gone stale on this.
+- Section 10.3 and section 11 both still described Tech/Creative as using `position:fixed` overlays in `cv-print/[cvId]/page.tsx` — that file has **no `position:fixed` divs left at all** (grepped directly); both were migrated to per-page `computePageBreaks()`-derived frames when they joined the shared engine.
+- Section 11 described the live preview (`CentrePanel.tsx`) as having a separate "legacy" bespoke chunk-walk for un-migrated templates — it doesn't; `calcPageLayout()` has always called the shared `extractPageChunks()`/`computePageBreaks()` unconditionally for every template. The migrated-vs-legacy distinction only ever existed on the PDF-export side (`generate-pdf/route.ts`'s branch).
+- The debug screenshot path (`C:/Users/kavidu/debug-screenshot.png`), logged as a pre-production cleanup item in two places, is **no longer in the codebase** (grepped, zero matches) — already removed, doc just wasn't updated.
+- Found a genuinely new, previously **undocumented** issue: `backend/app/models/__init__.py` doesn't import `CoverLetter`, so `alembic env.py`'s `import app.models` never registers the `cover_letters` table with `Base.metadata` for autogenerate (confirmed by reading `env.py` — it only imports the package, not the routes that import `CoverLetter` directly). See section 22.
+- Re-audited the "References white/near-white text" issue (old item 13) against all 12 templates' source — found no white/near-white color used anywhere in References rendering now; appears resolved, though this is a source-code audit, not a re-run visual/PDF check.
+- Confirmed `duplicate_cv`'s missing `customization` copy is still unfixed (direct code read).
+- Confirmed the stale "5 premium CV templates" Pro-upsell copy is still unfixed (direct code read).
+- Confirmed no Alembic migration drift: `alembic current` and `alembic heads` both report `007_add_vega` — DB is fully up to date, single head, no pending migrations.
 
 **Audit note (session 4):** Re-verified the CV template count against the actual codebase (there was a belief it had grown to ~16). It has **not** — it is still exactly **12**, and all 12 are fully and consistently registered across every required file (frontend `types/index.ts` ×2, `LeftPanel.tsx`, `CentrePanel.tsx`, `cv-print/[cvId]/page.tsx`, `cv-template-preview/[templateId]/page.tsx`, `(dashboard)/templates/page.tsx`, backend `TemplateId` enum, and a matching Alembic migration for each of the 4 newest ones). No orphaned/half-registered templates found. One real drift was found and fixed below: a `skillStyle: "chips"` option was added to the customization system (now the default) but was never documented.
 
@@ -277,9 +290,9 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 
 **Executive** — Formal serif, two-column header default, centered elegant layout
 
-**Bordered (Tech)** — Border frame around entire page, drawn by `position:fixed` overlay in cv-print + `position:absolute` in CentrePanel. Puppeteer margin: `{top:"0",right:"0",bottom:"0",left:"0"}`. Section icons (◈✦◉etc)
+**Bordered (Tech)** — Border frame around entire page. Migrated to the shared pagination engine (section 10.2) — the frame is one explicit `position:absolute` box per real page, derived from `computePageBreaks()`'s page count, in both `CentrePanel.tsx` and `generate-pdf/route.ts`; no `position:fixed` overlay remains in `cv-print/[cvId]/page.tsx`. Puppeteer margin: `{top:"0",right:"0",bottom:"0",left:"0"}`. Section icons (◈✦◉etc)
 
-**Timeline (Creative)** — Left accent line `8px`, `position:fixed` in PDF, `borderLeft` on outer div for preview continuity via CentrePanel isCreative flag
+**Timeline (Creative)** — Left accent line `8px`. Migrated to the shared pagination engine (section 10.2) — one `position:absolute` strip per real page derived from `computePageBreaks()`, no `position:fixed` remaining in `cv-print/[cvId]/page.tsx`; `borderLeft` on outer div for preview continuity via CentrePanel isCreative flag
 
 **Inline (Academic)** — Icon contacts row, photo right, clean divider header
 
@@ -397,8 +410,11 @@ CentrePanel "Download PDF" button
 → cv-print page fetches CV, renders template, exposes window.__CV_TEMPLATE_ID__
 → Adds <div id="cv-ready-marker"> when ready
 → Puppeteer waits for #cv-ready-marker
-→ Branches on templateId: shared pagination engine (10.1) for the 5 migrated
-  templates, legacy pipeline (10.3) for the other 7
+→ Branches on templateId: all 12 templates now run the shared pagination
+  engine (10.1/10.2) — the legacy pipeline branch (10.3) still exists in
+  the code as an `else` fallback but is unreachable dead code for every
+  current template; it only matters again if a future 13th template is
+  added without being migrated immediately
 → page.pdf() → streams as download
 ```
 
@@ -428,7 +444,15 @@ In the PDF pipeline, `.cv-section` no longer gets `page-break-inside:avoid` — 
 
 Per-template JSX changes needed to opt in: wrap each multi-entry section's heading + first entry in a `<div className="cv-heading-group" style={{ breakInside:"avoid", pageBreakInside:"avoid" }}>` (see 10.2 for exactly which sections, per template). `generate-pdf/route.ts` then branches on `templateId` — only templates in that branch's list use the shared engine; everything else still runs the legacy pipeline (10.3) untouched.
 
-### 10.2 Templates Migrated to Shared Pagination Engine (5 of 12)
+### 10.2 Templates Migrated to Shared Pagination Engine (12 of 12 — migration complete)
+
+Confirmed directly against `generate-pdf/route.ts`'s shared-pipeline branch condition (not assumed) — all 12 template IDs are present in a single `if` check:
+```typescript
+if (templateId === "classic" || templateId === "academic" || templateId === "modern" ||
+    templateId === "minimal" || templateId === "executive" || templateId === "tech" ||
+    templateId === "creative" || templateId === "gcc" || templateId === "portrait" ||
+    templateId === "milestone" || templateId === "corporate" || templateId === "vega") {
+```
 
 | template_id | Status |
 |---|---|
@@ -437,7 +461,13 @@ Per-template JSX changes needed to opt in: wrap each multi-entry section's headi
 | `modern` | ✅ Migrated |
 | `minimal` | ✅ Migrated |
 | `executive` | ✅ Migrated |
-| `tech`, `creative`, `gcc`, `portrait`, `milestone`, `corporate`, `vega` | ⏳ Still on legacy pipeline (10.3) |
+| `tech` | ✅ Migrated |
+| `creative` | ✅ Migrated |
+| `gcc` | ✅ Migrated |
+| `portrait` | ✅ Migrated |
+| `milestone` | ✅ Migrated |
+| `corporate` | ✅ Migrated |
+| `vega` | ✅ Migrated |
 
 **Classic** (first template migrated, 2026-07-04) — also fixed a related bug in `SectionHeading.tsx`: the `fullline`/`dotted`/`centerlines` heading styles used `display:table`, which has measurement/fragmentation quirks that fought the new chunk-based extraction; converted to flexbox (pixel-identical visual output, verified via before/after screenshots). Separately fixed a **customization drift bug**: CVs with incomplete/empty `customization` (`{}` or `null`) rendered inconsistently between preview and PDF (e.g. `skillStyle` resolving to `"chips"` on one page and `"classic"` on the other) because the two pages filled in missing keys differently. Fixed via a shared `mergeCustomization()` helper (`frontend/types/index.ts`, see section 5) used by both `CentrePanel.tsx`'s data load and `cv-print/[cvId]/page.tsx`, plus a one-time backend data migration that backfilled 60 of 63 existing CVs with complete customization objects. The backend also got defense-in-depth (`_merge_customization()` in `backend/app/api/routes/cv.py`) so this can't reoccur via any API consumer, including ones that bypass the frontend.
 
@@ -449,14 +479,40 @@ Per-template JSX changes needed to opt in: wrap each multi-entry section's headi
 
 **Executive** (2026-07-05) — same shared pattern applied across its 8 multi-entry sections (Experience, Education, Projects, Certificates, Awards, Courses, Publications, Organizations). Its two-column header needed **no special handling** — plain flex row, no `position:fixed`/`absolute`, renders once in normal document flow (same as Classic's header), unlike Modern's sidebar or Tech's border overlay. Verified zero-px preview/PDF DOM match on short/medium/long fixtures, plus a real PDF re-export confirming content placement (not just page *count*) now matches the preview — before the fix, the entire 7-entry Experience section landed wholesale on page 2 with page 1 mostly blank; after, entries split 6/1 across pages 1/2 exactly as the preview shows.
 
-⚠️ **Known gap, found during Executive's verification (2026-07-05), affects all 5 migrated templates equally:** on a fixture where a single-entry section sits within a few px of a computed page boundary, the pre-existing `CONTINUATION_TOP_GAP` (40px) — inserted at the *upstream* break, after `computePageBreaks()` already decided breaks using gap-less measurements — can eat that section's remaining margin and bump it (and everything after it) onto its own near-blank page. Root cause: `computePageBreaks()` decides break points using measurements taken *before* any gap is injected, so it can't know a 40px gap inserted earlier in the flow will erode a tight downstream fit. This is a property of the shared engine itself (`generate-pdf/route.ts`), not any individual template — confirmed data-size-dependent, not template-dependent, by testing the same class of fixture against Minimal (didn't trigger it) vs. Executive (did). Deliberately left unfixed for now — see section 22, item 12 — since a real fix means changing pagination math all 5 migrated templates run through, not a per-template change.
+~~⚠️ **Known gap, found during Executive's verification (2026-07-05)**~~ **RESOLVED.** Re-audited this session directly against `lib/pagination.ts`'s current source: `computePageBreaks()` already reserves `CONTINUATION_TOP_GAP` out of every continuation page's budget *during* the break decision itself (`pageBottom = c.top + (pageHeight - CONTINUATION_TOP_GAP)`), not as a later post-decision injection. The function's own doc comment confirms this explicitly ("an earlier version of this function did [treat full pageHeight as available] ... systematically overpacked them"). This was evidently fixed as part of the Tech/Creative/GCC/Portrait migration work but the doc was never updated — corrected here. No longer an open item; removed from section 22.
 
-### 10.3 Legacy Pipeline — remaining 7 templates (Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega)
+**Tech (Bordered)** — migrated. Its `.tech-outer` CSS `outline` (meant for non-paginated rendering, e.g. the dashboard thumbnail) is suppressed inside paginated contexts; `generate-pdf/route.ts` instead paints one explicit `position:absolute` bordered frame per real page, sized to `PAGE_HEIGHT_A4` and stacked at exact multiples of it, derived from `computePageBreaks()`'s page count — not a `position:fixed` overlay (removed from `cv-print/[cvId]/page.tsx` entirely; confirmed via grep, zero `position:fixed` remain in that file).
 
-These still use the pre-2026-07-04 approach: `.cv-section` **and** `.cv-entry` both get `page-break-inside:avoid`, so a section that doesn't fit gets pushed wholesale to the next page rather than splitting between entries (the same class of bug the shared engine fixes — not yet fixed here). Also still relies on `position:fixed` overlays in `cv-print/[cvId]/page.tsx` for template-specific chrome:
-- `position:fixed` border overlay for Tech (Bordered)
-- `position:fixed` left line overlay for Creative (Timeline)
-- (Modern's former `position:fixed` sidebar overlay was replaced when Modern migrated — see 10.2 — it no longer uses this pattern)
+**Creative (Timeline)** — migrated. Same pattern as Tech: the template's own left accent line (`data-creative-accent-line`, meant for non-paginated rendering) is hidden inside paginated contexts, and one `position:absolute` strip per real page is painted instead, sized/stacked from `computePageBreaks()`'s output.
+
+**GCC** — migrated. Single-column template (no sidebar), so needed no per-page overlay work beyond the standard `.cv-heading-group` wrapping — same category as Executive's header (plain in-flow block, no `position:fixed`/`absolute` concerns).
+
+**Portrait, Milestone, Corporate, Vega** — migrated. These four share a two-column `SIDEBAR_TYPES` layout (Portrait/Milestone: sidebar LEFT ~34%, main RIGHT; Corporate/Vega: **mirrored** — main LEFT ~62–65%, sidebar RIGHT ~35–38%, `borderLeft` divider instead of `borderRight`) and needed dedicated pagination work beyond the single-column templates, since the sidebar column paginates independently of the main column but must never visually split an entry, bleed past its own real content into a full-width References section below it, or start its divider above a colored header band. See section 10.4 for the 4 reusable lessons this produced — established during Portrait/Milestone, then explicitly *reused* (not re-derived or duplicated) for Corporate and Vega by adding each new template's CSS selector to the same generic functions.
+
+### 10.3 Legacy Pipeline — now unused, kept only as a fallback
+
+The pre-2026-07-04 approach (`.cv-section` **and** `.cv-entry` both getting a blanket `page-break-inside:avoid`, so a section that doesn't fit gets pushed wholesale to the next page instead of splitting between entries) still exists as the `else` branch in `generate-pdf/route.ts`, but **no current template runs through it** — all 12 are in the shared-pipeline `if` condition (see 10.2). This branch is only relevant again if a future 13th template is added to the codebase without immediately being migrated onto the shared engine. Do not treat its continued existence in the file as evidence any current template still uses it — check the `if` condition directly, as this section 10.2 audit did.
+
+### 10.4 Consolidated Pagination Lessons (reference for any future 13th template)
+
+Everything learned migrating all 12 templates onto the shared engine, in one place, so this doesn't need to be re-explained or re-derived from scratch:
+
+1. **Single source of truth:** `extractPageChunks()` + `computePageBreaks()` in `lib/pagination.ts` are used **identically** by `CentrePanel.tsx` (live preview, via `calcPageLayout()`) and `generate-pdf/route.ts` (PDF export, via a `page.evaluate()` mirror of the DOM-reading step + a direct Node import of the pure decision function). Same inputs, same outputs, always — the preview and the PDF cannot independently disagree on where a page break falls. Never add a template-specific chunk-walking or break-decision copy; add the new template's markup/selectors to the existing generic functions instead (this is exactly how Corporate and Vega were done, reusing Portrait/Milestone's infrastructure).
+
+2. **`.cv-heading-group` wrapper pattern:** for any section with multiple stacked entries, wrap `[heading, first entry]` together in `<div className="cv-heading-group" style={{breakInside:"avoid", pageBreakInside:"avoid"}}>`, then map the remaining entries normally afterward. This is what stops a heading from being orphaned alone at the bottom of a page. Every migrated template's multi-entry sections (Experience, Projects, Courses, Awards, Organizations, Publications, and the equivalent sidebar sections) follow this shape.
+
+3. **`CONTINUATION_TOP_GAP` gap-accounting (resolved):** the 40px breathing-room every continuation page gets (mirroring the live preview's page-2+ clip/offset trick) must be *reserved during the break decision itself* (`computePageBreaks()`'s own `pageBottom` math), not injected as a `margin-top` afterward and hoped to still fit. Getting this backwards was the root cause of a real, previously-open bug (content silently overflowing onto an unplanned extra page) — see the resolved note above.
+
+4. **Per-page `position:fixed`-style chrome (Modern's sidebar band, Tech's border frame, Creative's accent line):** Puppeteer does not reliably repeat `position:fixed` elements per printed page, and Chromium's print-fragmentation for flex/grid containers is unreliable. The fix pattern every one of these used: hide the template's own single continuous-flow version of the visual element inside paginated contexts, and instead paint one explicit `position:absolute` copy per *real* page, sized to exactly `PAGE_HEIGHT_A4` and positioned at exact multiples of it — derived directly from `computePageBreaks()`'s own page count/`starts[]` output in both `CentrePanel.tsx` and `generate-pdf/route.ts`, never from CSS alone.
+
+5. **Two-column `SIDEBAR_TYPES` templates (Portrait, Milestone, Corporate, Vega) — 4 lessons, established during Portrait/Milestone and reused unchanged for Corporate/Vega:**
+   - **(a)** Sidebar sections must carry `.cv-entry`/`.cv-heading-group` but **never** `.cv-section` — `extractPageChunks()` only walks `.cv-section`, so the main column alone drives page-break decisions; a sidebar with `.cv-section` would corrupt that DOM-order chunk list with an independent column's heights.
+   - **(b)** Any per-page sidebar divider/border strip must measure the sidebar's *actual* top offset (`sidebarEl.getBoundingClientRect().top`) for page 1, not assume `y=0` — templates have header zones of very different heights above the two-column body (photo header, plain name/title, colored band, etc.), so this must be measured, never hardcoded per template.
+   - **(c)** The sidebar "straddle check" (does a sidebar entry get cut across the page-card boundary in the live preview?) must compare against the TRUE physical page edge (`mainStarts[i-1] + pageHeight - CONTINUATION_TOP_GAP`) as both the check reference and the fallback — not wherever the main column happens to stop, which is often earlier than the real edge.
+   - **(d)** Any sidebar overlay/divider must be capped at `sidebarBottom` (the sidebar box's own measured bottom — `align-items:stretch` keeps this in sync with whichever column, main or sidebar, is taller) so it never bleeds into a full-width section (References) that sits below the two-column body once the sidebar itself has run out of content on an earlier page. **Always verify this specific case with a stress-test fixture** (a long main column that pushes References to a mid-page position on the same page-card as the tail end of the sidebar's blank space) — this was the one failure mode not caught by simple page-count checks alone, in both the live preview and the real PDF.
+   - Implementation-wise: (b)/(c) are handled by the existing generic `calcPageLayout()`/`computeSidebarPageStart()` in `CentrePanel.tsx` — adding a new template's sidebar selector (e.g. `.vega-sidebar`) to the existing `querySelector` list is enough; there is no per-template measurement code to write.
+
+6. **`mergeCustomization()`:** both `CentrePanel.tsx` (data load) and `cv-print/[cvId]/page.tsx` always merge saved `customization` with `DEFAULT_CUSTOMIZATION` through this shared helper before rendering, so an empty/partial/null customization object can't resolve differently between the preview and the PDF. Backend has defense-in-depth too (`_merge_customization()` in `cv.py`).
 
 ### ⚠️ PDF section-gap / page-2-margin history (fixed 2026-07-03 — don't reintroduce either bug, applies to both pipelines)
 There used to be a blanket `.cv-section { padding-top: 8px !important }` / `.cv-entry { padding-top: 4px !important }` injected only for the PDF (not the on-screen preview), meant to give continuation pages some breathing room at the top so content didn't sit flush against template borders (e.g. Bordered/Tech's 8px frame). Two bugs this caused, both now fixed:
@@ -467,15 +523,11 @@ If you touch `generate-pdf/route.ts` again: do not reach for a blanket per-secti
 
 ### cv-print page (/cv-print/[cvId]/page.tsx):
 - Renders template based on template_id, exposes `window.__CV_TEMPLATE_ID__` once resolved (lets `generate-pdf/route.ts` branch pipelines — see 10.1)
-- Has `position:fixed` border overlay for tech template
-- Has `position:fixed` left line overlay for creative template
+- No `position:fixed` overlays remain in this file (confirmed via grep) — Tech's border frame and Creative's accent line are both now injected per-page by `generate-pdf/route.ts` itself (section 10.2), driven by `computePageBreaks()`'s output, since Puppeteer doesn't reliably repeat `position:fixed` elements across printed pages
 - Adds `#cv-ready-marker` when loaded
 
 ### Chrome path (dev):
 `C:\Program Files\Google\Chrome\Application\chrome.exe`
-
-### DEBUG: Screenshot saved to:
-`C:/Users/kavidu/debug-screenshot.png` (REMOVE before production)
 
 ---
 
@@ -483,8 +535,8 @@ If you touch `generate-pdf/route.ts` again: do not reach for a blanket per-secti
 
 - Template renders in hidden off-screen div (width=794px)
 - ResizeObserver watches it, runs `calcPageLayout()` on resize
-- For the 5 templates on the shared pagination engine (section 10.1/10.2): `calcPageLayout()` delegates directly to `lib/pagination.ts`'s `extractPageChunks()` + `computePageBreaks()` — the exact same functions `generate-pdf/route.ts` uses, so the two can't independently disagree on break points
-- For the other 7 (legacy pipeline, section 10.3): splits content into A4 pages (A4_H=1123px) using `.cv-section` elements with its own bespoke chunk walk
+- `calcPageLayout()` delegates directly to `lib/pagination.ts`'s `extractPageChunks()` + `computePageBreaks()` for **all 12 templates uniformly** — the exact same functions `generate-pdf/route.ts` uses, so the two can't independently disagree on break points. This has always been true of the live preview regardless of a template's PDF-pipeline migration status (the "migrated vs. legacy" distinction in section 10.2/10.3 only ever applied to `generate-pdf/route.ts`'s branching, never to `CentrePanel.tsx`) — there is no separate bespoke chunk-walk left in this file.
+- For Portrait/Milestone/Corporate/Vega (the four two-column `SIDEBAR_TYPES` templates): `calcPageLayout()` additionally computes independent `sidebarStarts`/`bodyTop`/`sidebarBottom` values (via `extractSidebarChunks()` + `computeSidebarPageStart()`) so the sidebar column can be re-rendered as its own clipped, independently-offset overlay per page-card — see section 10.4, lesson 5.
 - For Bordered (Tech): `position:absolute` border overlay on each page card
 - For Timeline (Creative): `borderLeft` on outer scaled column div (isCreative flag)
 - For Modern: one `position:absolute` sidebar-color band per page card, sized/positioned from `computePageBreaks()`'s own `starts[]` output (isModern flag) — replaced the old single whole-column CSS gradient, which had no per-page boundary awareness
@@ -796,16 +848,18 @@ Priority order:
 
 ## 22. Known Issues / Pending Work
 
-1. **Debug screenshot** — `route.ts` saves to `C:/Users/kavidu/debug-screenshot.png` — REMOVE before production
+1. ~~**Debug screenshot** — `route.ts` saves to `C:/Users/kavidu/debug-screenshot.png`~~ **RESOLVED (confirmed session 6)** — grepped the entire frontend for `debug-screenshot`, `writeFile`, and `screenshot(` in both PDF routes: zero matches. Already removed from the codebase; this item and its section 10 callout were just never cleaned up in the doc.
 2. ~~**Modern template PDF** — sidebar color tested with fixed overlay approach, verify on multi-page CVs~~ **RESOLVED 2026-07-04** — Modern migrated to the shared pagination engine; the sidebar band is now derived per-page from `computePageBreaks()`'s own output in both preview and PDF, not a `position:fixed` overlay. See section 10.2.
-3. **Stripe not set up** — Pro upgrade buttons go to `/pricing` (page not built yet)
+3. **Stripe not set up** — Pro upgrade buttons go to `/pricing` (page not built yet) — confirmed still true (no `/pricing` route exists, zero Stripe references anywhere in the codebase, session 6 re-check)
 4. **CV upload parser** — planned feature, not built (see Phase 2 #4)
-5. **Mobile responsiveness** — not fully tested on mobile, including the new ATS sidebar layout (verify sidebar stacks correctly on narrow screens)
-6. **Email verification** — not implemented in auth
-7. **ATS target_role optional but high-impact** — no UI warning yet when left empty (see section 18)
-8. **sentence-transformers / semantic keyword matching** — uses lazy-loaded `_get_sentence_model()`; not yet confirmed whether this is reliably installed/working in all environments — falls back to exact-match silently if unavailable. Should be verified before production.
-9. **Stale template count in Pro upsell copy** (found during session 4 template audit) — `(dashboard)/templates/page.tsx`'s `ProUpgradeModal` hardcodes the feature bullet `"5 premium CV templates"`, but there are actually **8** Pro templates (modern, tech, creative, executive, gcc, portrait, milestone, vega). This copy was presumably accurate when Modern/Bordered/Timeline/Executive/GCC (5) were the only Pro templates and was never updated when Portrait, Milestone, Corporate†, and Vega were added. (†Corporate/Halo shipped as FREE, so it didn't change the Pro count itself, but Portrait/Milestone/Vega did.) Fix: bump the copy to "8 premium CV templates" or derive the count from `TEMPLATES.filter(t => t.plan === "pro").length` so it can't drift again.
-10. **Orphaned `cv_sections.data._layout` field** ({marginBottom, lineHeight}) — leftover from the removed per-section spacing/line-height steppers in `SortableSection.tsx`'s toolbar. No template reads it anymore (all 12 now derive spacing solely from the global `CVCustomization.spacing` value). Safe to ignore — existing stored values are inert, not read anywhere — but clean up with a migration (drop the key from `data` JSONB, or leave it since it's harmless dead data) before production deployment.
-11. **`duplicate_cv` doesn't copy `customization`** (found during the preview/PDF pagination-drift investigation, 2026-07-04) — `backend/app/api/routes/cv.py`'s `duplicate_cv` route copies `title`/`template_id`/sections but never sets `customization=source.customization` on the new `CVDocument`, so a duplicated CV silently resets to `DEFAULT_CUSTOMIZATION` instead of keeping the original's accent color/font/spacing/etc. Distinct from the {}-customization preview/PDF drift bug (which is fixed — see `mergeCustomization()` in `frontend/types/index.ts` and `_merge_customization()` in `cv.py`); this one is about losing a user's actual style choices on duplicate, not a rendering inconsistency. Fix: add `customization=_merge_customization(source.customization, None)` to `duplicate_cv`'s `CVDocument(...)` call. Not yet fixed — deliberately deferred.
-12. **Shared pagination engine: `CONTINUATION_TOP_GAP` gap-accounting edge case** (found during Executive's verification, 2026-07-05 — see section 10.2) — `computePageBreaks()` decides break points from gap-less measurements, but `generate-pdf/route.ts` then injects a real 40px `margin-top` at each break point afterward. If a section between two breaks fits with only a few px of margin in the gap-less math, that 40px insertion can erode the margin enough to bump it onto its own extra, near-blank page. Affects all 5 templates on the shared engine equally (Classic, Academic, Modern, Minimal, Executive) — confirmed data-size-dependent (only manifests on specific tightly-packed content), not template-dependent. A real fix means changing `computePageBreaks()`/gap-injection math itself, which all 5 migrated templates share — deliberately deferred rather than bundled into any single template's fix.
-13. **References section email/phone rendering in white/near-white text (unreadable)** — fixed on Classic and Modern only so far. Needs verifying/applying to the other 3 migrated templates (Academic, Minimal, Executive) and, eventually, the 7 legacy-pipeline templates too.
+5. **Mobile responsiveness** — not fully tested on mobile, including the new ATS sidebar layout (verify sidebar stacks correctly on narrow screens) — not independently re-verified this session (requires visual/device testing, not a code audit)
+6. **Email verification** — not implemented in auth — confirmed still true (no verification-related code found, session 6 re-check)
+7. **ATS target_role optional but high-impact** — no UI warning yet when left empty (see section 18) — confirmed still true (no warning/banner text found near the `target_role` input, session 6 re-check)
+8. **sentence-transformers / semantic keyword matching** — uses lazy-loaded `_get_sentence_model()`; not yet confirmed whether this is reliably installed/working in all environments — falls back to exact-match silently if unavailable. Should be verified before production. (Confirmed the lazy-load pattern is still exactly as described, session 6 re-check.)
+9. **Stale template count in Pro upsell copy** (found during session 4 template audit) — `(dashboard)/templates/page.tsx`'s `ProUpgradeModal` hardcodes the feature bullet `"5 premium CV templates"`, but there are actually **8** Pro templates (modern, tech, creative, executive, gcc, portrait, milestone, vega). This copy was presumably accurate when Modern/Bordered/Timeline/Executive/GCC (5) were the only Pro templates and was never updated when Portrait, Milestone, Corporate†, and Vega were added. (†Corporate/Halo shipped as FREE, so it didn't change the Pro count itself, but Portrait/Milestone/Vega did.) Fix: bump the copy to "8 premium CV templates" or derive the count from `TEMPLATES.filter(t => t.plan === "pro").length` so it can't drift again. **Confirmed still unfixed (session 6 direct code re-check).**
+10. **Orphaned `cv_sections.data._layout` field** ({marginBottom, lineHeight}) — leftover from the removed per-section spacing/line-height steppers in `SortableSection.tsx`'s toolbar. No template reads it anymore (all 12 now derive spacing solely from the global `CVCustomization.spacing` value — confirmed zero references to `_layout` anywhere in `components/cv-builder`, session 6 re-check). Safe to ignore — existing stored values are inert, not read anywhere — but clean up with a migration (drop the key from `data` JSONB, or leave it since it's harmless dead data) before production deployment.
+11. **`duplicate_cv` doesn't copy `customization`** (found during the preview/PDF pagination-drift investigation, 2026-07-04) — `backend/app/api/routes/cv.py`'s `duplicate_cv` route copies `title`/`template_id`/sections but never sets `customization=source.customization` on the new `CVDocument`, so a duplicated CV silently resets to `DEFAULT_CUSTOMIZATION` instead of keeping the original's accent color/font/spacing/etc. Distinct from the {}-customization preview/PDF drift bug (which is fixed — see `mergeCustomization()` in `frontend/types/index.ts` and `_merge_customization()` in `cv.py`); this one is about losing a user's actual style choices on duplicate, not a rendering inconsistency. Fix: add `customization=_merge_customization(source.customization, None)` to `duplicate_cv`'s `CVDocument(...)` call. **Confirmed still unfixed (session 6 direct code re-check — the route's `CVDocument(...)` call still has no `customization` kwarg).**
+12. ~~**Shared pagination engine: `CONTINUATION_TOP_GAP` gap-accounting edge case**~~ **RESOLVED (confirmed session 6)** — re-read `lib/pagination.ts`'s current `computePageBreaks()` directly: it already reserves `CONTINUATION_TOP_GAP` out of every continuation page's budget as part of the break decision itself (`pageBottom = c.top + (pageHeight - CONTINUATION_TOP_GAP)`), not as a later `margin-top` injection that the decision couldn't see coming. The function's own doc comment explicitly describes the old, broken behavior in the past tense. This was fixed at some point after being logged but the doc was never updated — see section 10.2 for the full corrected note.
+13. **References section email/phone rendering in white/near-white text (unreadable)** — previously logged as "fixed on Classic and Modern only, needs verifying on the rest." **Re-audited session 6:** checked every one of the 12 templates' source for the `Phone:`/`Email:` (or bare email/phone) rendering in their References section — every one uses either no explicit color (inherits the surrounding readable text color) or an explicit readable gray (`#555`, `#4b5563`, `#6b7280`, or each template's own `LIGHT` constant, all `#6b7280`). Found no white/near-white color anywhere. **Appears resolved across all 12 templates** — but this is a source-code audit, not a re-run visual/PDF screenshot check, so treat as high-confidence rather than fully closed until someone visually confirms.
+14. **NEW (found during session 6 audit): `backend/app/models/__init__.py` never imports `CoverLetter`** — it only imports `User`, `CV`, `CVDocument`/`CVSection`, and `ATSResult`. `alembic/env.py`'s `import app.models` (used specifically to "ensure all models are registered" before `target_metadata = Base.metadata` is set for autogenerate) therefore never registers the `cover_letters` table with `Base.metadata` through that import path. In normal app runtime this is harmless — `app/api/routes/cover_letter.py` imports `CoverLetter` directly from its own module, which is enough for the live app — but it means `alembic revision --autogenerate` could fail to detect legitimate future changes to the `cover_letters` table, or worse, generate a spurious drop/mismatch, since Alembic's metadata comparison won't know that table's model exists. Fix: add `from app.models.cover_letter import CoverLetter` to `backend/app/models/__init__.py`. Not yet fixed.
+15. **Migration drift check (session 6):** `alembic current` and `alembic heads` both report `007_add_vega` — single head, DB fully up to date, no pending/unapplied migrations. (This is a confirmation, not an issue — logged here so a future session doesn't need to re-run the check without reason.)
