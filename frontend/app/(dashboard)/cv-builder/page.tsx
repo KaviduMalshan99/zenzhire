@@ -193,7 +193,7 @@ export default function CVBuilderPage() {
   }, []);
 
   const handleCreate = () => {
-    router.push("/templates");
+    router.push("/dashboard/templates");
   };
 
   const handleDelete = async (id: number) => {

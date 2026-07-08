@@ -14,6 +14,7 @@ import { MilestoneTemplate } from "@/components/cv-builder/templates/MilestoneTe
 import { CorporateTemplate } from "@/components/cv-builder/templates/CorporateTemplate";
 import { VegaTemplate } from "@/components/cv-builder/templates/VegaTemplate";
 import { AuroraTemplate } from "@/components/cv-builder/templates/AuroraTemplate";
+import { NovaTemplate } from "@/components/cv-builder/templates/NovaTemplate";
 import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
 import type { CVCustomization } from "@/types";
 import { SAMPLE_CV_DATA } from "@/lib/sample-cv-data";
@@ -27,6 +28,7 @@ export default function TemplatePreviewPage({
   const { templateId } = params;
   const searchParams = useSearchParams();
   const accentColorOverride = searchParams.get("accentColor");
+  const photoSizeOverride = searchParams.get("photoSize");
 
   const templateDefaults = TEMPLATE_DEFAULT_CUSTOMIZATION[templateId] ?? {};
   const customization: CVCustomization = {
@@ -38,7 +40,15 @@ export default function TemplatePreviewPage({
     skillColumns: 2,
   };
 
-  const props = { sections: SAMPLE_CV_DATA, customization };
+  const sections = photoSizeOverride
+    ? SAMPLE_CV_DATA.map((section) =>
+        section.section_type === "personal_details"
+          ? { ...section, data: { ...section.data, photo_size: Number(photoSizeOverride) } }
+          : section
+      )
+    : SAMPLE_CV_DATA;
+
+  const props = { sections, customization };
 
   switch (templateId) {
     case "modern":    return <ModernTemplate {...props} />;
@@ -53,6 +63,7 @@ export default function TemplatePreviewPage({
     case "corporate":  return <CorporateTemplate {...props} />;
     case "vega":       return <VegaTemplate {...props} />;
     case "aurora":     return <AuroraTemplate {...props} />;
+    case "nova":       return <NovaTemplate {...props} />;
     default:           return <ClassicTemplate {...props} />;
   }
 }

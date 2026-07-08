@@ -78,7 +78,12 @@
       "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select id, template_id, title from cv_documents where id=132;\")",
       "Bash(PGPASSWORD=kavidu123 psql -U postgres -h localhost -d zenzhire -c \"select data->'entries' from cv_sections where cv_id=135 and section_type='projects';\")",
       "Bash(xargs -I{} echo {})",
-      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:3000/cv-template-preview/corporate\" -UseBasicParsing -TimeoutSec 15; \"STATUS: $\\($r.StatusCode\\)\"; $r.Content.Substring\\(0, [Math]::Min\\(500,$r.Content.Length\\)\\) } catch { \"ERROR: $\\($_.Exception.Message\\)\"; if \\($_.Exception.Response\\) { $stream = $_.Exception.Response.GetResponseStream\\(\\); $reader = New-Object System.IO.StreamReader\\($stream\\); $reader.ReadToEnd\\(\\) } })"
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:3000/cv-template-preview/corporate\" -UseBasicParsing -TimeoutSec 15; \"STATUS: $\\($r.StatusCode\\)\"; $r.Content.Substring\\(0, [Math]::Min\\(500,$r.Content.Length\\)\\) } catch { \"ERROR: $\\($_.Exception.Message\\)\"; if \\($_.Exception.Response\\) { $stream = $_.Exception.Response.GetResponseStream\\(\\); $reader = New-Object System.IO.StreamReader\\($stream\\); $reader.ReadToEnd\\(\\) } })",
+      "Bash(\"F:/zenzhire/zenzhire/backend/venv/Scripts/python.exe\" -c \"import fitz; print\\('fitz', fitz.__doc__\\)\")",
+      "Bash(\"F:/zenzhire/zenzhire/backend/venv/Scripts/python.exe\" -c \"from app.services.ats_service import _layer_ats_compatibility, _layer_sections; print\\('OK import'\\)\")",
+      "Bash(\"F:/zenzhire/zenzhire/backend/venv/Scripts/python.exe\" -c \"import sys; sys.path.insert\\(0,'.'\\); from app.services.ats_service import _layer_ats_compatibility, _layer_sections; print\\('OK import'\\); print\\(_layer_sections\\('John Doe\\\\nEmail: a@b.com\\\\nSummary\\\\nExperience\\\\nEducation\\\\nSkills'\\)\\)\")",
+      "Bash(powershell -Command 'Get-NetTCPConnection -LocalPort 3000,3001 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }')",
+      "Bash(python -m alembic heads)"
     ]
   }
 }

@@ -97,7 +97,7 @@ export function ResultsSidebar({ result }: Props) {
       {/* Quick actions */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 flex flex-col gap-2">
         <a
-          href="/templates"
+          href="/dashboard/templates"
           className="text-center bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2.5 rounded-md transition-colors"
         >
           🎨 Browse Templates

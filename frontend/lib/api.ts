@@ -73,3 +73,30 @@ export const coverLetterApi = {
     tone: string;
   }) => api.post<{ content: string }>("/cover-letter/ai/generate", data),
 };
+
+// ── Contact API ────────────────────────────────────────────────────────────────
+
+export const contactApi = {
+  submit: (data: { name: string; email: string; message: string }) =>
+    api.post<{ id: number; name: string; email: string; message: string }>(
+      "/contact/",
+      data
+    ),
+};
+
+// ── Reviews API ────────────────────────────────────────────────────────────────
+
+export interface ReviewItem {
+  id: number;
+  name: string;
+  rating: number;
+  text: string;
+  created_at: string;
+}
+
+export const reviewsApi = {
+  list: () => api.get<ReviewItem[]>("/reviews/"),
+
+  submit: (data: { name: string; rating: number; text: string }) =>
+    api.post<ReviewItem>("/reviews/", data),
+};

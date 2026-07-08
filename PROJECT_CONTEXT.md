@@ -1,8 +1,16 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-06 (session 7 — added the 13th CV template, Aurora). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-08 (session 9 — built out the public marketing site: Home split from the authenticated app, plus Templates/Pricing/About/Contact/Partners/Privacy/Terms/Reviews, a shared SiteHeader/SiteFooter, and two new backend tables). Working directory: `F:\zenzhire\zenzhire\`
 
-**CV pagination migration (all 12 templates as of session 6, now 13 with Aurora) completed and verified.** Every template's `generate-pdf/route.ts` PDF export and `CentrePanel.tsx` live preview now agree on page breaks via the single shared `lib/pagination.ts` engine — confirmed directly against the code, not from memory (see section 10.2).
+**Session 9 — Marketing site built out (Home, Templates, Pricing, About, Contact, Partners, Privacy, Terms, Reviews).** See new section 23 for the full writeup. Headline points:
+- `/templates` is now a **public, unauthenticated marketing page** (`app/templates/page.tsx`) — the authenticated template *picker* used inside the app moved to `/dashboard/templates` (`app/(dashboard)/dashboard/templates/page.tsx`). These are two different pages at two different URLs now; don't conflate them (see section 13's rewrite).
+- New shared `components/marketing/SiteHeader.tsx` / `SiteFooter.tsx`, reused across every public page (`/`, `/templates`, `/pricing`, `/about`, `/contact`, `/partners`, `/privacy`, `/terms`, `/reviews`). `SiteFooter` is the single source of truth for footer nav — editing it updates every public page at once.
+- Two new backend tables + Alembic migrations: `contact_submissions` (`010_create_contact_submissions.py`) and `reviews` (`011_create_reviews.py`, with an `approved` boolean gate — public submissions are invisible until manually flipped to `true` in the DB; no admin UI for this yet, by design). Confirmed `alembic current == alembic heads == 011_create_reviews`.
+- **Known gap:** `/features/ats-checker` is linked from both the Home page and the new footer's Product column, but that route doesn't exist yet (404). Not built this session — flagged in section 22.
+
+**Session 8 — Nova (14th template) added.** Simplest structural type (single column, no sidebar — same category as Classic/Academic/Executive/GCC). Full frontend+backend registration, its own Alembic migration (`009_add_nova_template_id.py`, applied and confirmed — `alembic current == alembic heads == 009_add_nova`), and shared-pagination-engine support built in from the start. Two things worth remembering:
+- **New per-page "chrome" category: a horizontal per-page footer bar, not a vertical band/frame/line.** Every prior "paint one absolutely-positioned copy per real page" case (Modern's sidebar band, Tech's border frame, Creative's accent line, Aurora's band) was either full-height or full-border. Nova's footer bar is the first *bottom-edge-only* case (`bottom:0, height:14px` within each page-card / each `PAGE_HEIGHT_A4` multiple) — same underlying technique (hide the template's own single trailing copy inside paginated contexts via a `.cv-page-card .nova-outer [data-nova-footer] { display:none }` rule, paint one copy per real page in both `CentrePanel.tsx` and `generate-pdf/route.ts`), just anchored to the bottom instead of spanning top-to-bottom. Confirmed repeating correctly on every page of a real 2-page PDF (not just page count matching — the footer bar itself was visually confirmed at the bottom of both page 1 and page 2).
+- **Optional photo in a flex-row header needs no conditional layout, just a conditional render.** Nova's header is `flex` with the name/title block at `flex:1` and the photo (if any) as the second child — when there's no photo, the single remaining flex child naturally takes the full row width, so "no empty box or gap" required no extra CSS, only `{hasPhoto && <img .../>}`.
 
 **Session 7 — Aurora (13th template) added.** Full frontend+backend registration, its own Alembic migration (`008_add_aurora_template_id.py`, applied and confirmed — `alembic current == alembic heads == 008_add_aurora`), and shared-pagination-engine support built in from the start rather than retrofitted. Two things worth remembering for any future template:
 - **A colored (non-white) sidebar background breaks `SectionHeading.tsx` and `SkillEntry.tsx`.** Both hardcode `accentColor`/`#111827` text assuming a white page behind them — on Aurora's accentColor-filled sidebar this made every heading and skill level **completely invisible** (identical text/background color) until fixed with a dedicated `SidebarHeading` renderer and a plain bullet+name skills list. See section 6's Aurora entry and the ⚠️ callout under "Skills Display."
@@ -142,7 +150,8 @@ F:\zenzhire\zenzhire\
 │   │   │       ├── MilestoneTemplate.tsx # "Milestone" in UI, timeline-marker experience + 2-col body
 │   │   │       ├── CorporateTemplate.tsx # "Halo" in UI, dot-accent header + mirrored 2-col body (FREE)
 │   │   │       ├── VegaTemplate.tsx      # "Vega" in UI, colored header band + ■ square-marker headings + 2-col body (PRO)
-│   │   │       └── AuroraTemplate.tsx    # "Aurora" in UI, two-tone sidebar + photo straddle + 2-col body, References in main col (PRO)
+│   │   │       ├── AuroraTemplate.tsx    # "Aurora" in UI, two-tone sidebar + photo straddle + 2-col body, References in main col (PRO)
+│   │   │       └── NovaTemplate.tsx      # "Nova" in UI, flex-row header w/ optional photo + gray contact bar + single column + solid footer bar (FREE)
 │   │   └── ats-checker/
 │   │       ├── ScoreGauge.tsx
 │   │       ├── LayerCard.tsx
@@ -260,6 +269,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
   corporate:  { accentColor: "#111827", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
   vega:       { accentColor: "#2c3e50", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "plain",     skillStyle: "nameonly" },
   aurora:     { accentColor: "#6b8f71", fontFamily: "Lato",     headerStyle: "left",       headingStyle: "fullline", skillStyle: "nameonly" },
+  nova:       { accentColor: "#111827", fontFamily: "Arial",    headerStyle: "left",       headingStyle: "fullline", skillStyle: "chips" },
 };
 ```
 
@@ -267,7 +277,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 
 ---
 
-## 6. The 13 CV Templates
+## 6. The 14 CV Templates
 
 | template_id | Component | UI Name | Free/Pro | Category |
 |---|---|---|---|---|
@@ -275,6 +285,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
 | `academic` | AcademicTemplate.tsx | Inline | **FREE** | Simple |
 | `minimal` | MinimalTemplate.tsx | Colorful | **FREE** | Creative |
 | `corporate` | CorporateTemplate.tsx | Halo | **FREE** | Professional |
+| `nova` | NovaTemplate.tsx | Nova | **FREE** | Simple |
 | `modern` | ModernTemplate.tsx | Modern | PRO | Modern |
 | `tech` | TechTemplate.tsx | Bordered | PRO | Modern |
 | `creative` | CreativeTemplate.tsx | Timeline | PRO | Creative |
@@ -465,15 +476,15 @@ In the PDF pipeline, `.cv-section` no longer gets `page-break-inside:avoid` — 
 
 Per-template JSX changes needed to opt in: wrap each multi-entry section's heading + first entry in a `<div className="cv-heading-group" style={{ breakInside:"avoid", pageBreakInside:"avoid" }}>` (see 10.2 for exactly which sections, per template). `generate-pdf/route.ts` then branches on `templateId` — only templates in that branch's list use the shared engine; everything else still runs the legacy pipeline (10.3) untouched.
 
-### 10.2 Templates Migrated to Shared Pagination Engine (13 of 13 — migration complete)
+### 10.2 Templates Migrated to Shared Pagination Engine (14 of 14 — migration complete)
 
-Confirmed directly against `generate-pdf/route.ts`'s shared-pipeline branch condition (not assumed) — all 13 template IDs are present in a single `if` check:
+Confirmed directly against `generate-pdf/route.ts`'s shared-pipeline branch condition (not assumed) — all 14 template IDs are present in a single `if` check:
 ```typescript
 if (templateId === "classic" || templateId === "academic" || templateId === "modern" ||
     templateId === "minimal" || templateId === "executive" || templateId === "tech" ||
     templateId === "creative" || templateId === "gcc" || templateId === "portrait" ||
     templateId === "milestone" || templateId === "corporate" || templateId === "vega" ||
-    templateId === "aurora") {
+    templateId === "aurora" || templateId === "nova") {
 ```
 
 | template_id | Status |
@@ -491,6 +502,7 @@ if (templateId === "classic" || templateId === "academic" || templateId === "mod
 | `corporate` | ✅ Migrated |
 | `vega` | ✅ Migrated |
 | `aurora` | ✅ Migrated (built in from the start, not retrofitted) |
+| `nova` | ✅ Migrated (built in from the start, not retrofitted) |
 
 **Classic** (first template migrated, 2026-07-04) — also fixed a related bug in `SectionHeading.tsx`: the `fullline`/`dotted`/`centerlines` heading styles used `display:table`, which has measurement/fragmentation quirks that fought the new chunk-based extraction; converted to flexbox (pixel-identical visual output, verified via before/after screenshots). Separately fixed a **customization drift bug**: CVs with incomplete/empty `customization` (`{}` or `null`) rendered inconsistently between preview and PDF (e.g. `skillStyle` resolving to `"chips"` on one page and `"classic"` on the other) because the two pages filled in missing keys differently. Fixed via a shared `mergeCustomization()` helper (`frontend/types/index.ts`, see section 5) used by both `CentrePanel.tsx`'s data load and `cv-print/[cvId]/page.tsx`, plus a one-time backend data migration that backfilled 60 of 63 existing CVs with complete customization objects. The backend also got defense-in-depth (`_merge_customization()` in `backend/app/api/routes/cv.py`) so this can't reoccur via any API consumer, including ones that bypass the frontend.
 
@@ -516,9 +528,11 @@ if (templateId === "classic" || templateId === "academic" || templateId === "mod
 - Its sidebar carries an actual **colored background** (a gray zone behind the photo, transitioning to `accentColor`), not just a hairline divider — the same category of print-fragmentation/clip-window problem Modern's sidebar band solves, so `CentrePanel.tsx`/`generate-pdf/route.ts` paint one authoritative per-real-page rectangle (two-tone on page 0 only, solid `accentColor` on every later page) instead of trusting the template's own continuous-flow CSS gradient.
 - **Deliberately does not cap that band at `sidebarBottom`** (lesson 5(d) in 10.4) — References was moved into the main column (see section 6), so there's no full-width section left below the two-column body to bleed into. The band instead fills the full page height on every page, including the last, matching Modern/Tech/Creative's convention. This was an explicit, requested change (not an oversight) after the initial build shipped with the sidebarBottom cap by default, matching every prior two-column template — worth remembering that the cap is conditional on *actually having* a trailing full-width section, not an unconditional rule for every two-column template.
 
+**Nova** (2026-07-06) — migrated, built with the shared engine from the start. Simplest of all 14 templates structurally: single column, no sidebar (same category as Classic/Academic/Executive/GCC), so it needed no per-page sidebar-overlay work — only the standard `.cv-heading-group` wrapping (applied to all 8 of its multi-entry sections: Experience, Education, Projects, Certificates, Awards, Courses, Publications, Organizations) plus one new kind of per-page chrome: a solid, `accentColor`-derived footer bar pinned to the bottom edge of every page (`data-nova-footer` in the template, suppressed inside `.cv-page-card`/PDF contexts in favor of one absolutely-positioned `bottom:0, height:14px` copy per real page in both `CentrePanel.tsx` and `generate-pdf/route.ts` — see `NOVA_FOOTER_HEIGHT`). Verified predicted page count (live-preview badge) matched the real exported PDF's page count exactly on both a normal 1-page fixture and a stress-test fixture (5 experience entries + projects/certs/awards) that produced 2 pages, and confirmed via a real, non-headless browser that the footer bar is visible at the bottom of **both** pages of the 2-page PDF (not just page 1). Header is a flex row (name/title left, optional photo right) — verified in the real app with a photo (circular crop, right-aligned, vertically centered) and without one (full-width block, no gap).
+
 ### 10.3 Legacy Pipeline — now unused, kept only as a fallback
 
-The pre-2026-07-04 approach (`.cv-section` **and** `.cv-entry` both getting a blanket `page-break-inside:avoid`, so a section that doesn't fit gets pushed wholesale to the next page instead of splitting between entries) still exists as the `else` branch in `generate-pdf/route.ts`, but **no current template runs through it** — all 13 are in the shared-pipeline `if` condition (see 10.2). This branch is only relevant again if a future 14th template is added to the codebase without immediately being migrated onto the shared engine. Do not treat its continued existence in the file as evidence any current template still uses it — check the `if` condition directly, as this section 10.2 audit did.
+The pre-2026-07-04 approach (`.cv-section` **and** `.cv-entry` both getting a blanket `page-break-inside:avoid`, so a section that doesn't fit gets pushed wholesale to the next page instead of splitting between entries) still exists as the `else` branch in `generate-pdf/route.ts`, but **no current template runs through it** — all 14 are in the shared-pipeline `if` condition (see 10.2). This branch is only relevant again if a future 15th template is added to the codebase without immediately being migrated onto the shared engine. Do not treat its continued existence in the file as evidence any current template still uses it — check the `if` condition directly, as this section 10.2 audit did.
 
 ### 10.4 Consolidated Pagination Lessons (reference for any future 14th template)
 
@@ -618,29 +632,45 @@ POST /api/generate-cl-pdf { content, templateId, customization, jobTitle, compan
 
 ---
 
-## 13. Template Gallery (/templates)
+## 13. Template Gallery — now TWO separate pages (split in session 9)
 
-### Category filters:
+⚠️ **`/templates` no longer means "the template picker."** As of session 9 there are two distinct pages that both show the 14 templates, at two different URLs, for two different audiences:
+
+| Route | File | Audience | Purpose |
+|---|---|---|---|
+| `/templates` | `app/templates/page.tsx` | Public, unauthenticated | Marketing gallery — browse all 14 templates, category filter, Free/Pro counts. "Use Template" (free) / clicking a Pro card both route to **`/signup`** (there's no logged-in state here to attach a CV to). Uses `SiteHeader`/`SiteFooter`. |
+| `/dashboard/templates` | `app/(dashboard)/dashboard/templates/page.tsx` | Authenticated app users | The real template **picker** — used when starting a new CV. Pro click → `ProUpgradeModal` → `/pricing`. Lives inside the dashboard shell/navbar, not the marketing `SiteHeader`/`SiteFooter`. |
+
+The old single authenticated page at `(dashboard)/templates/page.tsx` was **moved**, not duplicated — it now lives at `(dashboard)/dashboard/templates/page.tsx`. `CV Builder list page → "New CV"` and the dashboard's own template-picker links were updated to `router.push("/dashboard/templates")` accordingly (confirmed via grep — both `cv-builder/page.tsx` and `dashboard/page.tsx` point at the new path).
+
+Template data for the two pages is **not shared from one source** — the public `/templates` page reads `frontend/lib/templates-data.ts` (`TEMPLATES`, `CATEGORIES` — built for the marketing page, no auth/customization concerns), while `/dashboard/templates` has its own data/logic for actually creating a CV. If a 15th template is ever added, both need registering, not just the CV-builder file list in section 6.
+
+### Category filters (both pages):
 - All / Simple / Modern / Creative / Professional
 
 ### Free/Pro split:
-- FREE: Classic (Simple), Inline (Simple), Colorful (Creative), Halo (Professional)
+- FREE: Classic (Simple), Inline (Simple), Colorful (Creative), Halo (Professional), Nova (Simple)
 - PRO: Modern, Bordered, Timeline, Executive, GCC, Portrait, Milestone, Vega, Aurora
 
-### Template card features:
+### Template card features (both pages):
 - iframe preview using `/cv-template-preview/[templateId]`
 - Scale calculated dynamically based on container width
 - Free badge (green) / Pro badge (amber + lock)
 - Popular badge on Classic, Modern, Colorful
 - Hover: "Use Template" button (free) or lock overlay (pro)
-- Pro click → ProUpgradeModal → /pricing
 
-### New CV flow:
+### New CV flow (authenticated):
 ```
 CV Builder list page → "New CV" button
-→ /templates page (pick template)
+→ /dashboard/templates page (pick template)
 → Creates CV with TEMPLATE_DEFAULT_CUSTOMIZATION
 → /cv-builder/[id] editor
+```
+
+### New CV flow (anonymous visitor, from the public marketing site):
+```
+/templates (browse, no auth) → "Use Template" or Pro card
+→ /signup → (after account creation) into the authenticated app
 ```
 
 ---
@@ -849,6 +879,13 @@ POST   /cover-letter/ai/generate AI generate cover letter
 POST   /ats/analyze             run 7-layer analysis (now returns diagnosis too)
 GET    /ats/history             past results (last 20)
 GET    /ats/{id}                get specific result
+
+# Contact (public, no auth — NEW session 9)
+POST   /contact/                submit contact form → saves to contact_submissions, no email sent
+
+# Reviews (public, no auth — NEW session 9)
+GET    /reviews/                list APPROVED reviews only
+POST   /reviews/                submit a review → always saved with approved=false
 ```
 
 ---
@@ -866,12 +903,13 @@ GET    /ats/{id}                get specific result
 
 Priority order:
 
-1. **Landing Page** — `/` marketing page with hero, features, pricing, testimonials
-2. **Stripe Payments** — Pro plan subscription, webhook, plan update
-3. **Admin Panel** — user management, stats, revenue
+1. ~~**Landing Page** — `/` marketing page with hero, features, pricing, testimonials~~ **DONE (session 9)** — full public marketing site built: Home, Templates, Pricing, About, Contact, Partners, Privacy, Terms, Reviews, plus a shared SiteHeader/SiteFooter. See section 23. "Testimonials" became the dedicated `/reviews` page (user-submitted, manually-approved) rather than a Home-page section. Remaining gap from this work: `/features/ats-checker` is linked (Home + footer) but not built — see section 22 item 16.
+2. **Stripe Payments** — Pro plan subscription, webhook, plan update. `/pricing` page itself now exists (session 9) with all the right plan/pricing copy — this item is now specifically about wiring real payment processing behind its CTA buttons, not building the page.
+3. **Admin Panel** — user management, stats, revenue. Also now the natural home for a **review-approval UI** (session 9's `/reviews` feature currently requires a manual `UPDATE reviews SET approved = true` DB query — see section 23.3 — since no admin panel exists yet to do this through).
 4. **CV Upload Parser** — upload PDF → AI extracts → fills real CV Builder sections (explicitly postponed during ATS session — this is a prerequisite for any future "fully personalized rebuilt CV" feature, distinct from the current lightweight CVRebuildPreview which uses placeholder content + injected real name/contact only)
 5. **ATS target_role enforcement** — add UI warning when empty (see section 18 known gap)
-6. **Production Deployment** — Vercel (frontend) + Railway (backend) + Supabase (DB)
+6. **`/features/ats-checker` marketing page** — linked from Home and the new footer, doesn't exist yet (session 9 finding, see section 22 item 16)
+7. **Production Deployment** — Vercel (frontend) + Railway (backend) + Supabase (DB)
 
 ---
 
@@ -879,7 +917,7 @@ Priority order:
 
 1. ~~**Debug screenshot** — `route.ts` saves to `C:/Users/kavidu/debug-screenshot.png`~~ **RESOLVED (confirmed session 6)** — grepped the entire frontend for `debug-screenshot`, `writeFile`, and `screenshot(` in both PDF routes: zero matches. Already removed from the codebase; this item and its section 10 callout were just never cleaned up in the doc.
 2. ~~**Modern template PDF** — sidebar color tested with fixed overlay approach, verify on multi-page CVs~~ **RESOLVED 2026-07-04** — Modern migrated to the shared pagination engine; the sidebar band is now derived per-page from `computePageBreaks()`'s own output in both preview and PDF, not a `position:fixed` overlay. See section 10.2.
-3. **Stripe not set up** — Pro upgrade buttons go to `/pricing` (page not built yet) — confirmed still true (no `/pricing` route exists, zero Stripe references anywhere in the codebase, session 6 re-check)
+3. **Stripe not set up** — `/pricing` now exists (built session 9, see section 23) and is a real, fully-designed page, but it has **no payment integration** — every CTA button on it (`Get Started Free`, `Upgrade to Pro`, `Get 7-Day Access`) just links to `/signup`. Zero Stripe references anywhere in the codebase, still confirmed true as of session 9. Updated from the earlier "page not built yet" phrasing, which is now outdated — the gap is payment processing, not the page itself.
 4. **CV upload parser** — planned feature, not built (see Phase 2 #4)
 5. **Mobile responsiveness** — not fully tested on mobile, including the new ATS sidebar layout (verify sidebar stacks correctly on narrow screens) — not independently re-verified this session (requires visual/device testing, not a code audit)
 6. **Email verification** — not implemented in auth — confirmed still true (no verification-related code found, session 6 re-check)
@@ -892,3 +930,77 @@ Priority order:
 13. **References section email/phone rendering in white/near-white text (unreadable)** — previously logged as "fixed on Classic and Modern only, needs verifying on the rest." **Re-audited session 6:** checked every one of the (then 12) templates' source for the `Phone:`/`Email:` (or bare email/phone) rendering in their References section — every one uses either no explicit color (inherits the surrounding readable text color) or an explicit readable gray (`#555`, `#4b5563`, `#6b7280`, or each template's own `LIGHT` constant, all `#6b7280`). Found no white/near-white color anywhere. **Appears resolved across all 12 templates as of session 6** — but this is a source-code audit, not a re-run visual/PDF screenshot check, so treat as high-confidence rather than fully closed until someone visually confirms. Aurora (added session 7) also uses this same safe `DARK`/`MID`/`LIGHT` convention for its References text — it renders in the white main column, not the colored sidebar, so it was never at risk of the *other* new contrast issue found this session (see section 6's Aurora entry and 10.4 lesson 7) either.
 14. **NEW (found during session 6 audit): `backend/app/models/__init__.py` never imports `CoverLetter`** — it only imports `User`, `CV`, `CVDocument`/`CVSection`, and `ATSResult`. `alembic/env.py`'s `import app.models` (used specifically to "ensure all models are registered" before `target_metadata = Base.metadata` is set for autogenerate) therefore never registers the `cover_letters` table with `Base.metadata` through that import path. In normal app runtime this is harmless — `app/api/routes/cover_letter.py` imports `CoverLetter` directly from its own module, which is enough for the live app — but it means `alembic revision --autogenerate` could fail to detect legitimate future changes to the `cover_letters` table, or worse, generate a spurious drop/mismatch, since Alembic's metadata comparison won't know that table's model exists. Fix: add `from app.models.cover_letter import CoverLetter` to `backend/app/models/__init__.py`. Not yet fixed.
 15. **Migration drift check (session 6):** `alembic current` and `alembic heads` both report `007_add_vega` — single head, DB fully up to date, no pending/unapplied migrations. (This is a confirmation, not an issue — logged here so a future session doesn't need to re-run the check without reason.)
+16. **`/features/ats-checker` is linked but doesn't exist (found session 9)** — both the Home page's ATS teaser section ("Learn how ATS scoring works") and the new marketing footer's Product column link to `/features/ats-checker`. No route exists at that path (confirmed 404). Not built this session — out of scope for the marketing-site/footer work, but now linked from two places instead of one, so it should be prioritized before either of those links ships to real users. This is separate from the actual authenticated `/ats-checker` (or `(dashboard)/ats-checker`) checker tool, which does exist and works — see section 18. A future "ATS Checker feature/landing page" would live at `/features/ats-checker` and is purely a marketing explainer page, not the tool itself.
+17. **Stale file path in item 9 above, corrected (session 9):** the `ProUpgradeModal` with the hardcoded `"5 premium CV templates"` copy (still unfixed, still off — 9 Pro templates as of Aurora/session 7) now lives at `app/(dashboard)/dashboard/templates/page.tsx`, not `(dashboard)/templates/page.tsx` — the file moved when `/templates` was repurposed as the public marketing page (see section 13's rewrite). Same bug, same fix needed, just a different path if you go looking for it.
+
+---
+
+## 23. Marketing Site — Public Pages (built session 9, 2026-07-08)
+
+Everything in this section is new this session. Before session 9, `/` was effectively a placeholder and there was no real marketing site — item 1 of section 21's Phase 2 list ("Landing Page — `/` marketing page with hero, features, pricing, testimonials") is now **done** except testimonials, which became the dedicated `/reviews` page described below instead of being embedded directly in the Home page.
+
+### 23.1 Shared components — `frontend/components/marketing/`
+
+| File | Purpose |
+|---|---|
+| `SiteHeader.tsx` | Sticky top nav (`sticky top-0`, `bg-[#0d1117]/85 backdrop-blur-md`). Logo + Templates/Pricing/About/Contact links + Sign in/Get Started buttons. Used at the top of every public page. |
+| `SiteFooter.tsx` | The comprehensive footer (rebuilt session 9) — **single source of truth**, reused on every public page, so editing this one file updates all of them at once. Brand column (logo + 1-line description) + Product/Company/Legal link columns + a "Share ZenzHire" row (real share-intent links: Twitter/X, Facebook, LinkedIn, WhatsApp — pre-filled message + `https://zenzhire.com`) + a "Follow us" row (Twitter, LinkedIn, Instagram, Facebook, Telegram, TikTok — all `href="#"` placeholders, ready to swap in real URLs) + a bottom copyright/legal bar. Grid is `grid-cols-1 sm:grid-cols-2 md:grid-cols-5` — verify this stays a single column below `sm` if the column count/content ever changes, or the Legal column can end up orphaned alone in a 2-col row (this exact bug was found and fixed session 9). |
+| `TikTokIcon.tsx` | Custom inline SVG (fill-based, 24×24 viewBox) — lucide-react has no TikTok glyph. Sized/used identically to lucide icons (`className="w-4 h-4"` etc.) wherever it appears. |
+| `WhatsAppIcon.tsx` | Same pattern as `TikTokIcon.tsx` — lucide-react has no WhatsApp glyph either. |
+| `TemplateCarousel.tsx` | Pre-existing (Home page template showcase section), unchanged this session. |
+
+Note: lucide-react **does** have `Twitter`, `Linkedin`, `Instagram`, and `Facebook` — only TikTok and WhatsApp needed custom SVGs. For "Telegram" specifically, lucide's `Send` icon (paper plane) is reused as a visual stand-in rather than a custom SVG, since Telegram's own logo *is* a paper plane and `Send` already matches the stroke-outline style of every other icon in these rows.
+
+### 23.2 Public pages
+
+| Route | File | Notes |
+|---|---|---|
+| `/` | `app/page.tsx` | Home/landing — hero, honesty-positioning callout, value props, "how it works," template showcase, ATS teaser, final CTA. Pre-existing, refined across sessions before 9. |
+| `/templates` | `app/templates/page.tsx` | Public marketing gallery — see section 13's rewrite for the split from the authenticated picker. |
+| `/pricing` | `app/pricing/page.tsx` | Monthly/Yearly toggle (yearly default, "Save 33%"), Free vs Pro comparison, separate 7-Day Pro Pass callout card, FAQ, final CTA. **No payment integration** — all CTA buttons (`Get Started Free`, `Upgrade to Pro`, `Get 7-Day Access`) currently just link to `/signup`; Stripe/billing is still not wired up (see section 22 item 3). |
+| `/about` | `app/about/page.tsx` | Hero, "Why ZenzHire exists" two-column mission section (icon+heading left, copy right — deliberately not just another centered text block), 4-card "What we built" recap, a bordered "Built by Centival Software Solutions" credibility card, final CTA. |
+| `/contact` | `app/contact/page.tsx` | Two-column: contact form (name/email/message, client validation, POSTs to backend, success/error states) + direct contact info card (`support@zenzhire.com` mailto link, `+94 78 782 0078` tel link, 6 follow-us social icons). Real end-to-end flow, not just a UI mock — see 23.3. |
+| `/partners` | `app/partners/page.tsx` | Simple "Partner Program — Coming Soon" placeholder, per explicit instruction not to build a full program yet. CTA links to `/contact`. |
+| `/privacy` | `app/privacy/page.tsx` | Generic SaaS privacy policy template (11 sections: data collected, usage, cookies, sharing, retention, user rights, termination, security, children's privacy, changes, contact). **Carries a highly visible disclaimer banner right below the title** (not buried in fine print): *"This is a template policy and has not been reviewed by a lawyer. Please consult a legal professional before relying on this document for your business."* This is placeholder legal content, not something to treat as actually reviewed/binding. |
+| `/terms` | `app/terms/page.tsx` | Same pattern/disclaimer as `/privacy` — 11 sections covering acceptance, service description, accounts, user content ownership, subscriptions/billing (Monthly/Yearly/7-Day Pass), acceptable use, termination, disclaimers, liability limits, changes, contact. |
+| `/reviews` | `app/reviews/page.tsx` | Public review submission (name, 1–5 star rating, text) + list of **approved-only** reviews below it. Explicitly shows **no fabricated reviews** — an empty state ("Be the first to leave a review!") renders until real reviews exist and have been manually approved. See 23.3 for the approval workflow. |
+
+All nine pages share the same dark-navy/blue-accent design system (`#0d1117` bg, `#161b22` surface, `#30363d` borders, `#2563eb` primary blue) and the `SiteHeader`/`SiteFooter` pair — verified rendering correctly (no console errors, no mobile overflow) at both 1440px and 390px across all of them.
+
+### 23.3 New backend: `contact_submissions` and `reviews`
+
+Two new tables, both public-facing (no auth required to submit), both added via their own Alembic migration, both confirmed with `alembic current == alembic heads` immediately after applying.
+
+```sql
+-- Contact form submissions (migration 010_create_contact_submissions.py)
+contact_submissions (id, name, email, message, created_at)
+
+-- Reviews (migration 011_create_reviews.py)
+reviews (id, name, rating, text, approved boolean default false, created_at)
+```
+
+New files:
+- `backend/app/models/contact_submission.py`, `backend/app/models/review.py` (both registered in `app/models/__init__.py` — this project has previously been bitten by forgetting that step, see section 22 item 14 re: `CoverLetter`; both new models were added correctly this time)
+- `backend/app/schemas/contact.py` (`ContactCreate`/`ContactRead`), `backend/app/schemas/review.py` (`ReviewCreate`/`ReviewRead`) — both use Pydantic `field_validator` to reject blank name/message/text server-side, not just client-side
+- `backend/app/api/routes/contact.py`, `backend/app/api/routes/reviews.py` — both registered in `main.py`
+
+New endpoints:
+```
+POST /api/v1/contact/    public, no auth. Validates non-empty name/message + valid email format (422 on failure). Saves to contact_submissions. No email/SMTP sending — DB row only, queried manually for now.
+
+POST /api/v1/reviews/    public, no auth. Validates non-empty name/text + rating 1-5. Always saves with approved=false regardless of input — there is no way for a submitter to self-approve.
+GET  /api/v1/reviews/    public. Returns ONLY rows where approved=true, newest first. This is the sole gate preventing spam/fake reviews from appearing immediately.
+```
+
+⚠️ **Approving a review is a manual DB operation — no admin UI exists for this** (explicitly out of scope this session, by instruction). To approve one: `UPDATE reviews SET approved = true WHERE id = <id>;`. This was verified end-to-end: submitted a real review through the actual rendered form (Playwright-driven, not just curl), confirmed it landed with `approved=false`, confirmed `GET /api/v1/reviews/` returned `[]` (correctly hidden), manually flipped `approved` to `true` and confirmed it then rendered correctly on `/reviews` (name, stars, text all correct), then reverted it back to `false` to leave the dev DB clean.
+
+`frontend/lib/api.ts` additions: `contactApi.submit()`, `reviewsApi.list()` / `reviewsApi.submit()` — same axios instance/interceptor pattern as every other API group in that file (JWT attached if present, but neither endpoint requires it).
+
+### 23.4 Design/process notes worth remembering for future public pages
+
+- Every public page needs `SiteHeader` at the top and `SiteFooter` at the bottom, wrapped in a `min-h-screen bg-[#0d1117]` div — copy this shape from any existing public page (`/about` is a good compact reference) rather than reinventing it.
+- **Verification method for these pages**: this project has no dedicated Playwright/E2E test suite for the marketing site — verification each time was ad hoc Playwright scripts (launched via `node <script>.js` from `frontend/`, using the locally-installed `playwright` package already in `node_modules`) that screenshot at 1440px and 390px and check `page.on("console", ...)` for errors, written to the scratchpad and deleted after use. There is no `chromium-cli` tool available in this environment — don't assume it exists.
+- A background dev server hydration warning (`Warning: Prop dangerouslySetInnerHTML did not match...`) appears on `/` and `/templates` during Playwright checks — this traces back to the Home page's embedded `/cv-template-preview/[templateId]` iframes (Aurora/Nova previews in the hero), is **pre-existing and unrelated to any session-9 change**, and should not be mistaken for a new bug when re-verifying these pages in the future.
+- lucide-react coverage check before reaching for a custom SVG: it has `Twitter`, `Linkedin`, `Instagram`, `Facebook`, `Send`, `Star`, `Mail`, `Phone`, `Handshake`, `MessageSquareText` — all used as-is this session. Only TikTok and WhatsApp needed hand-rolled icons (see 23.1).
+
+---

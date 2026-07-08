@@ -205,13 +205,13 @@ export function CVRebuildPreview({
       {/* Action buttons */}
       <div className="mt-4 flex flex-col sm:flex-row gap-3">
         <a
-          href="/templates"
+          href="/dashboard/templates"
           className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-md transition-colors"
         >
           ✨ Update with ZenzHire
         </a>
         <a
-          href="/templates"
+          href="/dashboard/templates"
           className="flex-1 text-center border border-[#30363d] hover:border-[#8b949e] text-[#e6edf3] text-sm font-medium py-2.5 rounded-md transition-colors"
         >
           🎨 Browse Templates

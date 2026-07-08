@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/templates", label: "Templates", icon: LayoutTemplate },
+  { href: "/dashboard/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/cv-builder", label: "CV Builder", icon: FileText },
   { href: "/cover-letter", label: "Cover Letters", icon: Mail },
   { href: "/ats-checker", label: "ATS Checker", icon: Target },

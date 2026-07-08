@@ -548,7 +548,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               (top portion sits against the gray zone, bottom portion against the accent
               band); the circle itself never changes color. */}
           {(personal.photo_base64 || personal.photo_url) && (
-            <div style={{ position: "absolute", top: AURORA_PHOTO_TOP, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
+            <div style={{ position: "absolute", top: AURORA_PHOTO_TOP, left: "50%", transform: "translateX(-50%)", zIndex: 2, width: personal.photo_size ?? AURORA_PHOTO_SIZE }}>
               <img src={personal.photo_base64 || personal.photo_url} alt="" style={getPhotoStyle(personal)} />
             </div>
           )}

@@ -20,6 +20,7 @@ class TemplateId(str, enum.Enum):
     corporate = "corporate"
     vega = "vega"
     aurora = "aurora"
+    nova = "nova"
 
 
 class SectionType(str, enum.Enum):

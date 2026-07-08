@@ -264,7 +264,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
-            href="/templates"
+            href="/dashboard/templates"
             className="bg-[#161b22] border border-[#30363d] hover:border-blue-600/50 rounded-lg p-6 flex items-center justify-between group transition-colors"
           >
             <div className="flex items-center gap-4">

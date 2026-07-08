@@ -24,6 +24,7 @@ import { MilestoneTemplate, MILESTONE_SIDEBAR_TYPES } from "./templates/Mileston
 import { CorporateTemplate, CORPORATE_SIDEBAR_TYPES } from "./templates/CorporateTemplate";
 import { VegaTemplate, VEGA_SIDEBAR_TYPES } from "./templates/VegaTemplate";
 import { AuroraTemplate, AURORA_SIDEBAR_TYPES, AURORA_GRAY_ZONE_HEIGHT, AURORA_GRAY_ZONE_COLOR } from "./templates/AuroraTemplate";
+import { NovaTemplate, NOVA_FOOTER_HEIGHT } from "./templates/NovaTemplate";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -222,6 +223,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   const isCorporate = cv.template_id === "corporate";
   const isVega = cv.template_id === "vega";
   const isAurora = cv.template_id === "aurora";
+  const isNova = cv.template_id === "nova";
   const scale = zoom / 100;
 
   const editable = !!(onSectionDataChange && onReorder);
@@ -323,6 +325,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       case "corporate":  return <CorporateTemplate {...props} />;
       case "vega":       return <VegaTemplate {...props} />;
       case "aurora":     return <AuroraTemplate {...props} />;
+      case "nova":       return <NovaTemplate {...props} />;
       default:           return <ClassicTemplate {...props} />;
     }
   };
@@ -397,6 +400,15 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
           continuous element, so suppressed here in favor of the isPortrait
           per-page-card divider below, sized to that card's own A4 box. */}
       <style>{`.cv-page-card .portrait-sidebar { border-right: none; }`}</style>
+      {/* NovaTemplate's own footer bar (data-nova-footer) is meant for
+          non-paginated rendering, where it trails once after the last
+          section. Inside this editor, each page-card is a clipped window
+          onto that same continuous element, so the single bar only lands on
+          whichever page happens to hold it — not every page. Suppressed
+          only inside .cv-page-card in favor of the isNova per-page-card bar
+          below, sized to that card's own A4 box (same convention as Tech's
+          frame / Creative's line). */}
+      <style>{`.cv-page-card .nova-outer [data-nova-footer] { display: none; }`}</style>
       {/* MilestoneTemplate's own sidebar divider — same reason as Portrait's
           above, suppressed here in favor of the isMilestone per-page-card
           divider below. */}
@@ -989,6 +1001,30 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
                         left: 0,
                         bottom: 0,
                         width: 8,
+                        backgroundColor: customization.accentColor,
+                        pointerEvents: "none",
+                        zIndex: 10,
+                      }}
+                    />
+                  )}
+
+                  {/* Nova's footer bar: drawn per page-card at exactly this card's own
+                      A4 box (bottom:0), same convention as isTech's frame/isCreative's
+                      line above, instead of trusting the template's own single trailing
+                      bar (suppressed via the .cv-page-card override), which can only
+                      ever land on whichever one page-card happens to hold it. Repeats
+                      on every page — matching the accepted Modern/Tech/Creative/Aurora
+                      convention of a band/frame spanning every physical page regardless
+                      of content, rather than appearing once at the true end of the
+                      document. */}
+                  {isNova && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: NOVA_FOOTER_HEIGHT,
                         backgroundColor: customization.accentColor,
                         pointerEvents: "none",
                         zIndex: 10,

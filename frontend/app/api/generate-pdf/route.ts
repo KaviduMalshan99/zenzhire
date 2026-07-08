@@ -111,8 +111,8 @@ export async function POST(request: NextRequest) {
       () => (window as unknown as { __CV_TEMPLATE_ID__?: string }).__CV_TEMPLATE_ID__
     );
 
-    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait" || templateId === "milestone" || templateId === "corporate" || templateId === "vega" || templateId === "aurora") {
-      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega & Aurora: shared-pagination pipeline ─
+    if (templateId === "classic" || templateId === "academic" || templateId === "modern" || templateId === "minimal" || templateId === "executive" || templateId === "tech" || templateId === "creative" || templateId === "gcc" || templateId === "portrait" || templateId === "milestone" || templateId === "corporate" || templateId === "vega" || templateId === "aurora" || templateId === "nova") {
+      // ── Classic, Academic, Modern, Minimal, Executive, Tech, Creative, GCC, Portrait, Milestone, Corporate, Vega, Aurora & Nova: shared-pagination pipeline ─
       // Force print-color-adjust so Chrome doesn't strip backgrounds/colors.
       // Unlike the legacy pipeline below, .cv-section does NOT get
       // page-break-inside:avoid — a long section (e.g. Experience, Projects)
@@ -678,6 +678,55 @@ export async function POST(request: NextRequest) {
           PAGE_HEIGHT_A4,
           AURORA_GRAY_ZONE_HEIGHT,
           AURORA_GRAY_ZONE_COLOR
+        );
+      }
+
+      // ── Nova's footer bar ──────────────────────────────────────────────────
+      // .nova-outer draws its footer bar (data-nova-footer) as a single
+      // trailing div after the last section, meant for non-paginated
+      // rendering — same category of problem as Tech's border frame/
+      // Creative's accent line: once this flows across several physical
+      // pages, that one div only ever lands on whichever page happens to
+      // hold it, not the true bottom of every page. Hide it and paint one
+      // absolutely-positioned bar per real page instead, pinned to each
+      // page's own bottom edge (exact multiples of PAGE_HEIGHT_A4) —
+      // repeating on every page, matching the accepted Modern/Tech/
+      // Creative/Aurora convention of a band/frame spanning every physical
+      // page regardless of content, rather than appearing once at the true
+      // end of the document.
+      //
+      // NOVA_FOOTER_HEIGHT is duplicated here (not imported) to match this
+      // file's existing convention for per-template pixel constants (see the
+      // Aurora comment above) — must stay equal to NovaTemplate.tsx's own
+      // exported constant.
+      if (templateId === "nova") {
+        const NOVA_FOOTER_HEIGHT = 14;
+        await page.evaluate(
+          (pageCount: number, pageHeight: number, footerHeight: number) => {
+            const outer = document.querySelector<HTMLElement>(".nova-outer");
+            if (!outer) return;
+            const footer = outer.querySelector<HTMLElement>("[data-nova-footer]");
+            const color = footer ? getComputedStyle(footer).backgroundColor : "#111827";
+            if (footer) footer.style.display = "none";
+            outer.style.position = "relative";
+            outer.style.minHeight = `${pageCount * pageHeight}px`;
+            for (let i = 0; i < pageCount; i++) {
+              const bar = document.createElement("div");
+              bar.setAttribute("data-nova-footer-bar", String(i));
+              bar.style.position = "absolute";
+              bar.style.top = `${(i + 1) * pageHeight - footerHeight}px`;
+              bar.style.left = "0";
+              bar.style.width = "100%";
+              bar.style.height = `${footerHeight}px`;
+              bar.style.backgroundColor = color;
+              bar.style.pointerEvents = "none";
+              bar.style.zIndex = "10";
+              outer.appendChild(bar);
+            }
+          },
+          starts.length,
+          PAGE_HEIGHT_A4,
+          NOVA_FOOTER_HEIGHT
         );
       }
     } else {

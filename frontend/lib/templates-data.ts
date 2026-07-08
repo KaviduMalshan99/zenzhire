@@ -1,0 +1,127 @@
+// Single source of truth for the 13 real CV templates — shared by the authenticated
+// template picker (app/(dashboard)/dashboard/templates) and the public marketing
+// gallery (app/templates), so the two can never drift out of sync with each other.
+export const TEMPLATES = [
+  {
+    id: "classic",
+    name: "Classic",
+    category: "simple",
+    plan: "free",
+    popular: true,
+    description: "Clean and traditional. Perfect for corporate and professional roles.",
+  },
+  {
+    id: "academic",
+    name: "Inline",
+    category: "simple",
+    plan: "free",
+    popular: false,
+    description: "Elegant inline layout with icon contacts. Great for any industry.",
+  },
+  {
+    id: "minimal",
+    name: "Colorful",
+    category: "creative",
+    plan: "free",
+    popular: true,
+    description: "Bold color banner header. Makes your CV stand out from the crowd.",
+  },
+  {
+    id: "modern",
+    name: "Modern",
+    category: "modern",
+    plan: "pro",
+    popular: true,
+    description: "Two-column layout with colored sidebar. Contemporary and stylish.",
+  },
+  {
+    id: "tech",
+    name: "Bordered",
+    category: "modern",
+    plan: "pro",
+    popular: false,
+    description: "Elegant border frame design. Professional and distinctive.",
+  },
+  {
+    id: "creative",
+    name: "Timeline",
+    category: "creative",
+    plan: "pro",
+    popular: false,
+    description: "Left accent line with timeline layout. Perfect for creatives.",
+  },
+  {
+    id: "executive",
+    name: "Executive",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Sophisticated centered layout. Ideal for senior professionals.",
+  },
+  {
+    id: "gcc",
+    name: "GCC",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Dark header design tailored for Gulf and Middle East applications.",
+  },
+  {
+    id: "portrait",
+    name: "Portrait",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Photo-forward header with a clean two-column body. Elegant and refined.",
+  },
+  {
+    id: "milestone",
+    name: "Milestone",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Timeline-style experience with a clean sidebar. Structured and confident.",
+  },
+  {
+    id: "corporate",
+    name: "Halo",
+    category: "professional",
+    plan: "free",
+    popular: false,
+    description: "Left-aligned header with dot accent, clean two-column body. Polished and modern.",
+  },
+  {
+    id: "vega",
+    name: "Vega",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Square-marker headings with accent underline. Bold name header, two-column body. Sharp and confident.",
+  },
+  {
+    id: "aurora",
+    name: "Aurora",
+    category: "professional",
+    plan: "pro",
+    popular: false,
+    description: "Two-tone sidebar with a circular photo straddling the color transition. Soft, modern, and polished.",
+  },
+  {
+    id: "nova",
+    name: "Nova",
+    category: "simple",
+    plan: "free",
+    popular: false,
+    description: "Clean single-column layout with an optional photo header and a bold footer bar. Simple and versatile.",
+  },
+] as const;
+
+export type Template = typeof TEMPLATES[number];
+
+export const CATEGORIES = [
+  { id: "all", label: "All Templates" },
+  { id: "simple", label: "Simple" },
+  { id: "modern", label: "Modern" },
+  { id: "creative", label: "Creative" },
+  { id: "professional", label: "Professional" },
+];

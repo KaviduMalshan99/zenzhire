@@ -15,6 +15,7 @@ import { MilestoneTemplate } from "@/components/cv-builder/templates/MilestoneTe
 import { CorporateTemplate } from "@/components/cv-builder/templates/CorporateTemplate";
 import { VegaTemplate } from "@/components/cv-builder/templates/VegaTemplate";
 import { AuroraTemplate } from "@/components/cv-builder/templates/AuroraTemplate";
+import { NovaTemplate } from "@/components/cv-builder/templates/NovaTemplate";
 import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, mergeCustomization } from "@/types";
 
@@ -102,6 +103,7 @@ export default function CVPrintPage() {
       case "corporate":  return <CorporateTemplate {...props} />;
       case "vega":       return <VegaTemplate {...props} />;
       case "aurora":     return <AuroraTemplate {...props} />;
+      case "nova":       return <NovaTemplate {...props} />;
       default:           return <ClassicTemplate {...props} />;
     }
   };
