@@ -1,6 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
-import type { CoverLetter, CoverLetterListItem } from "@/types";
+import type { CoverLetter, CoverLetterListItem, TemplateId } from "@/types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL + "/api/v1",
@@ -99,4 +99,29 @@ export const reviewsApi = {
 
   submit: (data: { name: string; rating: number; text: string }) =>
     api.post<ReviewItem>("/reviews/", data),
+};
+
+// ── Career Mentor (conversational CV onboarding) ──────────────────────────────
+
+export interface CareerMentorStep {
+  cv_id: number;
+  step: string;
+  question: string;
+  input_type: "text" | "buttons" | "none";
+  options: string[] | null;
+  progress: { current: number; total: number };
+  context: Record<string, string>;
+  complete: boolean;
+}
+
+export const careerMentorApi = {
+  start: (template_id: TemplateId) =>
+    api.post<CareerMentorStep>("/career-mentor/start", { template_id }),
+
+  answer: (data: {
+    cv_id: number;
+    step: string;
+    answer: string;
+    context: Record<string, string>;
+  }) => api.post<CareerMentorStep>("/career-mentor/answer", data),
 };

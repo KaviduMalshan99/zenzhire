@@ -109,7 +109,8 @@ export default function CVEditorPage() {
   const [targetRole, setTargetRole] = useState("");
   const [leftPanelTab, setLeftPanelTab] = useState<"sections" | "style">("sections");
   const [leftPanelMode, setLeftPanelMode] = useState<"list" | "form">("list");
-  const [mobileSheet, setMobileSheet] = useState<"closed" | "sections" | "ai">("closed");
+  const [mobileSheet, setMobileSheet] = useState<"closed" | "sections">("closed");
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [past, setPast] = useState<HistorySnapshot[]>([]);
   const [future, setFuture] = useState<HistorySnapshot[]>([]);
   const [isRestoringHistory, setIsRestoringHistory] = useState(false);
@@ -418,7 +419,7 @@ export default function CVEditorPage() {
 
   return (
     <>
-      {/* Desktop three-panel layout */}
+      {/* Desktop two-panel layout */}
       <div className="hidden md:flex overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
         <LeftPanel {...panelProps} />
         <CentrePanel
@@ -430,15 +431,6 @@ export default function CVEditorPage() {
           onSendToATS={handleSendToATS}
           onSectionDataChange={saveSectionData}
           onReorder={reorderSections}
-        />
-        <RightPanel
-          cv={cv}
-          sections={sections}
-          activeSection={activeSection}
-          isPro={isPro}
-          targetRole={targetRole}
-          onTargetRoleChange={setTargetRole}
-          onJumpToSection={handleJumpToSection}
         />
       </div>
 
@@ -455,14 +447,7 @@ export default function CVEditorPage() {
           onReorder={reorderSections}
         />
 
-        <div className="fixed bottom-6 right-4 flex flex-col gap-3 z-40">
-          <button
-            onClick={() => setMobileSheet(mobileSheet === "ai" ? "closed" : "ai")}
-            className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg flex items-center justify-center transition-colors"
-            title="AI Assistant"
-          >
-            <Sparkles className="w-5 h-5" />
-          </button>
+        <div className="fixed bottom-6 right-4 z-40">
           <button
             onClick={() => setMobileSheet(mobileSheet === "sections" ? "closed" : "sections")}
             className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center transition-colors"
@@ -472,7 +457,7 @@ export default function CVEditorPage() {
           </button>
         </div>
 
-        {mobileSheet !== "closed" && (
+        {mobileSheet === "sections" && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end">
             <div
               className="absolute inset-0 bg-black/60"
@@ -482,12 +467,8 @@ export default function CVEditorPage() {
               style={{ maxHeight: "80vh" }}>
               <div className="flex items-center justify-between px-5 py-3 border-b border-[#30363d] flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  {mobileSheet === "sections"
-                    ? <Layers className="w-4 h-4 text-blue-400" />
-                    : <Sparkles className="w-4 h-4 text-purple-400" />}
-                  <span className="text-white text-sm font-semibold">
-                    {mobileSheet === "sections" ? "Sections" : "AI Assistant"}
-                  </span>
+                  <Layers className="w-4 h-4 text-blue-400" />
+                  <span className="text-white text-sm font-semibold">Sections</span>
                 </div>
                 <button
                   onClick={() => setMobileSheet("closed")}
@@ -497,24 +478,59 @@ export default function CVEditorPage() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto">
-                {mobileSheet === "sections" ? (
-                  <LeftPanel {...panelProps} mobile />
-                ) : (
-                  <RightPanel
-                    cv={cv}
-                    sections={sections}
-                    activeSection={activeSection}
-                    isPro={isPro}
-                    targetRole={targetRole}
-                    onTargetRoleChange={setTargetRole}
-                    onJumpToSection={handleJumpToSection}
-                  />
-                )}
+                <LeftPanel {...panelProps} mobile />
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Floating Career Mentor AI entry point — visible on every viewport and section */}
+      <button
+        onClick={() => setAiPanelOpen(true)}
+        className="fixed z-40 bottom-24 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
+        style={{ backgroundColor: "#2563eb" }}
+        title="Career Mentor"
+        aria-label="Open Career Mentor AI assistant"
+      >
+        <Sparkles className="w-6 h-6" />
+      </button>
+
+      {aiPanelOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setAiPanelOpen(false)}
+          />
+          <div
+            className="relative bg-[#161b22] border-l border-[#30363d] h-full w-full sm:w-[400px] flex flex-col shadow-2xl animate-in slide-in-from-right duration-200"
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#30363d] flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-400" />
+                <span className="text-white text-sm font-semibold">Career Mentor</span>
+              </div>
+              <button
+                onClick={() => setAiPanelOpen(false)}
+                className="text-[#8b949e] hover:text-white p-1 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <RightPanel
+                cv={cv}
+                sections={sections}
+                activeSection={activeSection}
+                isPro={isPro}
+                targetRole={targetRole}
+                onTargetRoleChange={setTargetRole}
+                onJumpToSection={handleJumpToSection}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

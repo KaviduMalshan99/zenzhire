@@ -808,7 +808,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
   );
 
   return (
-    <div className="w-80 flex-shrink-0 bg-[#161b22] border-l border-[#30363d] flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-[#161b22] flex flex-col overflow-hidden">
 
       {/* Target Role */}
       <div className="px-4 pt-3 pb-2 border-b border-[#30363d] flex-shrink-0">
@@ -826,7 +826,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
 
       {/* Tabs */}
       <div className="flex items-center gap-1 px-3 py-2 border-b border-[#30363d] flex-shrink-0">
-        <TabBtn id="ai" label="AI Assistant" />
+        <TabBtn id="ai" label="Career Mentor" />
         <TabBtn id="score" label="CV Score" />
         <TabBtn id="fixes" label="Quick Fixes" badge={criticalCount || undefined} />
       </div>

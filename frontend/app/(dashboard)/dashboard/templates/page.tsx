@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import type { CVDocument } from "@/types";
-import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
 import { Lock, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPLATES, CATEGORIES, type Template } from "@/lib/templates-data";
@@ -81,38 +78,18 @@ export default function TemplatesPage() {
   const isPro = user?.plan === "pro";
 
   const [activeCategory, setActiveCategory] = useState("all");
-  const [creating, setCreating] = useState<string | null>(null);
   const [proModal, setProModal] = useState<string | null>(null);
 
   const filtered = TEMPLATES.filter(
     (t) => activeCategory === "all" || t.category === activeCategory
   );
 
-  const handleSelect = async (template: Template) => {
+  const handleSelect = (template: Template) => {
     if (template.plan === "pro" && !isPro) {
       setProModal(template.name);
       return;
     }
-    setCreating(template.id);
-    try {
-      const templateDefaults = TEMPLATE_DEFAULT_CUSTOMIZATION[template.id] ?? {};
-      const res = await api.post<CVDocument>("/cv/", {
-        title: "My CV",
-        template_id: template.id,
-        customization: {
-          ...DEFAULT_CUSTOMIZATION,
-          ...templateDefaults,
-          spacing: "normal",
-          skillStyle: "classic",
-          skillColumns: 2,
-        },
-      });
-      router.push(`/cv-builder/${res.data.id}`);
-    } catch {
-      alert("Failed to create CV. Please try again.");
-    } finally {
-      setCreating(null);
-    }
+    router.push(`/cv-builder/onboarding?template=${template.id}`);
   };
 
   return (
@@ -164,7 +141,6 @@ export default function TemplatesPage() {
               template={template}
               locked={template.plan === "pro" && !isPro}
               actionLabel="Use Template"
-              actionLoading={creating === template.id}
               onAction={() => handleSelect(template)}
             />
           ))}

@@ -149,6 +149,27 @@
   }
 }
 
+/* ── Career Mentor onboarding chat ─────────────────────────────────────── */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: #8b949e;
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes checklist-flash {
+  0% { background-color: rgba(37, 99, 235, 0.35); }
+  100% { background-color: transparent; }
+}
+.checklist-flash {
+  animation: checklist-flash 1.2s ease-out;
+}
+
 @layer components {
   .btn-primary {
     @apply bg-blue-600 text-white font-medium px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;

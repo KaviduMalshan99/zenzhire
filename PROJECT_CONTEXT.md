@@ -1,8 +1,13 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-08 (session 9 — built out the public marketing site: Home split from the authenticated app, plus Templates/Pricing/About/Contact/Partners/Privacy/Terms/Reviews, a shared SiteHeader/SiteFooter, and two new backend tables). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-14 (session 10 — redesigned the CV Builder's AI panel into a floating "Career Mentor" entry point (Sprint 1) plus a new conversational onboarding flow that builds a CV from a chat-style Q&A (Sprint 2), driven by real Pro-tier user testing feedback. See new section 24 for the full writeup). Working directory: `F:\zenzhire\zenzhire\`
 
-**Session 9 — Marketing site built out (Home, Templates, Pricing, About, Contact, Partners, Privacy, Terms, Reviews).** See new section 23 for the full writeup. Headline points:
+**Session 10 — Career Mentor redesign (Sprint 1 + Sprint 2 only; broader "Career Brain" ideas deliberately deferred).** See new section 24 for the full writeup. Headline points:
+- Real Pro-tier user testing found the fixed right AI panel in the CV Builder confusing — this drove a UX redesign, scoped deliberately to two sprints. Bigger architecture ideas discussed during planning (Context Manager, Writing Coach, Live ATS, Career Memory, AI Router, a future Job Platform) were **not built**, and are logged as a post-launch roadmap note instead — reasoning: "a Brain with no users is just architecture."
+- Sprint 1: the CV Builder's desktop layout went from 3 columns (`LeftPanel | CentrePanel | RightPanel`) to 2 (`LeftPanel | CentrePanel`), with `RightPanel` (all its existing AI Assistant/CV Score/Quick Fixes functionality, unchanged) relocated into a floating sparkle FAB → slide-in drawer, on both desktop and mobile.
+- Sprint 2: new `/cv-builder/onboarding` chat-style flow (backend `app/services/career_mentor.py` step engine + `POST /career-mentor/start` / `/answer`) that conversationally fills the CV's "core 5" sections (Personal Details, Summary, Experience-or-Projects, Education, Skills) by reusing existing `cv.create_cv`/`add_section`/`update_section` and `ai_service.py` functions — no new AI logic, no new CV data model. `/dashboard/templates` now routes into this flow instead of creating a CV directly.
+
+**Session 9 — Marketing site built out (Home, Templates, Pricing, About, Contact, Partners, Privacy, Terms, Reviews).** See section 23 for the full writeup. Headline points:
 - `/templates` is now a **public, unauthenticated marketing page** (`app/templates/page.tsx`) — the authenticated template *picker* used inside the app moved to `/dashboard/templates` (`app/(dashboard)/dashboard/templates/page.tsx`). These are two different pages at two different URLs now; don't conflate them (see section 13's rewrite).
 - New shared `components/marketing/SiteHeader.tsx` / `SiteFooter.tsx`, reused across every public page (`/`, `/templates`, `/pricing`, `/about`, `/contact`, `/partners`, `/privacy`, `/terms`, `/reviews`). `SiteFooter` is the single source of truth for footer nav — editing it updates every public page at once.
 - Two new backend tables + Alembic migrations: `contact_submissions` (`010_create_contact_submissions.py`) and `reviews` (`011_create_reviews.py`, with an `approved` boolean gate — public submissions are invisible until manually flipped to `true` in the DB; no admin UI for this yet, by design). Confirmed `alembic current == alembic heads == 011_create_reviews`.
@@ -1002,5 +1007,56 @@ GET  /api/v1/reviews/    public. Returns ONLY rows where approved=true, newest f
 - **Verification method for these pages**: this project has no dedicated Playwright/E2E test suite for the marketing site — verification each time was ad hoc Playwright scripts (launched via `node <script>.js` from `frontend/`, using the locally-installed `playwright` package already in `node_modules`) that screenshot at 1440px and 390px and check `page.on("console", ...)` for errors, written to the scratchpad and deleted after use. There is no `chromium-cli` tool available in this environment — don't assume it exists.
 - A background dev server hydration warning (`Warning: Prop dangerouslySetInnerHTML did not match...`) appears on `/` and `/templates` during Playwright checks — this traces back to the Home page's embedded `/cv-template-preview/[templateId]` iframes (Aurora/Nova previews in the hero), is **pre-existing and unrelated to any session-9 change**, and should not be mistaken for a new bug when re-verifying these pages in the future.
 - lucide-react coverage check before reaching for a custom SVG: it has `Twitter`, `Linkedin`, `Instagram`, `Facebook`, `Send`, `Star`, `Mail`, `Phone`, `Handshake`, `MessageSquareText` — all used as-is this session. Only TikTok and WhatsApp needed hand-rolled icons (see 23.1).
+
+---
+
+## 24. Career Mentor Redesign (session 10, 2026-07-14)
+
+### 24.1 Background
+
+Real Pro-tier user testing on the CV Builder found the fixed right-hand AI panel (`RightPanel.tsx`, always visible as the third column) confusing and hard to understand. This directly drove a UX redesign of how the AI assistant surfaces in the product.
+
+The redesign was **deliberately scoped to two sprints only** — Sprint 1 (a floating entry point for the existing AI panel) and Sprint 2 (a new conversational onboarding flow). During planning, a broader "Career Brain" architecture was discussed — a Context Manager (shared current-section/CV/template state), a Writing Coach (live grammar/inline suggestions), Live ATS (background scoring, reframing the ATS Checker as a "Deep Review"), a formal Career Brain v1 orchestration layer, Career Memory (cross-session persistence), an AI Router, and a longer-term Job Platform / Company Hiring AI / Interview Coach vision. None of this was built this session — it's explicitly deferred to a post-launch roadmap (see 24.4), per the reasoning given during planning: **"a Brain with no users is just architecture."**
+
+### 24.2 Sprint 1 — Floating AI entry point
+
+- Removed the fixed 3-column CV Builder desktop layout (`LeftPanel | CentrePanel | RightPanel`) in favor of 2 columns (`LeftPanel | CentrePanel`), giving the CV preview more width. (`frontend/app/(dashboard)/cv-builder/[id]/page.tsx`)
+- Added a floating sparkle FAB, `bottom-24 right-4` on mobile / `bottom-6 right-6` on desktop, always visible regardless of active section, opening a slide-in drawer (full width on mobile, `sm:w-[400px]` on desktop) that wraps the existing `RightPanel` component unchanged.
+- All existing AI Assistant functionality — per-section actions, Target Role field, CV Score, Quick Fixes, free-tier usage gating, active-section indicator — was preserved exactly; `RightPanel.tsx` itself only changed its outer wrapper (`w-80 border-l` → `w-full h-full`, to fit the new drawer instead of a fixed column) and one label.
+- The "AI Assistant" tab inside `RightPanel` was relabeled **"Career Mentor"** (copy-only change, no logic change).
+- The old separate mobile purple AI FAB + bottom sheet (`mobileSheet === "ai"`) was removed — superseded by the new drawer, which now appears identically on mobile and desktop. The separate mobile "Sections" FAB/sheet was left untouched (`mobileSheet` narrowed from `"closed" | "sections" | "ai"` to `"closed" | "sections"`).
+
+### 24.3 Sprint 2 — Career Mentor conversational onboarding
+
+**Backend** — new `backend/app/services/career_mentor.py`: a pure, DB-free step engine (no ORM/DB calls in this file) describing a fixed conversation of **19 nodes in `FLOW` (18 real questions + a terminal `"complete"` node)**, with two branch points:
+- `has_experience` (Yes → Branch A: `exp_company/exp_title/exp_start/exp_end/exp_work`; No → falls into `has_projects`)
+- `has_projects` (Yes → `project_name/project_work`; No → skips straight to education, so no phantom empty Experience/Projects section is ever created)
+
+All three branches converge on a common suffix: `edu_institution/edu_degree/edu_dates`, `skills`, `summary_intro/summary_enjoy/summary_years`. The progress bar (`progress_for()`) always assumes the longest path (Branch A) until the branch questions are actually answered, so the "Step X of Y" total never has to jump backward mid-conversation.
+
+New route file `backend/app/api/routes/career_mentor.py` (registered in `main.py`, prefix `/career-mentor`), two endpoints:
+- `POST /career-mentor/start` — calls the **existing** `cv_routes.create_cv()` to create a real `CVDocument` up front (not a separate draft/staging model), pre-fills the personal_details section with the logged-in user's `full_name`/`email`, then returns the first step.
+- `POST /career-mentor/answer` — on most steps just accumulates the answer into a `context` dict passed back and forth with the frontend; on the five steps that actually produce CV content (`exp_work`, `project_work`, `edu_dates`, `skills`, `summary_years`) it writes into the CV's sections using the **existing** `_write_section_data`/`cv_routes.add_section` patterns (full JSONB reassignment, not in-place mutation — same convention `cv.update_section` already uses so SQLAlchemy detects the change), and for `exp_work`/`project_work`/`summary_years` calls the **existing** `ai_service.improve_cv_text()` (`improve_bullet` / `generate_summary` actions) to turn the user's raw conversational answer into CV-quality text. No new AI prompts, no new CV data model — this is the same write path and the same AI service every other part of the CV Builder already uses.
+
+**Frontend** — new `frontend/app/(dashboard)/cv-builder/onboarding/page.tsx`, a chat-style UI:
+- `frontend/lib/api.ts` gained `careerMentorApi.start()` / `.answer()`.
+- `/dashboard/templates`' `handleSelect()` no longer creates a CV directly — it now routes to `/cv-builder/onboarding?template={id}` (the direct-create POST and its customization-defaults logic were deleted from that page entirely, not just bypassed).
+- Scrolling chat history, text input or button choices depending on the step's `input_type`, a progress bar, and a "Skip for now — I'll fill this in myself" exit that's visible on every screen (routes straight to `/cv-builder/{cvId}`, or `/cv-builder` if the CV hasn't been created yet).
+- Covers the "core 5" sections (Personal Details, Summary, Experience-or-Projects, Education, Skills) — not all 16 CV sections. Remaining sections (Certificates, Awards, Languages, etc.) are left for the user to add manually in the normal editor after onboarding, by design.
+- Verified end-to-end with real test accounts: Branch A (has experience), Branch B with a project, Branch B declining both has_experience and has_projects (confirmed no phantom empty Experience/Projects sections get created — matches the backend's conditional section-writing above), the Skip-for-now exit, and mobile at 390px.
+
+### 24.4 Polish pass (visual/experience only — no logic changes)
+
+All in the same `onboarding/page.tsx`, layered on top of the Sprint 2 flow above with no changes to the step engine or write logic:
+- A typing indicator (three pulsing dots, `TypingBubble`) shown for ~750ms before each Mentor message reveals.
+- A recurring Mentor avatar (the same sparkle mark used on the FAB) on every message bubble.
+- Warmer, per-step reactive copy (`getAck()`) acknowledging each answer in a distinct smaller "ack" bubble before the next question appears (e.g. "No worries — let's look at projects instead" when `has_experience` is answered "No").
+- A live checklist (`ChecklistPanel`, desktop sidebar / mobile collapsible toggle) showing Personal Details/Experience/Education/Skills/Summary getting checked off as their underlying `context` keys fill in during the conversation, with a brief flash animation on the item that just completed.
+- A dedicated `WelcomeScreen` before question 1 ("👋 Welcome to ZenzHire! I'm your Career Mentor...") with its own "Let's start" button, rather than dropping straight into the first question.
+- A celebratory completion screen (pulsing ring + checkmark, "🎉 Your CV is ready!") with a plain-language recap of what was built (e.g. "Here's what I built for you — Personal Details, Experience, Education, Skills, and Summary, all ready to review") before handing off to `/cv-builder/{cvId}`.
+
+### 24.5 Post-launch roadmap (explicitly NOT built this session)
+
+Logged here for future reference, not implemented: **Context Manager** (shared current-section/CV/template state across AI features), **Writing Coach** (live grammar/inline suggestions as the user types, distinct from the existing on-demand AI actions), **Live ATS** (background scoring while editing, reframing the ATS Checker as a "Deep Review"), **Career Brain v1** (a formal orchestration layer tying the above together), **Career Memory** (persistence of user preferences/history across sessions), an **AI Router** (dispatching between specialized AI capabilities), and the longer-term **Job Platform / Company Hiring AI / Interview Coach** vision. These were deliberately deferred until real usage data from the Career Mentor onboarding above exists to inform whether/how they should be built — don't start scaffolding any of these without checking whether that data now exists.
 
 ---
