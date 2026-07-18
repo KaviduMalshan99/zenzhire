@@ -15,6 +15,9 @@ export function SiteHeader() {
           <Link href="/pricing" className="text-[#8b949e] hover:text-white transition-colors">
             Pricing
           </Link>
+          <Link href="/career-tips" className="text-[#8b949e] hover:text-white transition-colors">
+            Career Tips
+          </Link>
           <Link href="/about" className="text-[#8b949e] hover:text-white transition-colors">
             About
           </Link>

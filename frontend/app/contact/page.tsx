@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Mail,
+  MessageCircle,
   Phone,
   Twitter,
   Linkedin,
@@ -81,9 +82,19 @@ export default function ContactPage() {
               "radial-gradient(ellipse 60% 50% at 50% -10%, rgba(37,99,235,0.20), transparent)",
           }}
         />
+        <div
+          className="pointer-events-none absolute -top-32 -right-24 w-[420px] h-[420px] rounded-full opacity-25"
+          style={{ background: "radial-gradient(circle, #2563eb 0%, transparent 70%)", filter: "blur(80px)" }}
+        />
         <div className="relative max-w-2xl mx-auto px-6 pt-16 pb-14 md:pt-24 md:pb-16 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-[1.15] tracking-tight mb-6">
-            Get in touch
+          <div className="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-blue-600/10 border border-blue-600/20 mb-6">
+            <MessageCircle className="w-6 h-6 text-blue-500" />
+          </div>
+          <div className="flex items-center w-fit mx-auto bg-blue-600/10 border border-blue-600/20 text-blue-400 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.15em] px-4 py-1.5 rounded-full mb-6">
+            Get In Touch
+          </div>
+          <h1 className="text-5xl sm:text-6xl font-bold text-white tracking-tight mb-6">
+            Contact Us
           </h1>
           <p className="text-lg text-[#8b949e] leading-relaxed">
             Questions, feedback, or just want to say hi? We&apos;d love to hear from you.

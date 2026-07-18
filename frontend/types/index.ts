@@ -135,6 +135,7 @@ export interface User {
   email: string;
   full_name: string;
   is_active: boolean;
+  is_admin: boolean;
   plan: PlanType;
   created_at: string;
 }
@@ -397,4 +398,14 @@ export interface CoverLetterListItem {
   company: string;
   created_at: string;
   updated_at: string;
+}
+
+// ── Career Tips ────────────────────────────────────────────────────────────────
+
+export interface CareerTip {
+  id: number;
+  image_url: string;
+  caption: string;
+  published_at: string;
+  created_at: string;
 }

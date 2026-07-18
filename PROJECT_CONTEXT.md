@@ -1,6 +1,12 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-14 (session 10 — redesigned the CV Builder's AI panel into a floating "Career Mentor" entry point (Sprint 1) plus a new conversational onboarding flow that builds a CV from a chat-style Q&A (Sprint 2), driven by real Pro-tier user testing feedback. See new section 24 for the full writeup). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-18 (session 11 — built a simple admin dashboard at `/admin/dashboard`: `is_admin` column + migration reusing the existing auth/JWT system entirely, one seeded admin account, and a review-moderation UI that replaces the "manual DB query" step from session 9. See new section 25 for the full writeup). Working directory: `F:\zenzhire\zenzhire\`
+
+**Session 11 — Admin dashboard (`/admin/dashboard`).** See new section 25 for the full writeup. Headline points:
+- Added `users.is_admin` (boolean, default `false`) via migration `012_add_is_admin_to_users.py` — no parallel auth system; a new `require_admin` dependency (mirrors the existing `require_pro` pattern) gates every `/admin/*` route, and the frontend page does its own client-side `useAuth()` check (redirects logged-out → `/login`, non-admin → `/dashboard`) before rendering anything or firing any admin API call.
+- One seeded admin account (`admin@zenzhireadminit.com`) created through the real `POST /auth/signup` endpoint (proper bcrypt hashing, no plaintext check anywhere), then `is_admin` flipped to `true` via a one-off DB script — not a new signup path.
+- Dashboard covers exactly 4 read-mostly sections, reusing existing tables — no new systems: overview stats (users/CVs/cover letters/CVs-per-template), reviews moderation (list pending + one new `POST /admin/reviews/{id}/approve` endpoint — this is what session 9's `/reviews` writeup flagged as a manual-DB-query gap, see section 23.3), contact submissions (first viewer ever built for `contact_submissions`), and a basic read-only user list. Editing/deleting users, revenue, and settings were explicitly out of scope this pass.
+- Verified end-to-end with Playwright: logged in as the seeded admin and confirmed all 4 sections render real data; logged in as a normal user and confirmed `/admin/dashboard` redirects to `/dashboard` without any admin content ever reaching the page; hit `/admin/dashboard` logged out and confirmed redirect to `/login`; approved a pending review through the new UI button and confirmed it then appeared on the public `/reviews` page (same check session 9 did manually), then reverted that one test review back to `approved=false` afterward to leave the dev DB clean, matching session 9's own convention.
 
 **Session 10 — Career Mentor redesign (Sprint 1 + Sprint 2 only; broader "Career Brain" ideas deliberately deferred).** See new section 24 for the full writeup. Headline points:
 - Real Pro-tier user testing found the fixed right AI panel in the CV Builder confusing — this drove a UX redesign, scoped deliberately to two sprints. Bigger architecture ideas discussed during planning (Context Manager, Writing Coach, Live ATS, Career Memory, AI Router, a future Job Platform) were **not built**, and are logged as a post-launch roadmap note instead — reasoning: "a Brain with no users is just architecture."
@@ -910,7 +916,7 @@ Priority order:
 
 1. ~~**Landing Page** — `/` marketing page with hero, features, pricing, testimonials~~ **DONE (session 9)** — full public marketing site built: Home, Templates, Pricing, About, Contact, Partners, Privacy, Terms, Reviews, plus a shared SiteHeader/SiteFooter. See section 23. "Testimonials" became the dedicated `/reviews` page (user-submitted, manually-approved) rather than a Home-page section. Remaining gap from this work: `/features/ats-checker` is linked (Home + footer) but not built — see section 22 item 16.
 2. **Stripe Payments** — Pro plan subscription, webhook, plan update. `/pricing` page itself now exists (session 9) with all the right plan/pricing copy — this item is now specifically about wiring real payment processing behind its CTA buttons, not building the page.
-3. **Admin Panel** — user management, stats, revenue. Also now the natural home for a **review-approval UI** (session 9's `/reviews` feature currently requires a manual `UPDATE reviews SET approved = true` DB query — see section 23.3 — since no admin panel exists yet to do this through).
+3. ~~**Admin Panel** — user management, stats, revenue.~~ **Partially DONE (session 11)** — a simple `/admin/dashboard` now exists with overview stats, review moderation (including the approval UI that replaces the old manual DB query — see section 23.3/25), contact submissions, and a basic read-only user list. Still explicitly out of scope: editing/deleting users, revenue tracking (no payments yet), and settings/config management.
 4. **CV Upload Parser** — upload PDF → AI extracts → fills real CV Builder sections (explicitly postponed during ATS session — this is a prerequisite for any future "fully personalized rebuilt CV" feature, distinct from the current lightweight CVRebuildPreview which uses placeholder content + injected real name/contact only)
 5. **ATS target_role enforcement** — add UI warning when empty (see section 18 known gap)
 6. **`/features/ats-checker` marketing page** — linked from Home and the new footer, doesn't exist yet (session 9 finding, see section 22 item 16)
@@ -997,7 +1003,7 @@ POST /api/v1/reviews/    public, no auth. Validates non-empty name/text + rating
 GET  /api/v1/reviews/    public. Returns ONLY rows where approved=true, newest first. This is the sole gate preventing spam/fake reviews from appearing immediately.
 ```
 
-⚠️ **Approving a review is a manual DB operation — no admin UI exists for this** (explicitly out of scope this session, by instruction). To approve one: `UPDATE reviews SET approved = true WHERE id = <id>;`. This was verified end-to-end: submitted a real review through the actual rendered form (Playwright-driven, not just curl), confirmed it landed with `approved=false`, confirmed `GET /api/v1/reviews/` returned `[]` (correctly hidden), manually flipped `approved` to `true` and confirmed it then rendered correctly on `/reviews` (name, stars, text all correct), then reverted it back to `false` to leave the dev DB clean.
+~~⚠️ Approving a review is a manual DB operation — no admin UI exists for this~~ **DONE (session 11)** — `POST /api/v1/admin/reviews/{id}/approve` (admin-only) plus an "Approve" button on `/admin/dashboard` now do this through the app; no more manual `UPDATE reviews SET approved = true` needed. See section 25. This was originally verified end-to-end via manual DB flip (submitted a real review through the actual rendered form, confirmed hidden while `approved=false`, manually flipped it, confirmed it rendered correctly, reverted); session 11 re-verified the same flow but through the real approval button instead of a manual query.
 
 `frontend/lib/api.ts` additions: `contactApi.submit()`, `reviewsApi.list()` / `reviewsApi.submit()` — same axios instance/interceptor pattern as every other API group in that file (JWT attached if present, but neither endpoint requires it).
 
@@ -1058,5 +1064,63 @@ All in the same `onboarding/page.tsx`, layered on top of the Sprint 2 flow above
 ### 24.5 Post-launch roadmap (explicitly NOT built this session)
 
 Logged here for future reference, not implemented: **Context Manager** (shared current-section/CV/template state across AI features), **Writing Coach** (live grammar/inline suggestions as the user types, distinct from the existing on-demand AI actions), **Live ATS** (background scoring while editing, reframing the ATS Checker as a "Deep Review"), **Career Brain v1** (a formal orchestration layer tying the above together), **Career Memory** (persistence of user preferences/history across sessions), an **AI Router** (dispatching between specialized AI capabilities), and the longer-term **Job Platform / Company Hiring AI / Interview Coach** vision. These were deliberately deferred until real usage data from the Career Mentor onboarding above exists to inform whether/how they should be built — don't start scaffolding any of these without checking whether that data now exists.
+
+---
+
+## 25. Admin Dashboard (session 11, 2026-07-18)
+
+Simple internal admin tool at `/admin/dashboard`, deliberately scoped to 4 read-mostly sections. Explicitly out of scope this pass: editing/deleting users, revenue tracking (no Stripe yet — see section 22 item 3), and settings/config management.
+
+### 25.1 Auth — reused entirely, no parallel system
+
+- `users.is_admin` (`Boolean`, `nullable=False`, `default=False`) added via `alembic/versions/012_add_is_admin_to_users.py` (confirmed `alembic current == alembic heads == 012_add_is_admin` after applying) — same `users` table, same JWT/login flow as every other account. `UserRead` (and therefore `GET /auth/me`) now includes `is_admin`.
+- New `require_admin` dependency in `app/api/dependencies.py`, deliberately mirroring the existing `require_pro` pattern: `Depends(get_current_user)` then a plain `if not current_user.is_admin: raise 403`. Applied once, at the router level (`admin.router = APIRouter(..., dependencies=[Depends(require_admin)])`) rather than per-endpoint, so every current and future route added to `admin.py` is automatically covered — can't forget to gate a new one.
+- Status codes to remember if debugging this: FastAPI's `HTTPBearer` (`auto_error=True`, used by `bearer_scheme` in `dependencies.py`) returns **403** "Not authenticated" for a request with no `Authorization` header at all — not 401. `get_current_user` itself raises **401** for a present-but-invalid/expired token. `require_admin` raises **403** for a valid token belonging to a non-admin user. The frontend doesn't rely on this distinction for its redirect logic (see 25.2) — the page's own `useAuth()`-based guard runs first and never lets a non-admin's browser call any `/admin/*` endpoint in the first place — but it matters if hitting these routes directly (curl/Postman) while debugging.
+- One seeded admin account, `admin@zenzhireadminit.com`, created through the real `POST /auth/signup` endpoint (id 74 as of this session) — same bcrypt hashing via `hash_password()`, no separate/hardcoded credential check anywhere in the codebase. `is_admin` was then flipped to `true` with a one-off script (`SessionLocal()` + direct ORM update, deleted after running) rather than exposing `is_admin` as a signup-settable field, since letting *any* signup request set its own `is_admin` would obviously be a privilege-escalation hole. **The password given (`123AdminZenz123#`) was treated as already exposed per instruction — change it immediately in any real deployment.**
+- ⚠️ Any standalone script that queries `User` directly (outside the FastAPI app's own import graph) must also import `app.models.cover_letter.CoverLetter` first, even if the script never touches cover letters — see section 22 item 14. `User.cover_letters` is a string-based `relationship("CoverLetter", ...)`, and SQLAlchemy's mapper configuration resolves that string against whatever classes have been imported into its registry *so far*; a bare `from app.models.user import User` in a script that never imports `CoverLetter` fails with `InvalidRequestError: ... failed to locate a name ('CoverLetter')` the moment any query touches `User`. Hit this twice while building this feature (the admin-seed script and a review-revert script), same fix both times: add `from app.models.cover_letter import CoverLetter  # noqa: F401` before the first query.
+
+### 25.2 Frontend route protection — client-side guard, not middleware
+
+There is no `middleware.ts` in this codebase (confirmed — doesn't exist) and auth is entirely client-side (JWT in a non-httpOnly cookie via `js-cookie`, read by `useAuth()` calling `GET /auth/me`). `app/admin/dashboard/page.tsx` follows the same convention as the rest of the app (no existing page had a route-guard pattern to copy — protected pages just call authenticated APIs and rely on the global axios 401 interceptor in `lib/api.ts` to bounce to `/login`) but adds an explicit guard, since silently failing 4 separate API calls would look broken rather than redirect cleanly:
+```
+useEffect(() => {
+  if (authLoading) return;
+  if (!user) { router.replace("/login"); return; }
+  if (!user.is_admin) { router.replace("/dashboard"); return; }
+  // only now fetch admin data
+}, [authLoading, user, router]);
+```
+While `authLoading || !authorized`, the page renders only a centered spinner — never any admin markup, table, or number — so a non-admin or logged-out visitor never sees so much as a flash of real content, matching the "not shown any admin content or error revealing the route exists" requirement. The 4 admin API calls (`stats`/`pendingReviews`/`contactSubmissions`/`users`) are also wrapped in a `.catch()` that redirects to `/dashboard`, as defense-in-depth for the edge case of a token going stale (e.g. admin demoted) between the client-side check and the fetch.
+
+### 25.3 Backend: new `/admin/*` routes (`app/api/routes/admin.py`, registered in `main.py`)
+
+```
+GET  /api/v1/admin/stats                     total_users, total_cvs, total_cover_letters,
+                                              cvs_per_template (group-by count on CVDocument.template_id)
+GET  /api/v1/admin/reviews/pending           reviews where approved=false, newest first
+POST /api/v1/admin/reviews/{id}/approve      sets approved=true — the fix for the manual-DB-query
+                                              gap flagged in section 23.3
+GET  /api/v1/admin/contact-submissions       all contact_submissions, newest first — first viewer
+                                              ever built for this table (previously DB-query-only)
+GET  /api/v1/admin/users                     id/email/plan/created_at only — no password hash,
+                                              no edit/delete actions (out of scope this pass)
+```
+All four reuse existing models directly (`User`, `CVDocument`, `CoverLetter`, `ContactSubmission`, `Review`) — no new tables, no duplicated data. New response schemas in `app/schemas/admin.py` (`AdminStats`, `AdminContactSubmissionRead`, `AdminUserRead`); the reviews endpoints reuse the existing `ReviewRead` schema from `app/schemas/review.py` rather than defining a parallel one.
+
+### 25.4 Frontend: dashboard page
+
+`frontend/app/admin/dashboard/page.tsx` — plain route (not inside the `(dashboard)` route group, since that group's `layout.tsx` only wraps its own literal child routes and `/admin/dashboard` needed to exist at that exact URL per the task). Manually replicates the same shell that group's `layout.tsx` provides (`<div className="min-h-screen bg-[#0d1117] flex flex-col"><Navbar />...`) rather than changing the shared layout, so every other dashboard route is untouched. Reuses the existing `components/shared/Navbar.tsx` as-is (no "Admin" link added to it — deliberately not advertising the route in nav for every user, consistent with not exposing that it exists to non-admins).
+
+Four sections in the order given: Overview (3 stat cards + a "CVs per Template" breakdown grid, plain `template_id` strings rather than the UI display names from section 6's table — no shared name-mapping constant exists yet to import, and this is explicitly a "function over polish" internal tool), Reviews Moderation (table + working "Approve" button, optimistic row removal on success), Contact Submissions (read-only table), Users (read-only table, plan shown as a small pill matching the existing Pro-badge styling convention from `Navbar.tsx`).
+
+`frontend/lib/api.ts` gained `adminApi.{stats,pendingReviews,approveReview,contactSubmissions,users}()`, same axios-instance/interceptor pattern as every other API group in that file. `types/index.ts`'s `User` interface gained `is_admin: boolean`.
+
+### 25.5 Verification (Playwright-driven, dev servers on frontend :3000 / backend :8000)
+
+- Logged in as `admin@zenzhireadminit.com`, loaded `/admin/dashboard` directly: all 4 sections rendered real data (29 users, 111 CVs, 4 cover letters, an 11-template breakdown, both pre-existing pending test reviews from session 9, 3 real contact submissions, the full user list including one real `pro`-plan account) with zero console errors.
+- Logged in as a normal (non-admin, freshly-signed-up) user, navigated to `/admin/dashboard`: redirected to `/dashboard`, page body never contained "Admin Dashboard" or any section heading.
+- Hit `/admin/dashboard` with no session at all: redirected to `/login`, same "never rendered" confirmation.
+- Clicked the real "Approve" button on the pending review left over from session 9 ("Playwright Reviewer", id 2): confirmed via direct API check it flipped to `approved=true` and immediately appeared on the public `/reviews` page (name/stars/text all correct) — this is the exact same check section 23.3 did manually, now done through the actual admin UI. Reverted it back to `approved=false` afterward via a one-off script, leaving the dev DB in the same state it was found (matching the revert step section 23.3 itself already established as this project's convention for this kind of test).
+- One environment note for future sessions: found an unrelated, already-hung `node` process squatting on port 3000 (not responding to HTTP, presumably an orphaned dev server from a much earlier session) — killed it to free the port rather than working around it, since the backend's `cors_origins` (`app/core/config.py` / `.env`) is hardcoded to `http://localhost:3000` and testing against `:3001` would have silently failed every request with a CORS error rather than a clear one.
 
 ---

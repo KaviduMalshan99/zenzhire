@@ -44,6 +44,7 @@ const PRODUCT_LINKS = [
   { label: "Pricing", href: "/pricing" },
   { label: "ATS Checker", href: "/features/ats-checker" },
   { label: "Cover Letters", href: "/signup" },
+  { label: "Career Tips", href: "/career-tips" },
 ];
 
 const COMPANY_LINKS = [
