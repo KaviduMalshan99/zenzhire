@@ -40,37 +40,38 @@ export function TemplateGalleryCard({
       className={cn(
         "group relative flex flex-col bg-[#161b22] rounded-2xl border overflow-hidden transition-all duration-200 cursor-pointer",
         locked
-          ? "border-[#30363d]"
+          ? "border-[#30363d] hover:border-amber-400/50 hover:shadow-xl hover:shadow-amber-400/10"
           : "border-[#30363d] hover:border-blue-500/60 hover:shadow-xl hover:shadow-blue-500/10"
       )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onAction}
     >
-      {/* Badges */}
-      <div className="absolute top-3 left-3 z-10 flex gap-1.5">
+      {/* Badges — sit in their own strip above the preview, in normal document flow, so they
+          can never overlap each other (flex + gap, no wrapping) and never sit on top of the
+          CV preview content underneath (some templates place a name/title right at the very
+          top of the page, which a floating overlay would cover). */}
+      <div className="flex items-center gap-1.5 px-3 pt-3 pb-2 bg-[#161b22]">
         {template.popular && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-600 text-white">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-600 text-white whitespace-nowrap">
             Popular
           </span>
         )}
         {template.plan === "free" ? (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-500/20 border border-green-500/30 text-green-400">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-500/20 border border-green-500/30 text-green-400 whitespace-nowrap">
             Free
           </span>
         ) : (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-400/20 border border-amber-400/30 text-amber-400 flex items-center gap-1">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-400/20 border border-amber-400/30 text-amber-400 flex items-center gap-1 whitespace-nowrap">
             <Lock className="w-2.5 h-2.5" />
             Pro
           </span>
         )}
       </div>
 
-      {/* Template preview — height is ~90% of the full-A4-page scaled height (was 380, a near-exact
-          full-page match at this card width). Measured real content fill across all 13 templates
-          tops out at ~88% (Timeline/creative); this trims the dead white space below that without
-          clipping any template's actual text content. */}
-      <div className="relative overflow-hidden bg-white" style={{ height: 280 }}>
+      {/* Template preview — aspect-ratio locked to the real A4 page (794x1122) so the full
+          page is always visible without cropping, at any card width. */}
+      <div className="relative overflow-hidden bg-white w-full" style={{ aspectRatio: "794 / 1122" }}>
         {!iframeLoaded && (
           <div className="absolute inset-0 bg-[#f8fafc] flex items-center justify-center">
             <Loader2 className="w-5 h-5 text-[#d1d5db] animate-spin" />
@@ -100,16 +101,22 @@ export function TemplateGalleryCard({
           />
         </div>
 
-        {/* Pro lock overlay */}
+        {/* Pro gating — kept light so the real design (colors, layout, photo) stays legible
+            and sells itself; the lock badge + CTA pill make the gate obvious without a
+            heavy blur/scrim burying the preview underneath. */}
         {locked && (
-          <div className="absolute inset-0 bg-[#161b22]/60 backdrop-blur-[1px] flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-amber-400/20 border border-amber-400/30 flex items-center justify-center mx-auto mb-2">
-                <Lock className="w-5 h-5 text-amber-400" />
-              </div>
-              <p className="text-white text-xs font-medium">Pro Template</p>
+          <>
+            <div className="absolute inset-0 bg-[#0d1117]/10 pointer-events-none transition-colors group-hover:bg-[#0d1117]/5" />
+
+            <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-[#161b22]/90 border border-amber-400/40 flex items-center justify-center shadow-md">
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
             </div>
-          </div>
+
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-3 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-black bg-gradient-to-r from-amber-400 to-orange-400 shadow-lg transition-transform group-hover:scale-105">
+              <Lock className="w-3 h-3" />
+              Upgrade to Pro
+            </div>
+          </>
         )}
 
         {/* Hover overlay */}

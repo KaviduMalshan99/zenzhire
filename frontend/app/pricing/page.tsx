@@ -15,13 +15,15 @@ const FEATURES: Array<{
   pro: string;
   freeLocked?: boolean;
 }> = [
-  { label: "PDF Downloads", free: "Unlimited", pro: "Unlimited" },
-  { label: "Templates", free: "4 free templates", pro: "All 13 templates" },
-  { label: "AI Assistant", free: "5 uses/day", pro: "Unlimited" },
-  { label: "ATS Checks", free: "5 total", pro: "Unlimited" },
-  { label: "CV Score", free: "Basic score only", pro: "Full 8 sub-scores + history", freeLocked: true },
+  { label: "CV Templates", free: "5 free templates", pro: "All 14 total templates" },
+  { label: "CVs", free: "1 CV, unlimited downloads", pro: "Unlimited, unlimited downloads" },
+  { label: "Cover Letters", free: "1 saved, unlimited downloads", pro: "Unlimited" },
+  { label: "ATS Checker", free: "5 checks total (lifetime)", pro: "Unlimited" },
+  { label: "Career Mentor (Zeni) onboarding", free: "Included", pro: "Unlimited (per new CV)" },
+  { label: "Zeni ongoing AI help", free: "3 uses/day", pro: "Unlimited" },
+  { label: "CV Score", free: "Basic overall score only", pro: "Full 8 sub-scores + history" },
   { label: "Auto Fix", free: "Locked", pro: "Included", freeLocked: true },
-  { label: "Cover Letters", free: "1", pro: "Unlimited" },
+  { label: "Job Match Score", free: "Locked", pro: "Included", freeLocked: true },
 ];
 
 const FAQS = [

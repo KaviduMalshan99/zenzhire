@@ -97,7 +97,15 @@
       "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.json)",
       "Bash(./node_modules/.bin/tsc --noEmit --jsx react-jsx --esModuleInterop --skipLibCheck --strict false \"app/\\(dashboard\\)/cv-builder/onboarding/page.tsx\")",
       "Bash(npx --version)",
-      "Bash(python -m alembic current)"
+      "Bash(python -m alembic current)",
+      "Bash(npx playwright *)",
+      "Bash(powershell -Command \"Get-Process -Id 9912 -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,StartTime\")",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(alembic current *)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MSIsImV4cCI6MTc4NDk2NzkwMX0.x5E5KRy2_rKG5UH-4AYMFTPNS-DGnE7I4cDkJ3eKoEA\" OUT=\"/c/Users/kavidu/AppData/Local/Temp/claude/F--zenzhire-zenzhire/eeda62c8-60d2-40dd-b0cf-dfee609c8b52/scratchpad/before.png\" node *)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MSIsImV4cCI6MTc4NDk2NzkwMX0.x5E5KRy2_rKG5UH-4AYMFTPNS-DGnE7I4cDkJ3eKoEA\" node zoom.js)",
+      "Bash(wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /format:list)",
+      "Bash(tasklist)"
     ]
   }
 }

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import type { CareerTip } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { RichTextEditor } from "@/components/cv-builder/RichTextEditor";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,7 @@ function fileToBase64(file: File): Promise<string> {
 export default function AdminCareerTipsPage() {
   const [tips, setTips] = useState<CareerTip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState("");
   const [imageData, setImageData] = useState("");
   const [caption, setCaption] = useState("");
   const [publishing, setPublishing] = useState(false);
@@ -50,18 +52,23 @@ export default function AdminCareerTipsPage() {
   }
 
   async function handlePublish() {
+    if (!title.trim()) {
+      toast.error("Give the tip a title first");
+      return;
+    }
     if (!imageData) {
       toast.error("Choose an image first");
       return;
     }
-    if (!caption.trim()) {
-      toast.error("Write a caption first");
+    if (!caption.trim() || caption.trim() === "<p></p>") {
+      toast.error("Write some caption content first");
       return;
     }
     setPublishing(true);
     try {
-      await adminApi.createCareerTip({ image_url: imageData, caption: caption.trim() });
+      await adminApi.createCareerTip({ title: title.trim(), image_url: imageData, caption });
       toast.success("Career tip published");
+      setTitle("");
       setImageData("");
       setCaption("");
       if (fileRef.current) fileRef.current.value = "";
@@ -100,33 +107,44 @@ export default function AdminCareerTipsPage() {
 
       {/* Publish form */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-6 space-y-4">
-        <div className="flex items-start gap-4">
+        <div>
+          <label className="block text-sm font-medium text-[#c9d1d9] mb-2">Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-blue-500 rounded-md px-4 py-2.5 text-white text-sm placeholder:text-[#484f58] outline-none transition-colors"
+            placeholder="5 resume mistakes that cost interviews"
+          />
+        </div>
+
+        <div className="flex items-start gap-4 flex-wrap">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="relative shrink-0 w-32 h-32 rounded-lg border-2 border-dashed border-[#30363d] hover:border-blue-500 flex items-center justify-center overflow-hidden transition-colors bg-[#0d1117]"
+            className="relative shrink-0 rounded-lg border-2 border-dashed border-[#30363d] hover:border-blue-500 overflow-hidden transition-colors bg-[#0d1117] flex items-center justify-center"
+            style={{ width: 220, height: 260 }}
           >
             {imageData ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageData} alt="Selected career tip" className="w-full h-full object-cover" />
+              <img
+                src={imageData}
+                alt="Selected career tip"
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+              />
             ) : (
-              <div className="flex flex-col items-center gap-1.5 text-[#8b949e]">
+              <div className="flex flex-col items-center gap-1.5 text-[#8b949e] px-4 text-center">
                 <Upload className="w-5 h-5" />
                 <span className="text-xs">Upload image</span>
+                <span className="text-[10px] text-[#484f58]">Facebook-post size, e.g. 1080×1350</span>
               </div>
             )}
           </button>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[280px]">
             <label className="block text-sm font-medium text-[#c9d1d9] mb-2">Caption</label>
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              rows={4}
-              className="w-full bg-[#0d1117] border border-[#30363d] focus:border-blue-500 rounded-md px-4 py-2.5 text-white text-sm placeholder:text-[#484f58] outline-none transition-colors resize-none"
-              placeholder="A short, actionable career tip…"
-            />
+            <RichTextEditor value={caption} onChange={setCaption} />
           </div>
         </div>
 
@@ -156,10 +174,10 @@ export default function AdminCareerTipsPage() {
             {tips.map((tip) => (
               <div key={tip.id} className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
                 <div className="relative w-full aspect-video bg-[#0d1117]">
-                  <Image src={tip.image_url} alt={tip.caption} fill className="object-cover" unoptimized />
+                  <Image src={tip.image_url} alt={tip.title} fill className="object-cover" unoptimized />
                 </div>
                 <div className="p-4">
-                  <p className="text-[#c9d1d9] text-sm leading-relaxed line-clamp-3">{tip.caption}</p>
+                  <p className="text-white text-sm font-medium leading-relaxed line-clamp-2">{tip.title}</p>
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-[#8b949e] text-xs">{formatDate(tip.published_at)}</span>
                     <button

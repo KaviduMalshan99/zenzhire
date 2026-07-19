@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.career_tip import CareerTip
@@ -10,3 +10,11 @@ router = APIRouter(prefix="/career-tips", tags=["career-tips"])
 @router.get("/", response_model=list[CareerTipRead])
 def list_published_career_tips(db: Session = Depends(get_db)):
     return db.query(CareerTip).order_by(CareerTip.published_at.desc()).all()
+
+
+@router.get("/{tip_id}", response_model=CareerTipRead)
+def get_career_tip(tip_id: int, db: Session = Depends(get_db)):
+    tip = db.query(CareerTip).filter(CareerTip.id == tip_id).first()
+    if not tip:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Career tip not found")
+    return tip

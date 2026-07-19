@@ -43,7 +43,7 @@ export const SAMPLE_CV_DATA: CVSection[] = [
     updated_at: null,
     data: {
       summary:
-        "<p>Results-driven Software Engineer with 6+ years of experience building scalable web applications and cloud-native systems. Passionate about clean code, system design, and delivering impactful products that serve millions of users.</p>",
+        "<p>Results-driven Software Engineer with 6+ years of experience building scalable web applications and cloud-native systems. Passionate about clean code, system design, and delivering impactful products that serve millions of users. Proven track record of leading cross-functional teams, mentoring engineers, and shipping high-availability platforms under tight deadlines.</p>",
     },
   },
   {
@@ -135,6 +135,8 @@ export const SAMPLE_CV_DATA: CVSection[] = [
         { id: "s6", skill_name: "Kubernetes", level: "Intermediate" },
         { id: "s7", skill_name: "AWS", level: "Intermediate" },
         { id: "s8", skill_name: "Redis", level: "Intermediate" },
+        { id: "s9", skill_name: "GraphQL", level: "Intermediate" },
+        { id: "s10", skill_name: "CI/CD", level: "Advanced" },
       ],
     },
   },
@@ -174,6 +176,21 @@ export const SAMPLE_CV_DATA: CVSection[] = [
           link: "github.com/alexchen/scheduler",
           tech: ["Python", "Redis", "PostgreSQL", "React"],
         },
+      ],
+    },
+  },
+  {
+    id: 8,
+    cv_id: 0,
+    section_type: "certificates",
+    display_order: 7,
+    is_visible: true,
+    created_at: "",
+    updated_at: null,
+    data: {
+      entries: [
+        { id: "c1", certificate_name: "AWS Certified Solutions Architect", issuer: "Amazon Web Services", date: "2023", no_expiry: false },
+        { id: "c2", certificate_name: "Certified Kubernetes Administrator", issuer: "CNCF", date: "2022", no_expiry: false },
       ],
     },
   },

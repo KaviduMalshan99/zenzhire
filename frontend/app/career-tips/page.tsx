@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Lightbulb, ImageOff } from "lucide-react";
+import Link from "next/link";
+import { Lightbulb, ImageOff, ArrowRight } from "lucide-react";
 import { careerTipsApi } from "@/lib/api";
 import type { CareerTip } from "@/types";
 import { formatDate } from "@/lib/utils";
@@ -69,18 +70,28 @@ export default function CareerTipsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {tips.map((tip) => (
-              <div
+              <Link
                 key={tip.id}
-                className="rounded-2xl border border-[#30363d] bg-[#161b22] overflow-hidden hover:border-blue-600/40 transition-colors"
+                href={`/career-tips/${tip.id}`}
+                className="group rounded-2xl border border-[#30363d] bg-[#161b22] overflow-hidden hover:border-blue-600/40 transition-colors flex flex-col"
               >
-                <div className="relative w-full aspect-video bg-[#0d1117]">
-                  <Image src={tip.image_url} alt={tip.caption} fill className="object-cover" unoptimized />
+                <div className="relative w-full aspect-[4/5] bg-[#0d1117]">
+                  <Image
+                    src={tip.image_url}
+                    alt={tip.title}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                  />
                 </div>
-                <div className="p-6">
-                  <p className="text-[#c9d1d9] leading-relaxed">{tip.caption}</p>
-                  <p className="text-[#484f58] text-xs mt-4">{formatDate(tip.published_at)}</p>
+                <div className="p-6 flex-1 flex flex-col">
+                  <h2 className="text-white font-semibold text-lg leading-snug line-clamp-3">{tip.title}</h2>
+                  <div className="mt-auto pt-4 flex items-center justify-between">
+                    <p className="text-[#484f58] text-xs">{formatDate(tip.published_at)}</p>
+                    <ArrowRight className="w-4 h-4 text-[#8b949e] group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+                  </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

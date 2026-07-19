@@ -82,7 +82,7 @@ export default function TemplatesPage() {
 
   const filtered = TEMPLATES.filter(
     (t) => activeCategory === "all" || t.category === activeCategory
-  );
+  ).sort((a, b) => (a.plan === b.plan ? 0 : a.plan === "free" ? -1 : 1));
 
   const handleSelect = (template: Template) => {
     if (template.plan === "pro" && !isPro) {
@@ -134,7 +134,7 @@ export default function TemplatesPage() {
 
       {/* Template grid */}
       <div className="px-8 py-8">
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((template) => (
             <TemplateGalleryCard
               key={template.id}

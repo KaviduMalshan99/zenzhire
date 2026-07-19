@@ -1,4 +1,4 @@
-// Single source of truth for the 13 real CV templates — shared by the authenticated
+// Single source of truth for the 14 real CV templates — shared by the authenticated
 // template picker (app/(dashboard)/dashboard/templates) and the public marketing
 // gallery (app/templates), so the two can never drift out of sync with each other.
 export const TEMPLATES = [

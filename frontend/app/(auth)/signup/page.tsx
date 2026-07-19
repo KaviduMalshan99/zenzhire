@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Zap, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { signup } from "@/lib/auth";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 
 const schema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -49,62 +51,76 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen bg-[#0d1117] overflow-hidden flex items-center justify-center px-4 py-12">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: "radial-gradient(ellipse 60% 50% at 50% -10%, rgba(37,99,235,0.20), transparent)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute -top-32 -right-24 w-[420px] h-[420px] rounded-full opacity-25"
+        style={{ background: "radial-gradient(circle, #2563eb 0%, transparent 70%)", filter: "blur(80px)" }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-24 -left-24 w-[340px] h-[340px] rounded-full opacity-20"
+        style={{ background: "radial-gradient(circle, #1d4ed8 0%, transparent 70%)", filter: "blur(70px)" }}
+      />
+
+      <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <Zap className="text-blue-500 w-6 h-6" />
-            <span className="text-xl font-bold text-white">ZenzHire</span>
+          <Link href="/" className="inline-flex items-center mb-6">
+            <Image src="/logo.png" alt="ZenzHire" width={165} height={37} className="h-8 w-auto" priority />
           </Link>
           <h1 className="text-2xl font-bold text-white mb-2">Create your account</h1>
           <p className="text-[#8b949e] text-sm">Start optimizing your career today — free forever</p>
         </div>
 
-        <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-[#e6edf3] mb-1.5">Full Name</label>
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 sm:p-10 shadow-2xl shadow-black/40">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-[#c9d1d9] mb-2">Full Name</label>
               <input
                 {...register("full_name")}
                 type="text"
                 placeholder="Jane Smith"
-                className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2.5 text-[#e6edf3] placeholder:text-[#8b949e] focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                className="w-full bg-[#0d1117] border border-[#30363d] hover:border-[#484f58] rounded-md px-3.5 py-2.5 text-[#e6edf3] placeholder:text-[#484f58] outline-none transition-all duration-200 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
-              {errors.full_name && <p className="text-red-400 text-xs mt-1">{errors.full_name.message}</p>}
+              {errors.full_name && <p className="text-red-400 text-xs mt-1.5">{errors.full_name.message}</p>}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#e6edf3] mb-1.5">Email</label>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-[#c9d1d9] mb-2">Email</label>
               <input
                 {...register("email")}
                 type="email"
                 placeholder="you@example.com"
-                className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2.5 text-[#e6edf3] placeholder:text-[#8b949e] focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                className="w-full bg-[#0d1117] border border-[#30363d] hover:border-[#484f58] rounded-md px-3.5 py-2.5 text-[#e6edf3] placeholder:text-[#484f58] outline-none transition-all duration-200 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
-              {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
+              {errors.email && <p className="text-red-400 text-xs mt-1.5">{errors.email.message}</p>}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#e6edf3] mb-1.5">Password</label>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-[#c9d1d9] mb-2">Password</label>
               <input
                 {...register("password")}
                 type="password"
                 placeholder="••••••••"
-                className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2.5 text-[#e6edf3] placeholder:text-[#8b949e] focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                className="w-full bg-[#0d1117] border border-[#30363d] hover:border-[#484f58] rounded-md px-3.5 py-2.5 text-[#e6edf3] placeholder:text-[#484f58] outline-none transition-all duration-200 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
-              {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
+              {errors.password && <p className="text-red-400 text-xs mt-1.5">{errors.password.message}</p>}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#e6edf3] mb-1.5">Confirm Password</label>
+            <div className="mb-7">
+              <label className="block text-sm font-medium text-[#c9d1d9] mb-2">Confirm Password</label>
               <input
                 {...register("confirm_password")}
                 type="password"
                 placeholder="••••••••"
-                className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2.5 text-[#e6edf3] placeholder:text-[#8b949e] focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                className="w-full bg-[#0d1117] border border-[#30363d] hover:border-[#484f58] rounded-md px-3.5 py-2.5 text-[#e6edf3] placeholder:text-[#484f58] outline-none transition-all duration-200 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
               {errors.confirm_password && (
-                <p className="text-red-400 text-xs mt-1">{errors.confirm_password.message}</p>
+                <p className="text-red-400 text-xs mt-1.5">{errors.confirm_password.message}</p>
               )}
             </div>
 
@@ -117,6 +133,14 @@ export default function SignupPage() {
               Create account
             </button>
           </form>
+
+          <div className="flex items-center gap-4 my-7">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#30363d]" />
+            <span className="text-[11px] font-medium tracking-wider text-[#8b949e] uppercase">Or</span>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#30363d]" />
+          </div>
+
+          <GoogleButton />
         </div>
 
         <p className="text-center text-sm text-[#8b949e] mt-6">

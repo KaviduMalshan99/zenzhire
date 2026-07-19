@@ -79,7 +79,7 @@ function SidebarHeading({ title, section, fontFamily }: { title: string; section
 // live/PDF-painted band and this component's own non-paginated CSS
 // background line up exactly. Kept in one place rather than re-derived.
 export const AURORA_PHOTO_TOP = 36;
-export const AURORA_PHOTO_SIZE = 125;
+export const AURORA_PHOTO_SIZE = 145;
 export const AURORA_GRAY_ZONE_HEIGHT = 120;
 
 function getPhotoStyle(personal: any): React.CSSProperties {

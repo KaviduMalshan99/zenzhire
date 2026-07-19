@@ -18,6 +18,7 @@ import { NovaTemplate } from "@/components/cv-builder/templates/NovaTemplate";
 import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
 import type { CVCustomization } from "@/types";
 import { SAMPLE_CV_DATA } from "@/lib/sample-cv-data";
+import { SIDEBAR_LAYOUT_TEMPLATE_IDS, getSidebarLayoutPreviewSections } from "@/lib/sample-cv-data-sidebar-supplement";
 
 
 export default function TemplatePreviewPage({
@@ -40,13 +41,17 @@ export default function TemplatePreviewPage({
     skillColumns: 2,
   };
 
+  const baseSections = SIDEBAR_LAYOUT_TEMPLATE_IDS.has(templateId)
+    ? getSidebarLayoutPreviewSections(templateId)
+    : SAMPLE_CV_DATA;
+
   const sections = photoSizeOverride
-    ? SAMPLE_CV_DATA.map((section) =>
+    ? baseSections.map((section) =>
         section.section_type === "personal_details"
           ? { ...section, data: { ...section.data, photo_size: Number(photoSizeOverride) } }
           : section
       )
-    : SAMPLE_CV_DATA;
+    : baseSections;
 
   const props = { sections, customization };
 

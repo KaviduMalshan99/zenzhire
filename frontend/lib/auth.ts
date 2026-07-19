@@ -14,6 +14,10 @@ export async function signup(email: string, password: string, full_name: string)
   return data;
 }
 
+export function loginWithGoogle() {
+  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google/login`;
+}
+
 export function logout() {
   Cookies.remove("token");
   window.location.href = "/";

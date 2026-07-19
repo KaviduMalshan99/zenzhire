@@ -130,6 +130,7 @@ export const careerMentorApi = {
 
 export const careerTipsApi = {
   list: () => api.get<CareerTip[]>("/career-tips/"),
+  get: (id: number) => api.get<CareerTip>(`/career-tips/${id}`),
 };
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
@@ -191,7 +192,7 @@ export const adminApi = {
 
   careerTips: () => api.get<CareerTip[]>("/admin/career-tips"),
 
-  createCareerTip: (data: { image_url: string; caption: string }) =>
+  createCareerTip: (data: { title: string; image_url: string; caption: string }) =>
     api.post<CareerTip>("/admin/career-tips", data),
 
   deleteCareerTip: (id: number) =>

@@ -14,7 +14,7 @@ export default function PublicTemplatesPage() {
 
   const filtered = TEMPLATES.filter(
     (t) => activeCategory === "all" || t.category === activeCategory
-  );
+  ).sort((a, b) => (a.plan === b.plan ? 0 : a.plan === "free" ? -1 : 1));
 
   return (
     <div className="min-h-screen bg-[#0d1117]">
@@ -24,7 +24,7 @@ export default function PublicTemplatesPage() {
       <div className="px-6 pt-16 pb-10 text-center border-b border-[#30363d]">
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Templates for every industry</h1>
         <p className="text-[#8b949e] text-sm max-w-lg mx-auto">
-          13 professionally designed layouts. Free and Pro, fully customizable.
+          14 professionally designed layouts. Free and Pro, fully customizable.
         </p>
 
         {/* Category filters */}
@@ -59,12 +59,12 @@ export default function PublicTemplatesPage() {
 
       {/* Template grid */}
       <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((template) => (
             <TemplateGalleryCard
               key={template.id}
               template={template}
-              locked={false}
+              locked={template.plan === "pro"}
               actionLabel="Get Started Free"
               onAction={() => router.push("/signup")}
             />

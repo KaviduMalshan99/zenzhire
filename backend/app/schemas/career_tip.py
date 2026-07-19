@@ -3,12 +3,14 @@ from datetime import datetime
 
 
 class CareerTipCreate(BaseModel):
+    title: str
     image_url: str
     caption: str
 
 
 class CareerTipRead(BaseModel):
     id: int
+    title: str
     image_url: str
     caption: str
     published_at: datetime

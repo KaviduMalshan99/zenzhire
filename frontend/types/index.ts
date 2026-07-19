@@ -404,6 +404,7 @@ export interface CoverLetterListItem {
 
 export interface CareerTip {
   id: number;
+  title: string;
   image_url: string;
   caption: string;
   published_at: string;

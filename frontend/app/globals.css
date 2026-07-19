@@ -114,6 +114,19 @@
 .cv-html-content u { text-decoration: underline; }
 .cv-html-content a { color: #2563eb; }
 
+/* ── Career tip detail page: roomier prose than the compact CV styling ──── */
+.cv-html-content.career-tip-prose {
+  color: #c9d1d9;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+.cv-html-content.career-tip-prose p { margin: 0 0 1.25em; }
+.cv-html-content.career-tip-prose ul,
+.cv-html-content.career-tip-prose ol { margin: 0 0 1.25em 1.5em; }
+.cv-html-content.career-tip-prose li { margin-bottom: 0.5em; }
+.cv-html-content.career-tip-prose strong { color: #fff; }
+.cv-html-content.career-tip-prose a { color: #60a5fa; }
+
 /* ── CV page-break helpers ─────────────────────────────────────────────── */
 .cv-section {
   page-break-inside: avoid !important;

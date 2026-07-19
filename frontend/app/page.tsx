@@ -365,14 +365,14 @@ export default function LandingPage() {
           <div>
             <h2 className="text-3xl font-bold text-white mb-3">Templates for every industry</h2>
             <p className="text-[#8b949e] max-w-lg">
-              13 professionally designed layouts. Free and Pro, fully customizable.
+              14 professionally designed layouts. Free and Pro, fully customizable.
             </p>
           </div>
           <Link
             href="/templates"
             className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-medium text-sm whitespace-nowrap transition-colors"
           >
-            Browse all 13 templates <ArrowRight className="w-4 h-4" />
+            Browse all 14 templates <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
         <TemplateCarousel />

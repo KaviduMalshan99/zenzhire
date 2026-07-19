@@ -127,7 +127,7 @@ def list_career_tips(db: Session = Depends(get_db)):
 
 @router.post("/career-tips", response_model=CareerTipRead, status_code=status.HTTP_201_CREATED)
 def create_career_tip(payload: CareerTipCreate, db: Session = Depends(get_db)):
-    tip = CareerTip(image_url=payload.image_url, caption=payload.caption)
+    tip = CareerTip(title=payload.title, image_url=payload.image_url, caption=payload.caption)
     db.add(tip)
     db.commit()
     db.refresh(tip)
