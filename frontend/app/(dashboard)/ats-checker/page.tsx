@@ -57,7 +57,7 @@ function layerMeta(key: string): { label: string; icon: React.ComponentType<{ cl
 
 function ATSCheckerInner() {
   const { user } = useAuth();
-  const isPro = user?.plan === "pro";
+  const isPro = user?.is_pro ?? false;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const fromCV = searchParams.get("from_cv");

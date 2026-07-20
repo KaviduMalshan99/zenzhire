@@ -23,6 +23,16 @@ class TemplateId(str, enum.Enum):
     nova = "nova"
 
 
+# Mirrors frontend/lib/templates-data.ts's Free/Pro split -- kept in sync manually.
+FREE_TEMPLATE_IDS = {
+    TemplateId.classic,
+    TemplateId.academic,
+    TemplateId.minimal,
+    TemplateId.corporate,
+    TemplateId.nova,
+}
+
+
 class SectionType(str, enum.Enum):
     personal_details = "personal_details"
     profile_summary = "profile_summary"

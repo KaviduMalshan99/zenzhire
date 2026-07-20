@@ -17,6 +17,8 @@ from app.services.ai_service import generate_cover_letter
 
 router = APIRouter(prefix="/cover-letter", tags=["cover-letter"])
 
+FREE_COVER_LETTER_LIMIT = 1
+
 
 def _get_cl_or_404(cl_id: int, user_id: int, db: Session) -> CoverLetter:
     cl = db.query(CoverLetter).filter(
@@ -99,6 +101,14 @@ def create_cover_letter(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not current_user.is_pro:
+        count = db.query(CoverLetter).filter(CoverLetter.user_id == current_user.id).count()
+        if count >= FREE_COVER_LETTER_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You've reached the Free plan limit of {FREE_COVER_LETTER_LIMIT} cover letter. Upgrade to Pro for unlimited cover letters.",
+            )
+
     cl = CoverLetter(
         user_id=current_user.id,
         title=payload.title,
@@ -144,6 +154,15 @@ def duplicate_cover_letter(
     db: Session = Depends(get_db),
 ):
     source = _get_cl_or_404(cl_id, current_user.id, db)
+
+    if not current_user.is_pro:
+        count = db.query(CoverLetter).filter(CoverLetter.user_id == current_user.id).count()
+        if count >= FREE_COVER_LETTER_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You've reached the Free plan limit of {FREE_COVER_LETTER_LIMIT} cover letter. Upgrade to Pro for unlimited cover letters.",
+            )
+
     new_cl = CoverLetter(
         user_id=current_user.id,
         cv_id=source.cv_id,

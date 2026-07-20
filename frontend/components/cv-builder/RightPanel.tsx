@@ -32,7 +32,7 @@ interface SubScore { label: string; score: number; tip: string; sectionType?: st
 
 // ─── AI usage (localStorage) ──────────────────────────────────────────────────
 
-const AI_FREE_LIMIT = 5;
+const AI_FREE_LIMIT = 3;
 function getAIUsageToday(): number {
   try {
     const s = localStorage.getItem("zh_ai_uses");
@@ -577,8 +577,8 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
       setAiResponse(res.data.improved_text);
       incrementAIUsage();
       setAiUsageToday(getAIUsageToday());
-    } catch {
-      setAiResponse("Failed to get AI response. Please try again.");
+    } catch (err: any) {
+      setAiResponse(err?.response?.data?.detail || "Failed to get AI response. Please try again.");
     } finally {
       setAiLoading(false);
     }
@@ -610,12 +610,12 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
         action = issue.id === "weak_words" ? "remove_weak_words" : issue.id === "no_metrics" ? "add_metrics" : "improve_bullet";
       }
       if (!text) return;
-      const res = await api.post<{ improved_text: string }>("/cv/ai/improve", { text, action, context: targetRole });
+      const res = await api.post<{ improved_text: string }>("/cv/ai/improve", { text, action, context: targetRole, is_auto_fix: true });
       await navigator.clipboard?.writeText(res.data.improved_text);
       setFixedIssues((prev) => new Set([...prev, issue.id]));
       alert("Fixed! Result copied to clipboard. Paste it into the section.");
-    } catch {
-      alert("Auto fix failed. Please try again.");
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Auto fix failed. Please try again.");
     } finally {
       setAutoFixing(null);
     }
@@ -826,7 +826,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
 
       {/* Tabs */}
       <div className="flex items-center gap-1 px-3 py-2 border-b border-[#30363d] flex-shrink-0">
-        <TabBtn id="ai" label="Career Mentor" />
+        <TabBtn id="ai" label="Zeni" />
         <TabBtn id="score" label="CV Score" />
         <TabBtn id="fixes" label="Quick Fixes" badge={criticalCount || undefined} />
       </div>
@@ -882,7 +882,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
             {!isPro && aiUsageToday >= AI_FREE_LIMIT && !aiLoading && (
               <div className="mt-3 bg-blue-600/10 border border-blue-600/20 rounded p-3 text-center">
                 <Zap className="w-4 h-4 text-blue-400 mx-auto mb-1" />
-                <p className="text-[11px] text-[#e6edf3] mb-2">You've used all 5 free AI assists today</p>
+                <p className="text-[11px] text-[#e6edf3] mb-2">You've used all {AI_FREE_LIMIT} free AI assists today</p>
                 <a href="/pricing" className="text-[11px] text-blue-400 hover:underline font-medium">Upgrade to Pro for unlimited →</a>
               </div>
             )}

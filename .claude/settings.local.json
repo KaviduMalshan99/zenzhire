@@ -105,7 +105,10 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MSIsImV4cCI6MTc4NDk2NzkwMX0.x5E5KRy2_rKG5UH-4AYMFTPNS-DGnE7I4cDkJ3eKoEA\" OUT=\"/c/Users/kavidu/AppData/Local/Temp/claude/F--zenzhire-zenzhire/eeda62c8-60d2-40dd-b0cf-dfee609c8b52/scratchpad/before.png\" node *)",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MSIsImV4cCI6MTc4NDk2NzkwMX0.x5E5KRy2_rKG5UH-4AYMFTPNS-DGnE7I4cDkJ3eKoEA\" node zoom.js)",
       "Bash(wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /format:list)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Bash(python -c \"print\\('python ok'\\)\")",
+      "Bash(pip show *)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Python311\\\\python.exe\" \"C:\\\\Users\\\\kavidu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\F--zenzhire-zenzhire\\\\625aa62d-9eaf-4e40-89bb-b5c1adb0ade0\\\\scratchpad\\\\check_db.py\")"
     ]
   }
 }

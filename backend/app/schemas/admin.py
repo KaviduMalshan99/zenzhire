@@ -24,6 +24,8 @@ class AdminUserRead(BaseModel):
     id: int
     email: str
     plan: PlanType
+    pro_until: datetime | None
+    is_pro: bool
     created_at: datetime
     cv_count: int
     ats_count: int

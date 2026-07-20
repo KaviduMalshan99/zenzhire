@@ -1,18 +1,24 @@
 import copy
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.dependencies import get_current_user
 from app.models.user import User
-from app.models.cv_document import CVDocument, CVSection, SectionType, TemplateId
+from app.models.cv_document import CVDocument, CVSection, SectionType, TemplateId, FREE_TEMPLATE_IDS
 from app.schemas.cv import (
     CVDocumentCreate, CVDocumentUpdate, CVDocumentRead, CVDocumentListItem,
     CVSectionCreate, CVSectionUpdate, CVSectionRead,
     ReorderRequest, AIImproveRequest, AIImproveResponse,
+    CVScoreResponse, JobMatchRequest, JobMatchResponse,
 )
 from app.services.ai_service import improve_cv_text
+from app.services.score_service import compute_ats_score, compute_sub_scores, compute_job_match
 
 router = APIRouter(prefix="/cv", tags=["cv"])
+
+FREE_CV_LIMIT = 1
+AI_FREE_DAILY_LIMIT = 3
 
 # ── Default customization ──────────────────────────────────────────────────────
 # Mirrors frontend/types/index.ts's DEFAULT_CUSTOMIZATION exactly. Kept in sync
@@ -104,7 +110,27 @@ def _get_section_or_404(cv_id: int, section_id: int, db: Session) -> CVSection:
 async def ai_improve_text(
     payload: AIImproveRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
+    if not current_user.is_pro:
+        if payload.is_auto_fix:
+            raise HTTPException(
+                status_code=403,
+                detail="Auto Fix is a Pro feature. Upgrade to Pro to automatically fix CV issues.",
+            )
+
+        today = date.today()
+        if current_user.ai_usage_date != today:
+            current_user.ai_usage_date = today
+            current_user.ai_usage_count = 0
+        if current_user.ai_usage_count >= AI_FREE_DAILY_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Free plan limited to {AI_FREE_DAILY_LIMIT} AI assists per day. Upgrade to Pro for unlimited access.",
+            )
+        current_user.ai_usage_count += 1
+        db.commit()
+
     improved = await improve_cv_text(payload.text, payload.action, payload.context)
     return AIImproveResponse(improved_text=improved)
 
@@ -125,6 +151,19 @@ def create_cv(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not current_user.is_pro:
+        count = db.query(CVDocument).filter(CVDocument.user_id == current_user.id).count()
+        if count >= FREE_CV_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You've reached the Free plan limit of {FREE_CV_LIMIT} CV. Upgrade to Pro for unlimited CVs.",
+            )
+        if payload.template_id not in FREE_TEMPLATE_IDS:
+            raise HTTPException(
+                status_code=403,
+                detail=f"'{payload.template_id.value}' is a Pro template. Upgrade to Pro to use all 14 templates, or choose one of the 5 Free templates.",
+            )
+
     cv = CVDocument(
         user_id=current_user.id,
         title=payload.title,
@@ -159,6 +198,36 @@ def get_cv(
     return _get_cv_or_404(cv_id, current_user.id, db)
 
 
+@router.get("/{cv_id}/score", response_model=CVScoreResponse)
+def get_cv_score(
+    cv_id: int,
+    target_role: str = "",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cv = _get_cv_or_404(cv_id, current_user.id, db)
+    score, missing = compute_ats_score(cv.sections)
+    sub_scores = compute_sub_scores(cv.sections, target_role) if current_user.is_pro else None
+    return CVScoreResponse(score=score, missing=missing, sub_scores=sub_scores)
+
+
+@router.post("/{cv_id}/job-match", response_model=JobMatchResponse)
+def get_job_match_score(
+    cv_id: int,
+    payload: JobMatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.is_pro:
+        raise HTTPException(
+            status_code=403,
+            detail="Job Match Score is a Pro feature. Upgrade to Pro to see how well your CV matches a job description.",
+        )
+    cv = _get_cv_or_404(cv_id, current_user.id, db)
+    match_score = compute_job_match(cv.sections, payload.job_description)
+    return JobMatchResponse(match_score=match_score)
+
+
 @router.put("/{cv_id}", response_model=CVDocumentRead)
 def update_cv(
     cv_id: int,
@@ -170,6 +239,11 @@ def update_cv(
     if payload.title is not None:
         cv.title = payload.title
     if payload.template_id is not None:
+        if not current_user.is_pro and payload.template_id not in FREE_TEMPLATE_IDS:
+            raise HTTPException(
+                status_code=403,
+                detail=f"'{payload.template_id.value}' is a Pro template. Upgrade to Pro to use all 14 templates, or choose one of the 5 Free templates.",
+            )
         cv.template_id = payload.template_id
     if payload.customization is not None:
         cv.customization = _merge_customization(cv.customization, payload.customization)
@@ -196,6 +270,15 @@ def duplicate_cv(
     db: Session = Depends(get_db),
 ):
     source = _get_cv_or_404(cv_id, current_user.id, db)
+
+    if not current_user.is_pro:
+        count = db.query(CVDocument).filter(CVDocument.user_id == current_user.id).count()
+        if count >= FREE_CV_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You've reached the Free plan limit of {FREE_CV_LIMIT} CV. Upgrade to Pro for unlimited CVs.",
+            )
+
     new_cv = CVDocument(
         user_id=current_user.id,
         title=f"{source.title} (Copy)",

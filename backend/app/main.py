@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.api.routes import auth, cv, ats, cover_letter, contact, reviews, career_mentor, admin, career_tips
+from app.api.routes import auth, cv, ats, cover_letter, contact, reviews, career_mentor, admin, career_tips, billing
 
 # Create tables on startup (use Alembic for production migrations)
 Base.metadata.create_all(bind=engine)
@@ -31,6 +31,7 @@ app.include_router(reviews.router, prefix="/api/v1")
 app.include_router(career_mentor.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(career_tips.router, prefix="/api/v1")
+app.include_router(billing.router, prefix="/api/v1")
 
 
 @app.get("/health")

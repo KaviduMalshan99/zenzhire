@@ -46,7 +46,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          {user?.plan === "free" && (
+          {user && !user.is_pro && (
             <Link
               href="/pricing"
               className="hidden md:flex items-center gap-1.5 text-xs bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-3 py-1.5 rounded-full hover:bg-yellow-500/20 transition-colors"
@@ -55,7 +55,7 @@ export function Navbar() {
               Upgrade to Pro
             </Link>
           )}
-          {user?.plan === "pro" && (
+          {user?.is_pro && (
             <span className="hidden md:flex items-center gap-1.5 text-xs bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1.5 rounded-full">
               <Crown className="w-3 h-3" />
               Pro

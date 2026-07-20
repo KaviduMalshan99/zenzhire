@@ -30,6 +30,22 @@ api.interceptors.response.use(
 
 export default api;
 
+// ── Billing API ────────────────────────────────────────────────────────────────
+
+export interface CheckoutRequest {
+  plan: "monthly" | "yearly" | "pass7";
+  customer_mobile_phone: string;
+  billing_address_street: string;
+  billing_address_city: string;
+  billing_address_postcode_zip: string;
+  billing_address_country: string;
+}
+
+export const billingApi = {
+  checkout: (data: CheckoutRequest) =>
+    api.post<{ payment_page: string; invoice_id: string }>("/billing/checkout", data),
+};
+
 // ── Cover Letter API ───────────────────────────────────────────────────────────
 
 export const coverLetterApi = {

@@ -390,7 +390,7 @@ export default function CVEditorPage() {
 
   if (!cv) return null;
 
-  const isPro = user?.plan === "pro";
+  const isPro = user?.is_pro ?? false;
 
   const panelProps = {
     cv,
@@ -485,13 +485,13 @@ export default function CVEditorPage() {
         )}
       </div>
 
-      {/* Floating Career Mentor AI entry point — visible on every viewport and section */}
+      {/* Floating Zeni AI entry point — visible on every viewport and section */}
       <button
         onClick={() => setAiPanelOpen(true)}
         className="fixed z-40 bottom-24 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
         style={{ backgroundColor: "#2563eb" }}
-        title="Career Mentor"
-        aria-label="Open Career Mentor AI assistant"
+        title="Zeni"
+        aria-label="Open Zeni AI assistant"
       >
         <Sparkles className="w-6 h-6" />
       </button>
@@ -508,7 +508,7 @@ export default function CVEditorPage() {
             <div className="flex items-center justify-between px-5 py-3 border-b border-[#30363d] flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-blue-400" />
-                <span className="text-white text-sm font-semibold">Career Mentor</span>
+                <span className="text-white text-sm font-semibold">Zeni</span>
               </div>
               <button
                 onClick={() => setAiPanelOpen(false)}

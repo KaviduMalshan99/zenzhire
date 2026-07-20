@@ -25,10 +25,10 @@ def get_current_user(
 
 
 def require_pro(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.plan != "pro":
+    if not current_user.is_pro:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Pro subscription required",
+            detail="This feature requires a Pro subscription. Upgrade to Pro to unlock it.",
         )
     return current_user
 

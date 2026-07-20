@@ -21,6 +21,8 @@ class UserRead(BaseModel):
     is_active: bool
     is_admin: bool
     plan: PlanType
+    pro_until: datetime | None
+    is_pro: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

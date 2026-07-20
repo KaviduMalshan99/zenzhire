@@ -1,8 +1,38 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-18 (session 11 — built a simple admin dashboard at `/admin/dashboard`: `is_admin` column + migration reusing the existing auth/JWT system entirely, one seeded admin account, and a review-moderation UI that replaces the "manual DB query" step from session 9. See new section 25 for the full writeup). Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-19 (session 13 — session 12's locked Free/Pro plan went from mostly-unenforced to actually real: all 8 feature limits now have genuine server-side enforcement (new `pro_until`/`is_pro` model, see section 27, rewritten), and a PAYable payment integration was built end-to-end to feed it (checkout, webhook, admin override — see new section 28). Payment integration is code-complete but **not yet verified working** — PAYable's sandbox auth endpoint is currently rejecting our business credentials with a 404, confirmed on two separate attempts; this is flagged as an external blocker requiring PAYable support, not an integration bug. Two unrelated pre-existing bugs were also found and fixed along the way — see section 22 items 22-23). Working directory: `F:\zenzhire\zenzhire\`
 
-**Session 11 — Admin dashboard (`/admin/dashboard`).** See new section 25 for the full writeup. Headline points:
+**Audit note (session 13, 2026-07-19):** Session 12 ended by flagging the locked Free/Pro plan as "mostly not enforced" (6 of 8 limits frontend-only or missing entirely) and Stripe/payment integration as not started. Both are now addressed:
+- **Real Pro-status tracking replaces the old `plan` enum as the enforcement source of truth.** Added `users.pro_until` (nullable datetime, migration `017_add_pro_until_ai_usage`) and a `User.is_pro` property (`pro_until is not None and pro_until > now()`). `plan` (`free`/`pro`) is now just a display label kept in sync for admin-list cosmetics; every actual gate — backend and frontend — checks `is_pro`. See section 27 (rewritten) for the full per-feature breakdown, now all genuinely enforced and verified with real Free/Pro test accounts hitting the API directly.
+- **PAYable Direct API integration built**: checkout session creation (`POST /billing/checkout`), webhook handler with real `checkValue` signature verification (`POST /billing/webhook`), a browser return handoff (`GET /billing/return`), and an admin manual-override endpoint (`POST /admin/users/{id}/set-pro`). New `billing_transactions` audit table (migration `018_create_billing_transactions`). See new section 28 for the full writeup, including the **critical `isPro`-everywhere fix**: several frontend pages were still deriving Pro status from `user.plan === "pro"`, which nothing in the new payment flow ever sets to `"pro"` directly (the webhook only touches `pro_until`) — without this fix, a real paying customer's UI would never have unlocked even though the backend was correctly enforcing access. Fixed in `Navbar.tsx` and three dashboard pages.
+- **Payment integration is unverified end-to-end.** PAYable's sandbox Direct Auth endpoint (`POST https://sandboxipgpayment.payable.lk/ipg/auth/direct-api`) returns `404 {"status":404,"error":"Invalid authentication"}` for the `PAYABLE_BUSINESS_KEY`/`PAYABLE_BUSINESS_TOKEN` currently in `.env`, reproduced identically on two separate days with the exact same request (doc-literal format, plus two deliberate variations tried once — same result all three times). This fails at the very first auth step, before any `checkValue` signing logic runs, so it's confirmed external/credential-side, not a bug in the integration code. **Next action is a PAYable support ticket** (not further local debugging) to confirm whether sandbox Business Key/Token need manual activation on their end. See section 28.4.
+- **Two unrelated pre-existing bugs found and fixed while working on the above:** `backend/app/core/config.py`'s `Settings` crashed on import (`extra_forbidden` from Pydantic) because `.env` already had `PAYABLE_*` keys with no matching Settings fields — this was silently breaking the entire backend and Alembic, not just this session's new code. And `frontend/tsconfig.json` had `"target": "es5"` with `"ignoreDeprecations": "6.0"` (invalid for the installed TypeScript 5.9, which only recognizes `"5.0"`) — the invalid value meant `tsc --noEmit` couldn't even start, so no one had actually type-checked this frontend in a working state. Both fixed; see section 22 items 22-23.
+
+**Audit note (session 12, 2026-07-19):** Full re-audit of this file against actual codebase state (git history, direct file reads, alembic state), not just appending from conversation memory — same standard as the session 4/6 audits below. Corrections and additions:
+- **Section 25 (Admin Dashboard) was significantly incomplete, not just stale.** The commit that shipped it (`e7053aa`) actually added a full multi-page `/admin/` section — `admin/layout.tsx` (sidebar nav + auth guard), `admin/dashboard`, `admin/users`, `admin/reviews`, `admin/contact`, `admin/career-tips`, `admin/admins` — plus a `GET /admin/notifications` endpoint driving sidebar badge dots, an Admins CRUD page (create admin / one-time password reset), and a full Career Tips CMS. The doc only described 4 read-only sections from an earlier, simpler iteration. Rewritten from scratch below against the real code.
+- **Career Tips is a real, undocumented feature** — public `/career-tips` + `/career-tips/[id]` pages, a `career_tips` table, public read-only API, and an admin publish/delete CMS with a Tiptap rich-text editor for the caption. Never had a section. Added (23.2 table + new 25.4).
+- **Google Sign-In shipped, entirely undocumented** — real server-side OAuth Authorization Code flow (hand-rolled with `httpx`, no `authlib`/`google-auth` library). New section 26. Found one real security-relevant behavior worth flagging: it silently links a Google login to any pre-existing email/password account sharing that email, with no re-authentication step — see section 26 and section 22 item 18.
+- **"Zeni" is not actually the live product name — "Career Mentor" is.** The locked feature plan (Pricing page, section 28) refers to "Career Mentor (Zeni)," but a grep of every user-facing string in the onboarding chat, the `RightPanel` tab, and the CV Builder FAB confirms all of them still say **"Career Mentor"** — "Zeni" only appears as a mascot image (`zeniai.png`) on the `/about` marketing page and in the Pricing page's copy. The persona unification flagged as "planned, not yet built" in section 24.5 is confirmed still not built — corrected in a new 24.6.
+- **The locked Free/Pro feature plan (this session's source-of-truth request) is mostly *not* enforced server-side.** Of the 8 gated features, only the ATS Checker's 5-lifetime-check limit has a real backend check. CVs and Cover Letters have **no cap at all**, anywhere. Templates, the AI usage limit, and Auto Fix are frontend-only (directly callable/bypassable via the API). CV Score sub-scores and Job Match Score aren't backend features at all — pure client-side JS. Full table in new section 28; this is now flagged as the single biggest blocker before Stripe integration, ahead of just "wiring payment processing."
+- **Found a real numeric mismatch while auditing enforcement**: the Pricing page states the free AI-help limit as "3 uses/day" (this session's locked plan), but the actual code (`RightPanel.tsx`'s `AI_FREE_LIMIT`) enforces **5**/day, client-side only, via `localStorage`. Neither number is backend-enforced. Flagged in section 22 item 19.
+- Confirmed the 14-template Free/Pro split (section 6, section 13) is already accurate and consistent across `frontend/lib/templates-data.ts` and the backend `TemplateId` enum — no drift found here, unlike the sections above.
+- Confirmed `alembic current == alembic heads == 016_add_google_oauth_users` — single head, no migration drift, chain is linear from `012` through `016`.
+- Re-confirmed several previously-logged known issues are still open with no changes (items 9, 11, 14, 16 in section 22) — see that section for the direct re-checks.
+
+**Session 13 — Real Free/Pro enforcement + PAYable payment integration.** See rewritten section 27 (enforcement) and new section 28 (PAYable). Headline points:
+- All 8 locked Free/Pro feature limits from section 27's original audit now have real server-side enforcement, driven by a new `pro_until`-based `is_pro` check rather than the old `plan` enum: CVs and Cover Letters capped at 1 for Free, CV templates restricted to the 5 Free ones, Zeni AI assist capped at 3/day (server-tracked, not `localStorage`), Auto Fix and Job Match Score Pro-gated server-side, CV Score sub-scores withheld from the API response itself for Free users (not just hidden client-side), and ATS Checker's existing 5-lifetime limit switched onto the same `is_pro` check. All 8 verified with real Free/Pro test accounts calling the API directly, not just clicking through the UI.
+- Built the PAYable Direct API payment integration end-to-end: checkout session creation with server-computed pricing and SHA512 `checkValue` signing, a webhook handler that verifies its own `checkValue` before trusting any payload and extends (not resets) `pro_until` on repeat purchases, and an admin manual-override endpoint for support cases. Frontend: a billing-details modal (phone/address, required by PAYable's standard checkout mode), Pricing page wiring, and a post-payment return page.
+- PAYable's sandbox auth is currently rejecting our credentials (404), so the actual "redirect to PAYable, pay, webhook fires, `pro_until` updates" loop has not been exercised end-to-end yet — everything up to that external call is built and internally verified (checkout session creation logic, checkValue formulas, webhook signature verification, idempotency) but the live round-trip is blocked pending PAYable support. See section 28.4.
+
+**Session 12 — Google Sign-In, Career Tips title field, template-gallery polish, locked Free/Pro plan finalized.** See new sections 26 (Google Sign-In) and 28 (locked feature plan + enforcement audit). Headline points:
+- **Google Sign-In**: real server-side OAuth Authorization Code flow — `GET /auth/google/login` redirects to Google, `GET /auth/google/callback` exchanges the code server-to-server via `httpx` (new dependency), mints ZenzHire's own JWT, and redirects to `/auth/callback#token=...` on the frontend, which stores it the same way the existing email/password flow does. `users.hashed_password` is now nullable (`016_add_google_oauth_to_users.py`), plus new `google_id`/`auth_provider` columns. See section 26 for the account-linking behavior, which is worth a careful read before this goes to production.
+- **Career Tips**: added a `title` column (`015_add_title_to_career_tips.py`) to the `career_tips` table shipped in session 11's commit — see the audit note above and new section 25.4 for the full feature (it was never documented despite already existing).
+- **Marketing template gallery polish** (`TemplateGalleryCard.tsx`): badges moved from a floating overlay into their own strip above the preview (was at risk of overlapping template content that starts at the very top of the page); preview container switched from a fixed `height: 280` to a real `aspectRatio: "794 / 1122"` lock so the full A4 page is always visible uncropped at any card width; the Pro-lock overlay was lightened from a heavy blur+centered-lock-icon scrim to a subtle tint + small corner lock badge + bottom "Upgrade to Pro" pill, so the actual template design stays visible/sellable through the gate.
+- New `frontend/lib/sample-cv-data-sidebar-supplement.ts`: gallery-preview-only extra content (skills/language/certificate/interest entries) merged in **only** for the 6 two-column "sidebar" templates (Modern, Corporate, Portrait, Milestone, Vega, Aurora) when rendering `/cv-template-preview/[templateId]` — those templates looked sparser than single-column ones at the same base `SAMPLE_CV_DATA` volume because a second column needs more content to look full. `SAMPLE_CV_DATA` itself is untouched, so this provably doesn't affect the CV Builder or any other template.
+- `AuroraTemplate.tsx`: `AURORA_PHOTO_SIZE` bumped `125 → 145` (visual sizing tweak only, no layout logic changed).
+- **Pricing page (`app/pricing/page.tsx`) rewritten to match the newly locked Free/Pro feature plan exactly** — see section 27 for the full plan and, critically, which parts of it are and aren't actually enforced by the backend today (this cross-reference originally said "section 28" — corrected session 13, since section 28 now exists and is the unrelated PAYable integration writeup).
+
+**Session 11 — Admin dashboard (`/admin/dashboard`).** See new section 25 for the full writeup (rewritten session 12 — the summary below undersold what actually shipped). Headline points:
 - Added `users.is_admin` (boolean, default `false`) via migration `012_add_is_admin_to_users.py` — no parallel auth system; a new `require_admin` dependency (mirrors the existing `require_pro` pattern) gates every `/admin/*` route, and the frontend page does its own client-side `useAuth()` check (redirects logged-out → `/login`, non-admin → `/dashboard`) before rendering anything or firing any admin API call.
 - One seeded admin account (`admin@zenzhireadminit.com`) created through the real `POST /auth/signup` endpoint (proper bcrypt hashing, no plaintext check anywhere), then `is_admin` flipped to `true` via a one-off DB script — not a new signup path.
 - Dashboard covers exactly 4 read-mostly sections, reusing existing tables — no new systems: overview stats (users/CVs/cover letters/CVs-per-template), reviews moderation (list pending + one new `POST /admin/reviews/{id}/approve` endpoint — this is what session 9's `/reviews` writeup flagged as a manual-DB-query gap, see section 23.3), contact submissions (first viewer ever built for `contact_submissions`), and a basic read-only user list. Editing/deleting users, revenue, and settings were explicitly out of scope this pass.
@@ -51,7 +81,7 @@ ZenzHire is an **AI-powered career and talent intelligence platform**. The prima
 - Optimize the CV to pass Applicant Tracking Systems (ATS) with an **honest, trustworthy** scoring system
 - Get AI-generated feedback and improvement suggestions via Claude API
 
-**Phase 1 (built):** Full CV builder (13 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
+**Phase 1 (built):** Full CV builder (14 templates), Cover Letter Builder (8 templates), ATS Checker (7-layer analysis, rebuilt for accuracy), AI Assistant (20+ actions), CV Score, Quick Fixes, Template Gallery, Dashboard, ATS Diagnosis & "CV Rebuild Preview" feature.
 
 **Phase 2 (next):** Stripe payments, Landing page, Admin panel, Production deployment.
 
@@ -453,10 +483,10 @@ CentrePanel "Download PDF" button
 → cv-print page fetches CV, renders template, exposes window.__CV_TEMPLATE_ID__
 → Adds <div id="cv-ready-marker"> when ready
 → Puppeteer waits for #cv-ready-marker
-→ Branches on templateId: all 13 templates now run the shared pagination
+→ Branches on templateId: all 14 templates now run the shared pagination
   engine (10.1/10.2) — the legacy pipeline branch (10.3) still exists in
   the code as an `else` fallback but is unreachable dead code for every
-  current template; it only matters again if a future 14th template is
+  current template; it only matters again if a future 15th template is
   added without being migrated immediately
 → page.pdf() → streams as download
 ```
@@ -545,7 +575,7 @@ if (templateId === "classic" || templateId === "academic" || templateId === "mod
 
 The pre-2026-07-04 approach (`.cv-section` **and** `.cv-entry` both getting a blanket `page-break-inside:avoid`, so a section that doesn't fit gets pushed wholesale to the next page instead of splitting between entries) still exists as the `else` branch in `generate-pdf/route.ts`, but **no current template runs through it** — all 14 are in the shared-pipeline `if` condition (see 10.2). This branch is only relevant again if a future 15th template is added to the codebase without immediately being migrated onto the shared engine. Do not treat its continued existence in the file as evidence any current template still uses it — check the `if` condition directly, as this section 10.2 audit did.
 
-### 10.4 Consolidated Pagination Lessons (reference for any future 14th template)
+### 10.4 Consolidated Pagination Lessons (reference for any future 15th template)
 
 Everything learned migrating all 13 templates onto the shared engine, in one place, so this doesn't need to be re-explained or re-derived from scratch:
 
@@ -589,7 +619,7 @@ If you touch `generate-pdf/route.ts` again: do not reach for a blanket per-secti
 
 - Template renders in hidden off-screen div (width=794px)
 - ResizeObserver watches it, runs `calcPageLayout()` on resize
-- `calcPageLayout()` delegates directly to `lib/pagination.ts`'s `extractPageChunks()` + `computePageBreaks()` for **all 13 templates uniformly** — the exact same functions `generate-pdf/route.ts` uses, so the two can't independently disagree on break points. This has always been true of the live preview regardless of a template's PDF-pipeline migration status (the "migrated vs. legacy" distinction in section 10.2/10.3 only ever applied to `generate-pdf/route.ts`'s branching, never to `CentrePanel.tsx`) — there is no separate bespoke chunk-walk left in this file.
+- `calcPageLayout()` delegates directly to `lib/pagination.ts`'s `extractPageChunks()` + `computePageBreaks()` for **all 14 templates uniformly** — the exact same functions `generate-pdf/route.ts` uses, so the two can't independently disagree on break points. This has always been true of the live preview regardless of a template's PDF-pipeline migration status (the "migrated vs. legacy" distinction in section 10.2/10.3 only ever applied to `generate-pdf/route.ts`'s branching, never to `CentrePanel.tsx`) — there is no separate bespoke chunk-walk left in this file.
 - For Portrait/Milestone/Corporate/Vega/Aurora (the five two-column `SIDEBAR_TYPES` templates): `calcPageLayout()` additionally computes independent `sidebarStarts`/`bodyTop`/`sidebarBottom` values (via `extractSidebarChunks()` + `computeSidebarPageStart()`) so the sidebar column can be re-rendered as its own clipped, independently-offset overlay per page-card — see section 10.4, lesson 5. Aurora computes the same values as the other four but doesn't use `sidebarBottom` to cap its colored band (see its 10.2 entry) — only for the sidebar text overlay's own clipping.
 - For Bordered (Tech): `position:absolute` border overlay on each page card
 - For Timeline (Creative): `borderLeft` on outer scaled column div (isCreative flag)
@@ -654,7 +684,7 @@ POST /api/generate-cl-pdf { content, templateId, customization, jobTitle, compan
 
 The old single authenticated page at `(dashboard)/templates/page.tsx` was **moved**, not duplicated — it now lives at `(dashboard)/dashboard/templates/page.tsx`. `CV Builder list page → "New CV"` and the dashboard's own template-picker links were updated to `router.push("/dashboard/templates")` accordingly (confirmed via grep — both `cv-builder/page.tsx` and `dashboard/page.tsx` point at the new path).
 
-Template data for the two pages is **not shared from one source** — the public `/templates` page reads `frontend/lib/templates-data.ts` (`TEMPLATES`, `CATEGORIES` — built for the marketing page, no auth/customization concerns), while `/dashboard/templates` has its own data/logic for actually creating a CV. If a 15th template is ever added, both need registering, not just the CV-builder file list in section 6.
+⚠️ **Corrected session 12** — the doc previously said template data was *not* shared between the two pages; that's no longer true (unclear whether it was fixed after this note was written, or the note was wrong even at the time — either way, confirmed against current code). **Both pages now import the exact same `TEMPLATES`/`CATEGORIES` from `frontend/lib/templates-data.ts`** (`import { TEMPLATES, CATEGORIES } from "@/lib/templates-data"` in both `app/templates/page.tsx` and `app/(dashboard)/dashboard/templates/page.tsx`, confirmed via direct grep) — the file's own header comment now states this explicitly: *"Single source of truth for the 14 real CV templates — shared by the authenticated template picker ... and the public marketing gallery ..., so the two can never drift out of sync with each other."* `/dashboard/templates` layers its own CV-creation logic (routing into the Career Mentor onboarding flow, Pro-upgrade modal, etc. — see section 24.3) on top of the same shared template list, rather than maintaining a separate one. If a 15th template is ever added, it only needs registering **once** in `templates-data.ts` for both gallery pages (plus the CV-builder-specific file list in section 6, which is a separate concern — rendering the template inside the actual builder/PDF pipeline).
 
 ### Category filters (both pages):
 - All / Simple / Modern / Creative / Professional
@@ -713,7 +743,7 @@ Resume.io style big card grid:
 
 **Default:** improve text, make shorter, make longer, make professional, fix grammar, add keywords
 
-### Free limit: 5 AI uses per day (tracked in localStorage)
+### Free limit: 5 AI uses per day (tracked in `localStorage` only — no backend enforcement, and the Pricing page says 3, not 5. See section 22 item 19 / section 27.)
 
 ---
 
@@ -837,7 +867,7 @@ POST /ats/analyze (multipart/form-data)
 → Saved to ats_results table (incl. new diagnosis JSON column)
 ```
 
-### Free limit: 5 ATS analyses total
+### Free limit: 5 ATS analyses total (lifetime, not monthly — and the one feature limit in the entire locked plan that's actually enforced server-side, see section 27)
 
 ### Results display components:
 - ScoreGauge (circular gauge 0-100) — now also mirrored as MiniGauge in sidebar
@@ -914,13 +944,16 @@ POST   /reviews/                submit a review → always saved with approved=f
 
 Priority order:
 
-1. ~~**Landing Page** — `/` marketing page with hero, features, pricing, testimonials~~ **DONE (session 9)** — full public marketing site built: Home, Templates, Pricing, About, Contact, Partners, Privacy, Terms, Reviews, plus a shared SiteHeader/SiteFooter. See section 23. "Testimonials" became the dedicated `/reviews` page (user-submitted, manually-approved) rather than a Home-page section. Remaining gap from this work: `/features/ats-checker` is linked (Home + footer) but not built — see section 22 item 16.
-2. **Stripe Payments** — Pro plan subscription, webhook, plan update. `/pricing` page itself now exists (session 9) with all the right plan/pricing copy — this item is now specifically about wiring real payment processing behind its CTA buttons, not building the page.
-3. ~~**Admin Panel** — user management, stats, revenue.~~ **Partially DONE (session 11)** — a simple `/admin/dashboard` now exists with overview stats, review moderation (including the approval UI that replaces the old manual DB query — see section 23.3/25), contact submissions, and a basic read-only user list. Still explicitly out of scope: editing/deleting users, revenue tracking (no payments yet), and settings/config management.
-4. **CV Upload Parser** — upload PDF → AI extracts → fills real CV Builder sections (explicitly postponed during ATS session — this is a prerequisite for any future "fully personalized rebuilt CV" feature, distinct from the current lightweight CVRebuildPreview which uses placeholder content + injected real name/contact only)
-5. **ATS target_role enforcement** — add UI warning when empty (see section 18 known gap)
-6. **`/features/ats-checker` marketing page** — linked from Home and the new footer, doesn't exist yet (session 9 finding, see section 22 item 16)
-7. **Production Deployment** — Vercel (frontend) + Railway (backend) + Supabase (DB)
+1. ~~**Landing Page** — `/` marketing page with hero, features, pricing, testimonials~~ **DONE (session 9)** — full public marketing site built: Home, Templates, Pricing, About, Contact, Partners, Privacy, Terms, Reviews, Career Tips, plus a shared SiteHeader/SiteFooter. See section 23. "Testimonials" became the dedicated `/reviews` page (user-submitted, manually-approved) rather than a Home-page section. Remaining gap from this work: `/features/ats-checker` is linked (Home + footer) but not built — see section 22 item 16.
+2. **Backend enforcement of the locked Free/Pro feature plan** — **NEW top priority, promoted ahead of Stripe (session 12 finding).** The plan itself is now finalized and documented (section 27), but 6 of its 8 limits have no real server-side gate today — a free user can already create unlimited CVs/cover letters, select any Pro template, and call the AI/Auto-Fix endpoints without limit via direct API calls. Wiring Stripe on top of ungated endpoints would only gate the *checkout flow*, not the actual features. See section 27.1 for the concrete punch list (plan checks on CV/cover-letter creation, template selection, AI usage tracking, and a `pro_until` column for the 7-Day Pass).
+3. **Stripe Payments** — Pro plan subscription, webhook, plan update. `/pricing` page itself exists (session 9) with all the right plan/pricing copy — this item is specifically about wiring real payment processing behind its CTA buttons. Should land alongside or after item 2, not instead of it, or the payment flow will have nothing real to gate.
+4. ~~**Admin Panel** — user management, stats, revenue.~~ **Mostly DONE (session 11, more complete than previously documented — see section 25).** A full multi-page `/admin/` section now exists: Overview stats, Users (Free/Paid tabs + usage counts), Reviews (Pending/Approved tabs + approve action), Contact Submissions, a Career Tips CMS (publish/unpublish), and an Admins page (create admin, one-time password reset). Still explicitly out of scope: editing/deleting regular users, and revenue tracking (blocked on item 3/Stripe).
+5. **Google Sign-In** ~~planned~~ **DONE (session 12)** — see section 26. One open item from this work: the silent account-auto-linking behavior (section 22 item 18) is worth a security review before relying on it with real user passwords in production.
+6. **CV Upload Parser** — upload PDF → AI extracts → fills real CV Builder sections (explicitly postponed during ATS session — this is a prerequisite for any future "fully personalized rebuilt CV" feature, distinct from the current lightweight CVRebuildPreview which uses placeholder content + injected real name/contact only)
+7. **ATS target_role enforcement** — add UI warning when empty (see section 18 known gap)
+8. **`/features/ats-checker` marketing page** — linked from Home and the new footer, doesn't exist yet (session 9 finding, re-confirmed session 12, see section 22 item 16)
+9. **"Zeni" persona/name/avatar unification** — still planned, not built (see section 24.6). Pricing copy already refers to "Career Mentor (Zeni)" as if the rename happened; the live onboarding/RightPanel/FAB UI still says "Career Mentor" throughout.
+10. **Production Deployment** — Vercel (frontend) + Railway (backend) + Supabase (DB)
 
 ---
 
@@ -928,21 +961,28 @@ Priority order:
 
 1. ~~**Debug screenshot** — `route.ts` saves to `C:/Users/kavidu/debug-screenshot.png`~~ **RESOLVED (confirmed session 6)** — grepped the entire frontend for `debug-screenshot`, `writeFile`, and `screenshot(` in both PDF routes: zero matches. Already removed from the codebase; this item and its section 10 callout were just never cleaned up in the doc.
 2. ~~**Modern template PDF** — sidebar color tested with fixed overlay approach, verify on multi-page CVs~~ **RESOLVED 2026-07-04** — Modern migrated to the shared pagination engine; the sidebar band is now derived per-page from `computePageBreaks()`'s own output in both preview and PDF, not a `position:fixed` overlay. See section 10.2.
-3. **Stripe not set up** — `/pricing` now exists (built session 9, see section 23) and is a real, fully-designed page, but it has **no payment integration** — every CTA button on it (`Get Started Free`, `Upgrade to Pro`, `Get 7-Day Access`) just links to `/signup`. Zero Stripe references anywhere in the codebase, still confirmed true as of session 9. Updated from the earlier "page not built yet" phrasing, which is now outdated — the gap is payment processing, not the page itself.
+3. ~~**Stripe not set up**~~ **RESOLVED (differently than planned) session 13** — payment integration was built against **PAYable**, not Stripe (business decision, not this doc's call) — see new section 28. Code-complete (checkout, webhook, admin override) but **not yet verified end-to-end**: PAYable's sandbox auth is currently returning 404 for our credentials, see item 24 below and section 28.4.
 4. **CV upload parser** — planned feature, not built (see Phase 2 #4)
 5. **Mobile responsiveness** — not fully tested on mobile, including the new ATS sidebar layout (verify sidebar stacks correctly on narrow screens) — not independently re-verified this session (requires visual/device testing, not a code audit)
 6. **Email verification** — not implemented in auth — confirmed still true (no verification-related code found, session 6 re-check)
 7. **ATS target_role optional but high-impact** — no UI warning yet when left empty (see section 18) — confirmed still true (no warning/banner text found near the `target_role` input, session 6 re-check)
 8. **sentence-transformers / semantic keyword matching** — uses lazy-loaded `_get_sentence_model()`; not yet confirmed whether this is reliably installed/working in all environments — falls back to exact-match silently if unavailable. Should be verified before production. (Confirmed the lazy-load pattern is still exactly as described, session 6 re-check.)
-9. **Stale template count in Pro upsell copy** (found during session 4 template audit) — `(dashboard)/templates/page.tsx`'s `ProUpgradeModal` hardcodes the feature bullet `"5 premium CV templates"`, but there are actually **9** Pro templates as of session 7 (modern, tech, creative, executive, gcc, portrait, milestone, vega, aurora). This copy was presumably accurate when Modern/Bordered/Timeline/Executive/GCC (5) were the only Pro templates and was never updated since — every Pro template added after that (Portrait, Milestone, Vega, and now Aurora; Corporate/Halo shipped FREE so didn't affect this count) has made the drift worse. Fix: bump the copy or, better, derive the count from `TEMPLATES.filter(t => t.plan === "pro").length` so it can't drift again regardless of how many more templates get added. **Confirmed still unfixed (session 7 direct code re-check) — now off by one more than when last logged.**
+9. **Stale template count in Pro upsell copy** (found during session 4 template audit) — `(dashboard)/dashboard/templates/page.tsx`'s `ProUpgradeModal` hardcodes the feature bullet `"5 premium CV templates"`, but there are actually **9** Pro templates (modern, tech, creative, executive, gcc, portrait, milestone, vega, aurora — unchanged since Aurora/session 7, confirmed Nova/session 8 shipped FREE so didn't add a 10th). Fix: bump the copy or, better, derive the count from `TEMPLATES.filter(t => t.plan === "pro").length` (from the now-shared `frontend/lib/templates-data.ts`, session 9) so it can't drift again. **Confirmed still unfixed (session 12 direct code re-check, `grep -n "premium CV template"` — line still reads exactly `"5 premium CV templates"`).**
 10. **Orphaned `cv_sections.data._layout` field** ({marginBottom, lineHeight}) — leftover from the removed per-section spacing/line-height steppers in `SortableSection.tsx`'s toolbar. No template reads it anymore (all 13, including Aurora added session 7, derive spacing solely from the global `CVCustomization.spacing` value — confirmed zero references to `_layout` anywhere in `components/cv-builder`, session 6 re-check). Safe to ignore — existing stored values are inert, not read anywhere — but clean up with a migration (drop the key from `data` JSONB, or leave it since it's harmless dead data) before production deployment.
-11. **`duplicate_cv` doesn't copy `customization`** (found during the preview/PDF pagination-drift investigation, 2026-07-04) — `backend/app/api/routes/cv.py`'s `duplicate_cv` route copies `title`/`template_id`/sections but never sets `customization=source.customization` on the new `CVDocument`, so a duplicated CV silently resets to `DEFAULT_CUSTOMIZATION` instead of keeping the original's accent color/font/spacing/etc. Distinct from the {}-customization preview/PDF drift bug (which is fixed — see `mergeCustomization()` in `frontend/types/index.ts` and `_merge_customization()` in `cv.py`); this one is about losing a user's actual style choices on duplicate, not a rendering inconsistency. Fix: add `customization=_merge_customization(source.customization, None)` to `duplicate_cv`'s `CVDocument(...)` call. **Confirmed still unfixed (session 6 direct code re-check — the route's `CVDocument(...)` call still has no `customization` kwarg).**
+11. **`duplicate_cv` doesn't copy `customization`** (found during the preview/PDF pagination-drift investigation, 2026-07-04) — `backend/app/api/routes/cv.py`'s `duplicate_cv` route copies `title`/`template_id`/sections but never sets `customization=source.customization` on the new `CVDocument`, so a duplicated CV silently resets to `DEFAULT_CUSTOMIZATION` instead of keeping the original's accent color/font/spacing/etc. Fix: add `customization=_merge_customization(source.customization, None)` to `duplicate_cv`'s `CVDocument(...)` call. **Confirmed still unfixed (session 12 direct code re-check — the route's `CVDocument(...)` call, lines ~199-204, still only sets `user_id`/`title`/`template_id`/`is_primary`).**
 12. ~~**Shared pagination engine: `CONTINUATION_TOP_GAP` gap-accounting edge case**~~ **RESOLVED (confirmed session 6)** — re-read `lib/pagination.ts`'s current `computePageBreaks()` directly: it already reserves `CONTINUATION_TOP_GAP` out of every continuation page's budget as part of the break decision itself (`pageBottom = c.top + (pageHeight - CONTINUATION_TOP_GAP)`), not as a later `margin-top` injection that the decision couldn't see coming. The function's own doc comment explicitly describes the old, broken behavior in the past tense. This was fixed at some point after being logged but the doc was never updated — see section 10.2 for the full corrected note.
 13. **References section email/phone rendering in white/near-white text (unreadable)** — previously logged as "fixed on Classic and Modern only, needs verifying on the rest." **Re-audited session 6:** checked every one of the (then 12) templates' source for the `Phone:`/`Email:` (or bare email/phone) rendering in their References section — every one uses either no explicit color (inherits the surrounding readable text color) or an explicit readable gray (`#555`, `#4b5563`, `#6b7280`, or each template's own `LIGHT` constant, all `#6b7280`). Found no white/near-white color anywhere. **Appears resolved across all 12 templates as of session 6** — but this is a source-code audit, not a re-run visual/PDF screenshot check, so treat as high-confidence rather than fully closed until someone visually confirms. Aurora (added session 7) also uses this same safe `DARK`/`MID`/`LIGHT` convention for its References text — it renders in the white main column, not the colored sidebar, so it was never at risk of the *other* new contrast issue found this session (see section 6's Aurora entry and 10.4 lesson 7) either.
-14. **NEW (found during session 6 audit): `backend/app/models/__init__.py` never imports `CoverLetter`** — it only imports `User`, `CV`, `CVDocument`/`CVSection`, and `ATSResult`. `alembic/env.py`'s `import app.models` (used specifically to "ensure all models are registered" before `target_metadata = Base.metadata` is set for autogenerate) therefore never registers the `cover_letters` table with `Base.metadata` through that import path. In normal app runtime this is harmless — `app/api/routes/cover_letter.py` imports `CoverLetter` directly from its own module, which is enough for the live app — but it means `alembic revision --autogenerate` could fail to detect legitimate future changes to the `cover_letters` table, or worse, generate a spurious drop/mismatch, since Alembic's metadata comparison won't know that table's model exists. Fix: add `from app.models.cover_letter import CoverLetter` to `backend/app/models/__init__.py`. Not yet fixed.
-15. **Migration drift check (session 6):** `alembic current` and `alembic heads` both report `007_add_vega` — single head, DB fully up to date, no pending/unapplied migrations. (This is a confirmation, not an issue — logged here so a future session doesn't need to re-run the check without reason.)
-16. **`/features/ats-checker` is linked but doesn't exist (found session 9)** — both the Home page's ATS teaser section ("Learn how ATS scoring works") and the new marketing footer's Product column link to `/features/ats-checker`. No route exists at that path (confirmed 404). Not built this session — out of scope for the marketing-site/footer work, but now linked from two places instead of one, so it should be prioritized before either of those links ships to real users. This is separate from the actual authenticated `/ats-checker` (or `(dashboard)/ats-checker`) checker tool, which does exist and works — see section 18. A future "ATS Checker feature/landing page" would live at `/features/ats-checker` and is purely a marketing explainer page, not the tool itself.
-17. **Stale file path in item 9 above, corrected (session 9):** the `ProUpgradeModal` with the hardcoded `"5 premium CV templates"` copy (still unfixed, still off — 9 Pro templates as of Aurora/session 7) now lives at `app/(dashboard)/dashboard/templates/page.tsx`, not `(dashboard)/templates/page.tsx` — the file moved when `/templates` was repurposed as the public marketing page (see section 13's rewrite). Same bug, same fix needed, just a different path if you go looking for it.
+14. **`backend/app/models/__init__.py` never imports `CoverLetter` — and now also never imports `CareerTip`.** Confirmed both still missing session 12 (current file only imports `User`, `CV`, `CVDocument`/`CVSection`, `ATSResult`, `ContactSubmission`, `Review`). `alembic/env.py`'s `import app.models` therefore never registers either table with `Base.metadata` through that path, so `alembic revision --autogenerate` could miss real future changes to `cover_letters` or `career_tips`, or generate a spurious drop. Harmless at runtime (both models are imported directly by their own route files, which is enough for the live app) but should be fixed before it causes an autogenerate surprise. Fix: add `from app.models.cover_letter import CoverLetter` and `from app.models.career_tip import CareerTip` to `backend/app/models/__init__.py`. Also relevant to any standalone DB script — see section 25.1's `⚠️` note, which now applies to both models.
+15. **Migration drift check (session 12):** `alembic current` and `alembic heads` both report `016_add_google_oauth_users` — single head, DB fully up to date, chain confirmed linear `012 → 013 → 014 → 015 → 016`, no pending/unapplied migrations.
+16. **`/features/ats-checker` is linked but doesn't exist (found session 9).** **Re-confirmed still broken session 12** — `app/page.tsx` and `SiteFooter.tsx` both still `href="/features/ats-checker"`, and no `frontend/app/features/` directory exists at all. This is separate from the working authenticated `/ats-checker` tool (section 18).
+17. **Stale file path in item 9 above, corrected (session 9):** the `ProUpgradeModal` with the hardcoded `"5 premium CV templates"` copy now lives at `app/(dashboard)/dashboard/templates/page.tsx` — the file moved when `/templates` was repurposed as the public marketing page (see section 13's rewrite). Same bug, same fix needed, just a different path if you go looking for it.
+18. **NEW (session 12): Google OAuth silently auto-links to an existing email/password account with no re-authentication.** See section 26.3 for the full detail and code. Not necessarily wrong behavior (it's a common, deliberate UX tradeoff), but it should be a conscious decision rather than an unreviewed side effect — flag for a security/product review before this goes live for real users with real passwords already set.
+19. ~~**NEW (session 12): the free-tier AI usage limit is inconsistent between the Pricing page and the actual code, and neither is backend-enforced.**~~ **RESOLVED session 13** — both fixed to 3/day: `RightPanel.tsx`'s `AI_FREE_LIMIT` constant corrected `5 → 3`, and `POST /cv/ai/improve` now enforces it server-side via new `users.ai_usage_count`/`ai_usage_date` columns. See section 27.
+20. ~~**NEW (session 12): 6 of the 8 locked Free/Pro feature limits have no real server-side enforcement.**~~ **RESOLVED session 13** — all 8 now genuinely enforced server-side, verified with real Free/Pro test accounts via direct API calls. See rewritten section 27.
+21. ~~**NEW (session 12): no plan-expiry support for a time-limited pass.**~~ **RESOLVED session 13** — added `users.pro_until` (nullable datetime, migration `017_add_pro_until_ai_usage`) and a `User.is_pro` property computed from it. See section 27.1.
+22. **NEW (session 13): `backend/app/core/config.py`'s `Settings` was crashing on import, breaking the entire backend and Alembic.** `.env` had `PAYABLE_*` keys with no matching fields in `Settings` (pydantic-settings' default `extra="forbid"` behavior), so any code path that imported `app.core.config` — which is nearly everything, including `alembic/env.py` — raised a `pydantic_core.ValidationError` before doing anything else. Found while trying to run the session-13 migration. **Fixed** by adding `extra = "ignore"` to `Settings.Config` and then, once the PAYable env vars were actually needed (section 28), adding real typed fields for all of them so they're validated rather than silently ignored.
+23. **NEW (session 13): `frontend/tsconfig.json` had an invalid `ignoreDeprecations` value, silently blocking all type-checking.** `"ignoreDeprecations": "6.0"` is not a value TypeScript 5.9 (the installed version) recognizes — it only accepts `"5.0"` — so `tsc --noEmit` failed immediately with `error TS5103` before checking a single file. No one had run a working typecheck on this frontend in this state. **Fixed**: `ignoreDeprecations` corrected to `"5.0"`, and `target` bumped `es5 → es2017` (also fixes 3 real `TS2802` errors in `RightPanel.tsx`/`cv-builder/onboarding/page.tsx` that needed `es2015`+ for `Set` spread iteration — remember to delete `frontend/tsconfig.tsbuildinfo` after a `tsconfig.json` change if `tsc` seems to ignore it, its incremental cache doesn't always self-invalidate on config edits). Typecheck now runs clean except 5 pre-existing, unrelated errors (`ats-checker/page.tsx`, `CoverLetterPreview.tsx`, `api/generate-pdf/route.ts`, `lib/pagination-test-data.ts`) — none touched this session, not investigated further.
+24. **NEW (session 13, OPEN): PAYable sandbox Direct Auth is rejecting our business credentials.** `POST https://sandboxipgpayment.payable.lk/ipg/auth/direct-api` with `PAYABLE_BUSINESS_KEY`/`PAYABLE_BUSINESS_TOKEN` (Basic auth, per PAYable's doc) returns `404 {"status":404,"error":"Invalid authentication"}`, reproduced identically on two separate days with the exact same request. This is the very first call in the flow, before any `checkValue` signing — confirmed external/credential-side (see section 28.4 for the two variations also tried once, same result). **Next action: contact PAYable support** to confirm whether sandbox Business Key/Token need manual activation, and give them the exact error. Not something further local debugging can resolve.
 
 ---
 
@@ -968,13 +1008,15 @@ Note: lucide-react **does** have `Twitter`, `Linkedin`, `Instagram`, and `Facebo
 |---|---|---|
 | `/` | `app/page.tsx` | Home/landing — hero, honesty-positioning callout, value props, "how it works," template showcase, ATS teaser, final CTA. Pre-existing, refined across sessions before 9. |
 | `/templates` | `app/templates/page.tsx` | Public marketing gallery — see section 13's rewrite for the split from the authenticated picker. |
-| `/pricing` | `app/pricing/page.tsx` | Monthly/Yearly toggle (yearly default, "Save 33%"), Free vs Pro comparison, separate 7-Day Pro Pass callout card, FAQ, final CTA. **No payment integration** — all CTA buttons (`Get Started Free`, `Upgrade to Pro`, `Get 7-Day Access`) currently just link to `/signup`; Stripe/billing is still not wired up (see section 22 item 3). |
+| `/pricing` | `app/pricing/page.tsx` | Monthly/Yearly toggle (yearly default, "Save 33%"), Free vs Pro comparison, separate 7-Day Pro Pass callout card, FAQ, final CTA. **Payment integration built session 13** — `Upgrade to Pro`/`Get 7-Day Access` open a billing-details modal then call the real PAYable checkout flow for logged-in users (unverified end-to-end pending section 28.4's blocker); `Get Started Free` still links to `/signup`. See section 28. |
 | `/about` | `app/about/page.tsx` | Hero, "Why ZenzHire exists" two-column mission section (icon+heading left, copy right — deliberately not just another centered text block), 4-card "What we built" recap, a bordered "Built by Centival Software Solutions" credibility card, final CTA. |
 | `/contact` | `app/contact/page.tsx` | Two-column: contact form (name/email/message, client validation, POSTs to backend, success/error states) + direct contact info card (`support@zenzhire.com` mailto link, `+94 78 782 0078` tel link, 6 follow-us social icons). Real end-to-end flow, not just a UI mock — see 23.3. |
 | `/partners` | `app/partners/page.tsx` | Simple "Partner Program — Coming Soon" placeholder, per explicit instruction not to build a full program yet. CTA links to `/contact`. |
 | `/privacy` | `app/privacy/page.tsx` | Generic SaaS privacy policy template (11 sections: data collected, usage, cookies, sharing, retention, user rights, termination, security, children's privacy, changes, contact). **Carries a highly visible disclaimer banner right below the title** (not buried in fine print): *"This is a template policy and has not been reviewed by a lawyer. Please consult a legal professional before relying on this document for your business."* This is placeholder legal content, not something to treat as actually reviewed/binding. |
 | `/terms` | `app/terms/page.tsx` | Same pattern/disclaimer as `/privacy` — 11 sections covering acceptance, service description, accounts, user content ownership, subscriptions/billing (Monthly/Yearly/7-Day Pass), acceptable use, termination, disclaimers, liability limits, changes, contact. |
-| `/reviews` | `app/reviews/page.tsx` | Public review submission (name, 1–5 star rating, text) + list of **approved-only** reviews below it. Explicitly shows **no fabricated reviews** — an empty state ("Be the first to leave a review!") renders until real reviews exist and have been manually approved. See 23.3 for the approval workflow. |
+| `/reviews` | `app/reviews/page.tsx` | Public review submission (name, 1–5 star rating, text) + list of **approved-only** reviews below it. Explicitly shows **no fabricated reviews** — an empty state ("Be the first to leave a review!") renders until real reviews exist and have been manually approved. Approval is now a real in-app admin action (see 25.4/25.7), not a manual DB flip. |
+| `/career-tips` | `app/career-tips/page.tsx` | **NEW (session 11, previously undocumented — added session 12).** Public listing of published career tips (title, cover image, caption preview), newest first. Empty by default until an admin publishes one via `/admin/career-tips` (see 25.5) — no seeded/fabricated content. |
+| `/career-tips/[id]` | `app/career-tips/[id]/page.tsx` | **NEW (session 12).** Single career tip detail view — full title, image, rich-text (Tiptap-authored) caption rendered via the same safe `HtmlContent` sanitization pattern used elsewhere in the app. 404s cleanly if the tip was deleted/unpublished. |
 
 All nine pages share the same dark-navy/blue-accent design system (`#0d1117` bg, `#161b22` surface, `#30363d` borders, `#2563eb` primary blue) and the `SiteHeader`/`SiteFooter` pair — verified rendering correctly (no console errors, no mobile overflow) at both 1440px and 390px across all of them.
 
@@ -1034,21 +1076,24 @@ The redesign was **deliberately scoped to two sprints only** — Sprint 1 (a flo
 
 ### 24.3 Sprint 2 — Career Mentor conversational onboarding
 
-**Backend** — new `backend/app/services/career_mentor.py`: a pure, DB-free step engine (no ORM/DB calls in this file) describing a fixed conversation of **19 nodes in `FLOW` (18 real questions + a terminal `"complete"` node)**, with two branch points:
-- `has_experience` (Yes → Branch A: `exp_company/exp_title/exp_start/exp_end/exp_work`; No → falls into `has_projects`)
-- `has_projects` (Yes → `project_name/project_work`; No → skips straight to education, so no phantom empty Experience/Projects section is ever created)
+**Backend** — new `backend/app/services/career_mentor.py`: a pure, DB-free step engine (no ORM/DB calls in this file) describing the conversation flow. ⚠️ **Grown since session 10 and never re-documented — corrected session 12.** `FLOW` currently has **24 nodes (23 real questions + a terminal `"complete"` node)**, up from the 19/18 originally logged — confirmed by direct read of the current file, not the old count. Three branch points now, not two:
+- `has_experience` (Yes → Branch A: `exp_company/exp_title/exp_start/exp_end/exp_work`, with an `exp_work_followup` re-ask if the answer comes back too vague/short; No → falls into `has_projects`)
+- `has_projects` (Yes → `project_name/project_work`, same `project_work_followup` vague-answer re-ask pattern; No → skips straight to education, so no phantom empty Experience/Projects section is ever created)
+- `has_certifications` (**new**, Yes → `certifications_list`; No → skips straight to `languages`)
 
-All three branches converge on a common suffix: `edu_institution/edu_degree/edu_dates`, `skills`, `summary_intro/summary_enjoy/summary_years`. The progress bar (`progress_for()`) always assumes the longest path (Branch A) until the branch questions are actually answered, so the "Step X of Y" total never has to jump backward mid-conversation.
+New nodes not in the original write-up: `target_role` and `career_stage` (now the first two questions asked, before `has_experience`) and `languages`. `career_stage` (Student / Graduate / Experienced Professional) doesn't just get stored — a new `_STAGE_QUESTION_OVERRIDES` dict swaps in tone-adjusted question wording for `exp_work`/`project_work`/`summary_intro`/`skills` based on the chosen stage (e.g. Students get "even a class project counts," Experienced Professionals get "what was the impact/measurable results"), falling back to the default `FLOW` wording for "Graduate" or anything unrecognized.
+
+All branches converge on a common suffix: `edu_institution/edu_degree/edu_dates`, `skills`, `has_certifications` (→ `certifications_list` or skip), `languages`, `summary_intro/summary_enjoy/summary_years`. The progress bar (`progress_for()`) always assumes the longest path until branch questions are actually answered, so the "Step X of Y" total never has to jump backward mid-conversation.
 
 New route file `backend/app/api/routes/career_mentor.py` (registered in `main.py`, prefix `/career-mentor`), two endpoints:
 - `POST /career-mentor/start` — calls the **existing** `cv_routes.create_cv()` to create a real `CVDocument` up front (not a separate draft/staging model), pre-fills the personal_details section with the logged-in user's `full_name`/`email`, then returns the first step.
-- `POST /career-mentor/answer` — on most steps just accumulates the answer into a `context` dict passed back and forth with the frontend; on the five steps that actually produce CV content (`exp_work`, `project_work`, `edu_dates`, `skills`, `summary_years`) it writes into the CV's sections using the **existing** `_write_section_data`/`cv_routes.add_section` patterns (full JSONB reassignment, not in-place mutation — same convention `cv.update_section` already uses so SQLAlchemy detects the change), and for `exp_work`/`project_work`/`summary_years` calls the **existing** `ai_service.improve_cv_text()` (`improve_bullet` / `generate_summary` actions) to turn the user's raw conversational answer into CV-quality text. No new AI prompts, no new CV data model — this is the same write path and the same AI service every other part of the CV Builder already uses.
+- `POST /career-mentor/answer` — on most steps just accumulates the answer into a `context` dict passed back and forth with the frontend; on the steps that actually produce CV content it writes into the CV's sections using the **existing** `_write_section_data`/`cv_routes.add_section` patterns (full JSONB reassignment, not in-place mutation). **This list also grew beyond the original "five steps"**: `exp_work`/`exp_work_followup` → Experience, `project_work`/`project_work_followup` → Projects (created via `add_section` if it doesn't exist yet), `edu_dates` → Education, `skills` → Skills, `certifications_list` → Certificates (**new** — created via `add_section` if absent), `languages` → Languages (**new** — only written if the answer is non-empty), `summary_years` → Profile Summary. For `exp_work`/`project_work`/`summary_years` it calls the **existing** `ai_service.improve_cv_text()` (`improve_bullet` / `generate_summary` actions) to turn the user's raw conversational answer into CV-quality text. Still no new AI prompts, no new CV data model — same write path and AI service every other part of the CV Builder already uses.
 
 **Frontend** — new `frontend/app/(dashboard)/cv-builder/onboarding/page.tsx`, a chat-style UI:
 - `frontend/lib/api.ts` gained `careerMentorApi.start()` / `.answer()`.
 - `/dashboard/templates`' `handleSelect()` no longer creates a CV directly — it now routes to `/cv-builder/onboarding?template={id}` (the direct-create POST and its customization-defaults logic were deleted from that page entirely, not just bypassed).
 - Scrolling chat history, text input or button choices depending on the step's `input_type`, a progress bar, and a "Skip for now — I'll fill this in myself" exit that's visible on every screen (routes straight to `/cv-builder/{cvId}`, or `/cv-builder` if the CV hasn't been created yet).
-- Covers the "core 5" sections (Personal Details, Summary, Experience-or-Projects, Education, Skills) — not all 16 CV sections. Remaining sections (Certificates, Awards, Languages, etc.) are left for the user to add manually in the normal editor after onboarding, by design.
+- Originally scoped to the "core 5" sections (Personal Details, Summary, Experience-or-Projects, Education, Skills) — **now also conditionally covers Certificates and Languages** (see the corrected 24.3 above), so it's closer to 7 sections in the branches that answer "Yes" to both `has_certifications` and provide a languages answer. Still not all 16 CV sections — Awards, Publications, Declaration, etc. are left for the user to add manually in the normal editor after onboarding, by design.
 - Verified end-to-end with real test accounts: Branch A (has experience), Branch B with a project, Branch B declining both has_experience and has_projects (confirmed no phantom empty Experience/Projects sections get created — matches the backend's conditional section-writing above), the Skip-for-now exit, and mobile at 390px.
 
 ### 24.4 Polish pass (visual/experience only — no logic changes)
@@ -1065,62 +1110,249 @@ All in the same `onboarding/page.tsx`, layered on top of the Sprint 2 flow above
 
 Logged here for future reference, not implemented: **Context Manager** (shared current-section/CV/template state across AI features), **Writing Coach** (live grammar/inline suggestions as the user types, distinct from the existing on-demand AI actions), **Live ATS** (background scoring while editing, reframing the ATS Checker as a "Deep Review"), **Career Brain v1** (a formal orchestration layer tying the above together), **Career Memory** (persistence of user preferences/history across sessions), an **AI Router** (dispatching between specialized AI capabilities), and the longer-term **Job Platform / Company Hiring AI / Interview Coach** vision. These were deliberately deferred until real usage data from the Career Mentor onboarding above exists to inform whether/how they should be built — don't start scaffolding any of these without checking whether that data now exists.
 
+### 24.6 "Zeni" persona/name/avatar unification — still PLANNED, confirmed NOT built (checked session 12)
+
+The Pricing page (section 27) refers to this feature as "Career Mentor (Zeni)," which reads like the rename already happened. It hasn't. A grep of every user-facing string across the onboarding chat, `RightPanel.tsx`, and the CV Builder FAB confirms **all of them still say "Career Mentor"**:
+- `cv-builder/onboarding/page.tsx` — welcome-screen copy ("I'm your Career Mentor..."), the chat header, and the typing-indicator `aria-label` all say "Career Mentor."
+- `RightPanel.tsx` — the tab is `<TabBtn id="ai" label="Career Mentor" />`.
+- `(dashboard)/cv-builder/[id]/page.tsx` — the floating FAB's `title`/`aria-label` and the drawer header both say "Career Mentor."
+- The assistant's avatar throughout is a Lucide `Sparkles` icon on a blue circle (a local `MentorAvatar` component), **not** `zeniai.png`.
+
+"Zeni" currently exists in exactly two places, both marketing-only, not in the product itself:
+- `frontend/public/zeniai.png` — a mascot image, used only on the `/about` page (`<img src="/zeniai.png" alt="Zeni, the ZenzHire mascot" />`, twice).
+- The Pricing page's feature-list copy ("Career Mentor (Zeni) onboarding," "Zeni ongoing AI help").
+
+**Status: still exactly what section 24.1 called it — a planned unification, not yet built.** Anyone picking this up should treat it as a real, scoped task: rename the onboarding chat's persona copy, the `RightPanel` tab label, and the FAB tooltip/drawer header from "Career Mentor" to "Zeni," and swap the `Sparkles` icon for `zeniai.png` (or a purpose-built avatar asset) in those three locations. Until that's done, the Pricing page is describing a name the product doesn't actually use yet — worth flagging to whoever owns copy/marketing consistency.
+
 ---
 
-## 25. Admin Dashboard (session 11, 2026-07-18)
+## 25. Admin Dashboard (session 11, 2026-07-18 — rewritten session 12, 2026-07-19)
 
-Simple internal admin tool at `/admin/dashboard`, deliberately scoped to 4 read-mostly sections. Explicitly out of scope this pass: editing/deleting users, revenue tracking (no Stripe yet — see section 22 item 3), and settings/config management.
+⚠️ **This entire section was rewritten during the session 12 audit.** The commit that shipped this feature (`e7053aa`) turned out to contain a much bigger `/admin/` section than the previous version of this doc described (which only covered 4 read-only sections from an earlier point in that same session). What follows is verified directly against the current code, not the original write-up.
+
+A full multi-page internal admin tool at `/admin/*` (own `layout.tsx` with sidebar nav — not a single page). Six sections: Overview, Users, Reviews, Contact Submissions, Career Tips, Admins. Explicitly still out of scope: revenue tracking (no Stripe yet — section 22 item 3) and any settings/config management page.
 
 ### 25.1 Auth — reused entirely, no parallel system
 
-- `users.is_admin` (`Boolean`, `nullable=False`, `default=False`) added via `alembic/versions/012_add_is_admin_to_users.py` (confirmed `alembic current == alembic heads == 012_add_is_admin` after applying) — same `users` table, same JWT/login flow as every other account. `UserRead` (and therefore `GET /auth/me`) now includes `is_admin`.
-- New `require_admin` dependency in `app/api/dependencies.py`, deliberately mirroring the existing `require_pro` pattern: `Depends(get_current_user)` then a plain `if not current_user.is_admin: raise 403`. Applied once, at the router level (`admin.router = APIRouter(..., dependencies=[Depends(require_admin)])`) rather than per-endpoint, so every current and future route added to `admin.py` is automatically covered — can't forget to gate a new one.
-- Status codes to remember if debugging this: FastAPI's `HTTPBearer` (`auto_error=True`, used by `bearer_scheme` in `dependencies.py`) returns **403** "Not authenticated" for a request with no `Authorization` header at all — not 401. `get_current_user` itself raises **401** for a present-but-invalid/expired token. `require_admin` raises **403** for a valid token belonging to a non-admin user. The frontend doesn't rely on this distinction for its redirect logic (see 25.2) — the page's own `useAuth()`-based guard runs first and never lets a non-admin's browser call any `/admin/*` endpoint in the first place — but it matters if hitting these routes directly (curl/Postman) while debugging.
-- One seeded admin account, `admin@zenzhireadminit.com`, created through the real `POST /auth/signup` endpoint (id 74 as of this session) — same bcrypt hashing via `hash_password()`, no separate/hardcoded credential check anywhere in the codebase. `is_admin` was then flipped to `true` with a one-off script (`SessionLocal()` + direct ORM update, deleted after running) rather than exposing `is_admin` as a signup-settable field, since letting *any* signup request set its own `is_admin` would obviously be a privilege-escalation hole. **The password given (`123AdminZenz123#`) was treated as already exposed per instruction — change it immediately in any real deployment.**
-- ⚠️ Any standalone script that queries `User` directly (outside the FastAPI app's own import graph) must also import `app.models.cover_letter.CoverLetter` first, even if the script never touches cover letters — see section 22 item 14. `User.cover_letters` is a string-based `relationship("CoverLetter", ...)`, and SQLAlchemy's mapper configuration resolves that string against whatever classes have been imported into its registry *so far*; a bare `from app.models.user import User` in a script that never imports `CoverLetter` fails with `InvalidRequestError: ... failed to locate a name ('CoverLetter')` the moment any query touches `User`. Hit this twice while building this feature (the admin-seed script and a review-revert script), same fix both times: add `from app.models.cover_letter import CoverLetter  # noqa: F401` before the first query.
+- `users.is_admin` (`Boolean`, `nullable=False`, `default=False`) added via `alembic/versions/012_add_is_admin_to_users.py` — same `users` table, same JWT/login flow as every other account. `UserRead` (and therefore `GET /auth/me`) includes `is_admin`.
+- `require_admin` dependency in `app/api/dependencies.py`:
+  ```python
+  def require_admin(current_user: User = Depends(get_current_user)) -> User:
+      if not current_user.is_admin:
+          raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+      return current_user
+  ```
+  Applied **router-wide**: `router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])` — every current and future route in `admin.py` is automatically covered, can't forget to gate a new one.
+- One seeded admin account, `admin@zenzhireadminit.com`, created through the real `POST /auth/signup` endpoint, then `is_admin` flipped to `true` via a one-off script — not a separate signup path. The Admins page (25.4) now provides a real in-app way to create further admins, so this bootstrap-via-script approach should no longer be needed going forward.
+- ⚠️ Any standalone script that queries `User` directly must still import `app.models.cover_letter.CoverLetter` first (see section 22 item 14) — `User.cover_letters` is a string-based `relationship(...)` that SQLAlchemy can't resolve unless `CoverLetter` has been imported into its registry first. **This same gotcha now also applies to `CareerTip`** if a script ever needs `User` alongside career tips, since neither model is imported by `app/models/__init__.py`.
 
 ### 25.2 Frontend route protection — client-side guard, not middleware
 
-There is no `middleware.ts` in this codebase (confirmed — doesn't exist) and auth is entirely client-side (JWT in a non-httpOnly cookie via `js-cookie`, read by `useAuth()` calling `GET /auth/me`). `app/admin/dashboard/page.tsx` follows the same convention as the rest of the app (no existing page had a route-guard pattern to copy — protected pages just call authenticated APIs and rely on the global axios 401 interceptor in `lib/api.ts` to bounce to `/login`) but adds an explicit guard, since silently failing 4 separate API calls would look broken rather than redirect cleanly:
+No `middleware.ts` exists in this codebase; auth is entirely client-side (JWT in a non-httpOnly cookie via `js-cookie`). `frontend/app/admin/layout.tsx` — not each individual page — owns the guard, shared by every `/admin/*` route:
+```js
+if (!user) { router.replace("/login"); return; }
+if (!user.is_admin) { router.replace("/dashboard"); return; }
 ```
-useEffect(() => {
-  if (authLoading) return;
-  if (!user) { router.replace("/login"); return; }
-  if (!user.is_admin) { router.replace("/dashboard"); return; }
-  // only now fetch admin data
-}, [authLoading, user, router]);
+While unauthorized/loading, only a spinner renders — no admin markup, table, or number ever flashes, matching the "don't reveal the route exists" requirement. The layout also owns the sidebar nav and the footer (avatar/name/email, logout, "← Back to app" link to `/dashboard`) — none of that is duplicated per-page.
+
+### 25.3 Sidebar navigation & notification dots
+
+Six items, in this exact order, each with a Lucide icon:
+
+| Label | Route | Notification dot |
+|---|---|---|
+| Overview | `/admin/dashboard` | none |
+| Users | `/admin/users` | none |
+| Reviews | `/admin/reviews` | yes — pending review count |
+| Contact Submissions | `/admin/contact` | yes — new-submission flag |
+| Career Tips | `/admin/career-tips` | none |
+| Admins | `/admin/admins` | none |
+
+Dots are driven by a single `GET /admin/notifications` call, fired once when the admin layout mounts and again on every route change within `/admin/*`:
+- Reviews dot: `pending_reviews_count > 0` (count of `Review` rows where `approved=false`). Nothing marks this "viewed" — it only clears once every pending review is actually approved (visiting the Reviews page does not dismiss it).
+- Contact dot: a boolean comparing the newest `ContactSubmission.created_at` against the current admin's own `users.contact_last_viewed_at` (new column, `alembic/versions/014_add_contact_last_viewed_to_users.py`). Navigating to `/admin/contact` calls `POST /admin/contact-submissions/mark-viewed` (sets `contact_last_viewed_at = now()` for that admin) immediately before refetching notifications, so this dot clears per-admin as soon as that page is opened.
+- This is poll-on-navigation, not real-time — no websocket/interval polling.
+
+### 25.4 The six admin pages
+
+- **Overview** (`admin/dashboard/page.tsx`) — `GET /admin/stats`: 3 stat cards (Total Users, Total CVs, Total Cover Letters) + a "CVs per Template" breakdown grid (group-by count on `CVDocument.template_id`, sorted descending), still using raw `template_id` strings rather than the UI display names from section 6's table. Read-only.
+- **Users** (`admin/users/page.tsx`) — **Free / Paid tabs**, each refetching `GET /admin/users?plan=free|pro`. Table: Email, Plan badge, Signup Date, **CVs Created, ATS Analyses** (usage counts per user). Read-only — no edit/delete/upgrade actions, still explicitly out of scope.
+- **Reviews** (`admin/reviews/page.tsx`) — **Pending / Approved tabs** with live counts in the tab labels (e.g. `Pending (3)`), both lists fetched on mount (`GET /admin/reviews/pending`, `GET /admin/reviews/approved`). Only the Pending tab has an action: "Approve" → `POST /admin/reviews/{id}/approve` (optimistic row move to Approved). There is no reject/delete endpoint — a pending review can only be approved or left pending.
+- **Contact Submissions** (`admin/contact/page.tsx`) — `GET /admin/contact-submissions`, read-only table (Name, Email, Message, Date). Also fires the "mark viewed" call described in 25.3.
+- **Career Tips** (`admin/career-tips/page.tsx`) — a real lightweight CMS. See 25.5 below (new this session — it existed in the code before but had never been documented).
+- **Admins** (`admin/admins/page.tsx`) — create-admin form + admins table with a per-row "Reset password" action. See 25.6 below (also new this session).
+
+`frontend/lib/api.ts`'s `adminApi` object now covers all of: `stats, pendingReviews, approvedReviews, approveReview, contactSubmissions, markContactViewed, notifications, users, careerTips, createCareerTip, deleteCareerTip, admins, createAdmin, resetAdminPassword` — same axios-instance/interceptor pattern as every other API group in that file.
+
+### 25.5 Career Tips CMS (previously undocumented)
+
+Backend: `career_tips` table (`id, title, image_url, caption, published_at, created_at`), created in `013_create_career_tips.py`; `title` was added a session later in `015_add_title_to_career_tips.py` — the table briefly existed without it. Public, unauthenticated routes (`app/api/routes/career_tips.py`, no `/admin` prefix):
 ```
-While `authLoading || !authorized`, the page renders only a centered spinner — never any admin markup, table, or number — so a non-admin or logged-out visitor never sees so much as a flash of real content, matching the "not shown any admin content or error revealing the route exists" requirement. The 4 admin API calls (`stats`/`pendingReviews`/`contactSubmissions`/`users`) are also wrapped in a `.catch()` that redirects to `/dashboard`, as defense-in-depth for the edge case of a token going stale (e.g. admin demoted) between the client-side check and the fetch.
+GET /api/v1/career-tips/          list all, newest by published_at first
+GET /api/v1/career-tips/{id}      single tip, 404 if missing
+```
+Admin-only management routes live in `admin.py` instead (`GET/POST /admin/career-tips`, `DELETE /admin/career-tips/{id}`).
 
-### 25.3 Backend: new `/admin/*` routes (`app/api/routes/admin.py`, registered in `main.py`)
+The admin publish form uses the same `RichTextEditor` component (Tiptap — `@tiptap/react` + `starter-kit` + `Underline`/`TextAlign`/`Link` extensions) that the CV Builder already uses, reused here for the tip's caption. The cover image is read client-side via `FileReader.readAsDataURL` (5MB cap) and submitted as a base64 data URI directly in the `image_url` field — **there is no separate file/blob storage step**; the base64 string is what gets stored in Postgres. This is fine for a low-volume internal tool but would bloat the table and response payloads at any real scale — worth revisiting before this CMS sees heavy use.
+
+⚠️ **There is no publish/unpublish toggle field in the schema.** The admin UI's list-item button is labeled "Unpublish," but it calls `DELETE /admin/career-tips/{id}` — a hard delete, not a status flip. "Publishing" a tip == inserting the row (it's public immediately, no draft state); "unpublishing" == permanently deleting it. If a real draft/publish workflow is ever needed, this will need an actual `is_published` (or similar) column — right now every row in the table is, by definition, already live.
+
+Public pages consuming this: `/career-tips` (list) and `/career-tips/[id]` (detail) — see section 23.2's updated table.
+
+### 25.6 Admins page — create & reset-password flow (previously undocumented)
+
+- **Create admin**: form (full name, email, password) → `POST /admin/admins`. Backend checks email uniqueness across the whole `users` table (400 if taken), then creates a `User` row directly with `is_admin=True` and a bcrypt-hashed password via the same `hash_password()` every signup uses. No email verification or invite step — the creating admin enters a plaintext password directly into the form, which is then sent over the wire and hashed server-side.
+- **Reset password**: "Reset password" button on any admin row → `POST /admin/admins/{admin_id}/reset-password`. Backend generates a random password via `secrets.token_urlsafe(12)`, hashes and stores it, and returns the **plaintext** new password in the response body — the only time it's ever shown. The frontend displays it once in a modal ("This is shown only once — copy it now and share it securely.") with a copy-to-clipboard button.
+- `GET /admin/admins` lists every `User` row where `is_admin=True`.
+- This is the in-app replacement for session 11's original bootstrap approach (a one-off DB script) — new admins no longer need direct DB access to be created.
+
+### 25.7 Backend: full `/admin/*` route list (`app/api/routes/admin.py`, registered in `main.py`)
 
 ```
-GET  /api/v1/admin/stats                     total_users, total_cvs, total_cover_letters,
-                                              cvs_per_template (group-by count on CVDocument.template_id)
-GET  /api/v1/admin/reviews/pending           reviews where approved=false, newest first
-POST /api/v1/admin/reviews/{id}/approve      sets approved=true — the fix for the manual-DB-query
-                                              gap flagged in section 23.3
-GET  /api/v1/admin/contact-submissions       all contact_submissions, newest first — first viewer
-                                              ever built for this table (previously DB-query-only)
-GET  /api/v1/admin/users                     id/email/plan/created_at only — no password hash,
-                                              no edit/delete actions (out of scope this pass)
+GET  /api/v1/admin/stats                        totals + cvs_per_template
+GET  /api/v1/admin/notifications                 pending_reviews_count, new_contact_submissions
+GET  /api/v1/admin/reviews/pending               reviews where approved=false, newest first
+GET  /api/v1/admin/reviews/approved              reviews where approved=true, newest first
+POST /api/v1/admin/reviews/{id}/approve          sets approved=true (no reject/delete route exists)
+GET  /api/v1/admin/contact-submissions           all contact_submissions, newest first
+POST /api/v1/admin/contact-submissions/mark-viewed   sets current admin's contact_last_viewed_at = now()
+GET  /api/v1/admin/users?plan=free|pro           id/email/plan/created_at + cv_count/ats_count, filterable
+GET  /api/v1/admin/career-tips                   list, newest first
+POST /api/v1/admin/career-tips                   create (201)
+DELETE /api/v1/admin/career-tips/{id}            hard delete (204; 404 if missing)
+GET  /api/v1/admin/admins                        users where is_admin=true
+POST /api/v1/admin/admins                        create new admin (201; 400 if email taken)
+POST /api/v1/admin/admins/{admin_id}/reset-password  regenerate & return a random plaintext password
 ```
-All four reuse existing models directly (`User`, `CVDocument`, `CoverLetter`, `ContactSubmission`, `Review`) — no new tables, no duplicated data. New response schemas in `app/schemas/admin.py` (`AdminStats`, `AdminContactSubmissionRead`, `AdminUserRead`); the reviews endpoints reuse the existing `ReviewRead` schema from `app/schemas/review.py` rather than defining a parallel one.
+All reuse existing models directly (`User`, `CVDocument`, `CoverLetter`, `ContactSubmission`, `Review`, `CareerTip`) — no duplicated tables. Response schemas in `app/schemas/admin.py`; the reviews endpoints reuse the existing `ReviewRead` schema, career tips reuse `CareerTipRead`/`CareerTipCreate`.
 
-### 25.4 Frontend: dashboard page
+---
 
-`frontend/app/admin/dashboard/page.tsx` — plain route (not inside the `(dashboard)` route group, since that group's `layout.tsx` only wraps its own literal child routes and `/admin/dashboard` needed to exist at that exact URL per the task). Manually replicates the same shell that group's `layout.tsx` provides (`<div className="min-h-screen bg-[#0d1117] flex flex-col"><Navbar />...`) rather than changing the shared layout, so every other dashboard route is untouched. Reuses the existing `components/shared/Navbar.tsx` as-is (no "Admin" link added to it — deliberately not advertising the route in nav for every user, consistent with not exposing that it exists to non-admins).
+## 26. Google Sign-In (session 12, 2026-07-19)
 
-Four sections in the order given: Overview (3 stat cards + a "CVs per Template" breakdown grid, plain `template_id` strings rather than the UI display names from section 6's table — no shared name-mapping constant exists yet to import, and this is explicitly a "function over polish" internal tool), Reviews Moderation (table + working "Approve" button, optimistic row removal on success), Contact Submissions (read-only table), Users (read-only table, plan shown as a small pill matching the existing Pro-badge styling convention from `Navbar.tsx`).
+Real server-side OAuth 2.0 **Authorization Code flow**, hand-rolled with `httpx` (new dependency, `requirements.txt` — no `authlib`/`google-auth`/OIDC library used). Not a client-side Google Identity Services popup/One Tap — the browser is redirected to Google and back.
 
-`frontend/lib/api.ts` gained `adminApi.{stats,pendingReviews,approveReview,contactSubmissions,users}()`, same axios-instance/interceptor pattern as every other API group in that file. `types/index.ts`'s `User` interface gained `is_admin: boolean`.
+### 26.1 Flow
 
-### 25.5 Verification (Playwright-driven, dev servers on frontend :3000 / backend :8000)
+1. `GoogleButton.tsx` → `loginWithGoogle()` (`frontend/lib/auth.ts`) does a plain `window.location.href` navigation to `GET /api/v1/auth/google/login`.
+2. `google_login` (`backend/app/api/routes/auth.py`) generates a random `state`, sets it as an httponly cookie, and 302-redirects to `accounts.google.com/o/oauth2/v2/auth` (`response_type=code`, `scope=openid email profile`).
+3. Google redirects back to `GET /api/v1/auth/google/callback`, which validates `state` against the cookie, then exchanges the code **server-to-server** for an access token (`httpx.post` to Google's token endpoint) and fetches `email` / `email_verified` / `sub` (→ `google_id`) / `name` from Google's userinfo endpoint.
+4. On success, mints ZenzHire's own JWT (`create_access_token(user.id)` — same token type/flow as email/password login) and redirects to `{FRONTEND_URL}/auth/callback#token={token}` (URL **fragment**, not a query param, so the token never lands in server logs).
+5. `frontend/app/auth/callback/page.tsx` reads the token out of the URL hash, stores it in the same `token` cookie the rest of the app already uses (via `js-cookie`), and routes to `/dashboard`. No separate auth path downstream — from this point on a Google-originated session is indistinguishable from an email/password one.
 
-- Logged in as `admin@zenzhireadminit.com`, loaded `/admin/dashboard` directly: all 4 sections rendered real data (29 users, 111 CVs, 4 cover letters, an 11-template breakdown, both pre-existing pending test reviews from session 9, 3 real contact submissions, the full user list including one real `pro`-plan account) with zero console errors.
-- Logged in as a normal (non-admin, freshly-signed-up) user, navigated to `/admin/dashboard`: redirected to `/dashboard`, page body never contained "Admin Dashboard" or any section heading.
-- Hit `/admin/dashboard` with no session at all: redirected to `/login`, same "never rendered" confirmation.
-- Clicked the real "Approve" button on the pending review left over from session 9 ("Playwright Reviewer", id 2): confirmed via direct API check it flipped to `approved=true` and immediately appeared on the public `/reviews` page (name/stars/text all correct) — this is the exact same check section 23.3 did manually, now done through the actual admin UI. Reverted it back to `approved=false` afterward via a one-off script, leaving the dev DB in the same state it was found (matching the revert step section 23.3 itself already established as this project's convention for this kind of test).
-- One environment note for future sessions: found an unrelated, already-hung `node` process squatting on port 3000 (not responding to HTTP, presumably an orphaned dev server from a much earlier session) — killed it to free the port rather than working around it, since the backend's `cors_origins` (`app/core/config.py` / `.env`) is hardcoded to `http://localhost:3000` and testing against `:3001` would have silently failed every request with a CORS error rather than a clear one.
+### 26.2 Data model changes
+
+`backend/alembic/versions/016_add_google_oauth_to_users.py`:
+- `users.hashed_password` changed from `nullable=False` → `nullable=True` (Google-only accounts have no password). ⚠️ The migration's `downgrade()` reverts this to `nullable=False`, which would break any existing Google-only account if ever rolled back — worth remembering before running `alembic downgrade` against a database with real Google signups in it.
+- New columns: `google_id` (nullable, populated for Google-linked accounts) and `auth_provider` (distinguishes `"local"` vs `"google"` signups, though nothing currently branches on this value besides account creation — see 26.3).
+
+New env vars (`backend/.env.example`): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `FRONTEND_URL`. (`STRIPE_*` placeholders were already present before this session and remain unused — see section 22 item 3.)
+
+**Frontend placement**: on both `(auth)/login/page.tsx` and `(auth)/signup/page.tsx`, `<GoogleButton />` sits **below** the email/password form, separated by an "Or" divider (`h-px` gradient lines either side of an uppercase "Or" label) — not above it, and not side-by-side. Same layout on both pages.
+
+### 26.3 ⚠️ Account-linking behavior — silent, no re-authentication
+
+```python
+user = db.query(User).filter(User.email == email).first()
+if user:
+    if not user.google_id:
+        user.google_id = google_id
+        db.commit()
+else:
+    user = User(email=email, full_name=full_name, hashed_password=None,
+                google_id=google_id, auth_provider="google")
+    ...
+```
+If a Google login's email matches an **existing email/password account**, it is auto-linked — `google_id` is attached with **no password re-entry, no confirmation step, and no check of the existing account's `auth_provider`**. This is intentional convenience (it means a user who signed up with email/password can later just click "Sign in with Google" and land in the same account), but it also means: whoever controls a given email address at Google can sign into the matching ZenzHire account, full stop, regardless of what password was set on it. There's no ID-token signature/`aud`/`iss` verification either (the code trusts the userinfo response from a token it itself validated via the code exchange, which is an acceptable simplification, but there's no defense-in-depth check beyond that). **Flag this for a security pass before relying on it in production** — see section 22 item 18.
+
+---
+
+## 27. Locked Free/Pro Feature Plan (finalized session 12, 2026-07-19) — source of truth, with real enforcement status
+
+This is the authoritative feature/plan matrix, matching `frontend/app/pricing/page.tsx`. **Rewritten session 13 — all 8 rows are now genuinely enforced server-side**, not just documented as a plan. Original session-12 version of this table (mostly frontend-only) is preserved in git history if needed; this replaces it in place rather than appending a correction, per this doc's own convention for significant rewrites (see how section 25 was handled).
+
+Every row below was verified session 13 with a real Free-tier test account and a real Pro test account (`pro_until` set to a future date) making **direct API calls**, not just clicking through the UI — confirming the backend actually rejects over-limit Free requests and actually lifts every limit for Pro.
+
+| Feature | Free | Pro | Actual backend enforcement |
+|---|---|---|---|
+| CV Templates | 5 templates (classic, academic, minimal, corporate, nova) | All 14 | **Enforced.** `create_cv`/`update_cv` in `backend/app/api/routes/cv.py` reject a non-Pro `template_id` outside `FREE_TEMPLATE_IDS` (new constant, `backend/app/models/cv_document.py`) with a 403 explaining the upgrade. |
+| CVs | 1 CV, unlimited PDF downloads of it | Unlimited, unlimited downloads | **Enforced.** `create_cv` and `duplicate_cv` both count the user's existing `CVDocument` rows and reject a 2nd for Free with a clear 403 message. |
+| Cover Letters | 1 saved, unlimited downloads | Unlimited | **Enforced.** Same pattern as CVs, in `create_cover_letter`/`duplicate_cover_letter`. |
+| ATS Checker | 5 checks total (lifetime) | Unlimited | **Enforced** — unchanged logic (counts `ATSResult` rows), but switched from `current_user.plan == "free"` onto the new `is_pro` check for consistency with everything else. |
+| Career Mentor (Zeni) onboarding | Included (free for all) | Unlimited, repeatable per new CV | **Still not separately capped**, but the stated rationale ("naturally bounded by the 1-CV limit") now actually holds, since CVs themselves are capped at 1 for Free as of this session. |
+| Zeni ongoing AI help | 3 uses/day | Unlimited | **Enforced, and the number mismatch is fixed.** New `users.ai_usage_count`/`ai_usage_date` columns track real per-day usage server-side in `POST /cv/ai/improve`; Free is capped at 3/day (was coded as 5 client-side, see session 12 item 19 — frontend `AI_FREE_LIMIT` constant also corrected to 3 to match). |
+| CV Score | Basic overall score only | Full 8 sub-score breakdown + history | **Enforced server-side.** New `GET /cv/{id}/score` endpoint (`backend/app/services/score_service.py`, a faithful Python port of `RightPanel.tsx`'s scoring functions) omits `sub_scores` entirely from the response body for Free users — not computed-then-hidden, genuinely withheld. |
+| Auto Fix | Locked | Included | **Enforced.** `AIImproveRequest` gained an `is_auto_fix` flag; `POST /cv/ai/improve` returns 403 for any Free-plan request with that flag set, before touching the AI service. |
+| Job Match Score | Locked | Included | **Enforced.** New `POST /cv/{id}/job-match` endpoint (same `score_service.py` port) requires `is_pro`; no client-side equivalent computation is exposed to Free users' data. |
+
+### 27.1 `pro_until` / `is_pro` — the new enforcement primitive
+
+`users.plan` (the old `free`/`pro` enum) is **no longer the source of truth for access** — it's now just a display label. The real check, everywhere, is:
+
+```python
+# backend/app/models/user.py
+@property
+def is_pro(self) -> bool:
+    return self.pro_until is not None and self.pro_until > datetime.now(timezone.utc)
+```
+
+`pro_until` (nullable `DateTime(timezone=True)`, migration `017_add_pro_until_ai_usage`) is `NULL` for a user who has never been Pro, or a future datetime for active Pro access — this is what makes the 7-Day Pass representable as a real time-limited entitlement (session 12 item 21, now resolved) instead of just a Pricing-page line item. `require_pro` (`backend/app/api/dependencies.py`) and every inline plan check across `ats.py`/`cv.py`/`cover_letter.py` now read `current_user.is_pro`, not `current_user.plan`.
+
+**⚠️ Known gap:** nothing currently reverts `plan` back to `"free"` when `pro_until` expires — `is_pro` still correctly returns `false` after expiry (it's computed live, not cached), so **enforcement is unaffected**, but the `plan` label can drift stale in the admin user list until the next real purchase resets it. Not fixed this session; low priority since it's cosmetic-only.
+
+### 27.2 Pricing (unchanged, still matches `frontend/app/pricing/page.tsx` exactly)
+
+- **Free** — $0/month.
+- **7-Day Pass** — $2.99 one-time, full Pro feature access for 7 days, no auto-renewal. **Now backed by a real `pro_until` expiry** (session 12 item 21 caveat resolved) — see section 28.
+- **Pro Monthly** — $9.99/month.
+- **Pro Yearly** — $79.99/year (displayed as $6.67/month, "Save 33%"), default toggle position.
+- CTA buttons (`Upgrade to Pro`, `Get 7-Day Access`) now call the real `POST /billing/checkout` flow for logged-in users (see section 28) instead of linking to `/signup`; `Get Started Free` still links to `/signup` as before, since Free doesn't require checkout.
+
+---
+
+## 28. PAYable Payment Integration (session 13, 2026-07-19) — code-complete, unverified end-to-end
+
+Real money flow for the Pro/7-Day Pass upgrades described in section 27. Built against **PAYable's Direct API** (not Stripe — see section 22 item 3). Status: every piece up to the actual external PAYable call is built and internally consistent; the live round-trip against PAYable's sandbox has not been exercised because their auth endpoint is currently rejecting our credentials (28.4).
+
+### 28.1 Backend
+
+New/changed, all under `backend/`:
+
+| File | Purpose |
+|---|---|
+| `app/core/config.py` | New typed `Settings` fields: `payable_env`, `payable_merchant_key`, `payable_merchant_token`, `payable_business_key`, `payable_business_token`, `payable_origin_domain`, `payable_webhook_url`, plus `backend_url` (used to build the `returnUrl` PAYable redirects the customer's browser to). All read from `.env`, never hardcoded. |
+| `app/models/billing_transaction.py` | New `BillingTransaction` table (migration `018_create_billing_transactions`) — `user_id`, `plan`, `invoice_id` (unique), `amount`, `currency_code`, `status` (`pending`/`success`/`failed`), `payable_order_id`, `payable_transaction_id`, `raw_webhook_payload` (JSONB), timestamps. This is the webhook's lookup table (by `invoice_id`) and idempotency guard, and doubles as an audit trail — deliberately not just parsing the invoice ID string back apart. |
+| `app/services/billing.py` | The PAYable client. `PLAN_CONFIG` maps `monthly`/`yearly`/`pass7` → amount (`"9.99"`/`"79.99"`/`"2.99"`, USD, matching section 27.2's pricing exactly) and `pro_until` extension in days (30/365/7). `_get_access_token()` does the Direct Auth call (Basic `base64(businessKey:businessToken)` → Bearer token). `_checkout_check_value()` / `_webhook_check_value()` implement PAYable's two documented SHA512 digest formulas exactly (checkout: `merchantKey\|invoiceId\|amount\|currencyCode\|SHA512(merchantToken)`, uppercased and outer-hashed; webhook: same shape plus `payableOrderId`/`payableTransactionId`/`statusCode`/`invoiceNo`). `create_checkout_session()` computes the amount server-side from the plan (never trusts a price from the frontend), creates the `BillingTransaction` row, and returns PAYable's `paymentPage` URL. `handle_webhook()` verifies the incoming `checkValue` with a timing-safe comparison (`hmac.compare_digest`) before trusting anything else in the payload, looks up the transaction by `invoiceNo`, and on `statusMessage == "SUCCESS"` extends `pro_until` **from whichever is later — `now()` or the user's current `pro_until`** (so a renewal before expiry doesn't waste remaining time), guarded so a duplicate webhook delivery for an already-`"success"` transaction is a no-op rather than double-extending. |
+| `app/api/routes/billing.py` | `POST /billing/checkout` (authenticated) → `CheckoutResponse{payment_page, invoice_id}`. `POST /billing/webhook` (public, no auth — PAYable calls this server-to-server; authenticity comes from the `checkValue` digest, not a session) → always responds `{"Status": 200}` per PAYable's doc, even when the invoice isn't found (logged for manual review, not crashed) — a `checkValue` mismatch is the one case that gets a real `400` instead, since that's a genuine forged/corrupted request. `GET /billing/return` (public) → 302 redirect to the frontend `/billing/return` page; deliberately does **no** plan activation itself, since the customer's browser landing here is not guaranteed (they could close the tab) — only the webhook grants access. |
+| `app/api/routes/admin.py` | New `POST /admin/users/{id}/set-pro` (already behind the router's existing `require_admin` dependency) — manually sets/clears a user's `pro_until` for support cases (refunds, goodwill, chargebacks, or — right now — working around section 28.4's blocker for internal testing once credentials are fixed). This is the "admin-settable `pro_until`" escape hatch flagged as missing in session 12 item 21/section 27.1; real upgrades go through the webhook, this is the manual override. |
+| `app/schemas/billing.py`, `app/schemas/user.py`, `app/schemas/admin.py` | `CheckoutRequest` (plan + billing/phone fields, see 28.2), `CheckoutResponse`, `AdminSetProRequest`/`Response`. `UserRead` and `AdminUserRead` both gained `pro_until` and `is_pro` fields — **this matters**, see 28.3. |
+
+`app/models/__init__.py` also now imports `BillingTransaction` (kept the section-22-item-14 gotcha in mind this time).
+
+### 28.2 Frontend
+
+- `frontend/components/billing/BillingModal.tsx` — new. PAYable's standard (non-"Optional Mode") checkout requires `customerMobilePhone` and a full billing address, and nothing in this app collects either anywhere today (deliberate choice, confirmed with the project owner rather than sending fabricated placeholder data to a live payment processor) — this modal collects phone/street/city/postcode/country right before redirect, prefilling nothing since we don't have the data yet.
+- `frontend/app/pricing/page.tsx` — `Upgrade to Pro`/`Get 7-Day Access` are now buttons: logged-out → `/signup` (unchanged), logged-in → open `BillingModal` → `POST /billing/checkout` → `window.location.href = payment_page`.
+- `frontend/app/billing/return/page.tsx` — new. Lands here after the backend's `GET /billing/return` redirect. Calls `useAuth()`'s `refetch()` once (webhook may land a moment after the browser redirect does — this page does not block on it) and auto-redirects to `/dashboard` after 4s, with an immediate manual link too.
+- `frontend/lib/api.ts` — new `billingApi.checkout()`.
+- `frontend/types/index.ts` — `User` interface gained `pro_until`/`is_pro`, matching the backend schema change.
+
+### 28.3 The `isPro`-everywhere fix (important, found mid-session)
+
+Before this session, every frontend page derived Pro status as `user?.plan === "pro"` (`Navbar.tsx`, `ats-checker/page.tsx`, `dashboard/templates/page.tsx`, `cv-builder/[id]/page.tsx`). Section 27.1 explains why that's now wrong: `plan` is a cosmetic label, and **nothing in the webhook flow sets it directly to `"pro"` except as a side effect** of a successful payment (`handle_webhook` does set `user.plan = PlanType.pro` for admin-list cosmetics, but the real gate was always meant to be `pro_until`/`is_pro`). Left unfixed, a real paying customer would have a correctly-updated backend (`is_pro` returning `true`, every API limit correctly lifted) but a frontend that still rendered every Pro feature as locked, because it was reading the wrong field. All four files switched to `user?.is_pro`.
+
+### 28.4 Sandbox verification — BLOCKED, external
+
+Stages 1-4 (config → models/migration → service → routes → frontend) are done and internally verified: `alembic current == alembic heads == 018_create_billing_transactions`; `app.main` imports cleanly with all three billing routes registered; frontend typechecks clean (see section 22 item 23) on every file touched; an ngrok tunnel was stood up and confirmed reachable (`https://e33a-111-223-176-99.ngrok-free.app`, **temporary — will change on next ngrok restart, and must be replaced with the real production backend URL in `PAYABLE_WEBHOOK_URL` once deployed, this is a hard requirement, not optional cleanup**).
+
+Stage 5 (the actual "redirect to PAYable, pay with a sandbox card, webhook fires, `pro_until` updates" loop) could not be completed. `POST https://sandboxipgpayment.payable.lk/ipg/auth/direct-api` — the very first call, Direct Auth, before any `checkValue` signing is even involved — returns:
+
+```
+404 {"status":404,"error":"Invalid authentication"}
+```
+
+for the `PAYABLE_BUSINESS_KEY`/`PAYABLE_BUSINESS_TOKEN` currently in `.env`. Tried the exact doc-specified request format, the doc's own literal example `originDomain`, and a `Basic <token>`-prefixed Authorization header (one attempt each, no further variation-guessing since that risks looking like abuse to PAYable's endpoint) — identical 404 every time. Reproduced again, identically, on a second separate day at the project owner's request, specifically to rule out transient failure before concluding it's not a timing issue. Since this fails before reaching any code this integration wrote, it's confirmed to be external — most likely the sandbox Business Key/Token needing manual activation on PAYable's side (plausible given testing landed on a Sunday), a copy-paste issue in how the credentials reached `.env`, or an account state PAYable needs to fix.
+
+**Next action is a PAYable support ticket**, not further local debugging — give them the exact 404 body above and ask specifically whether sandbox Business Key/Token require manual activation. Once auth succeeds, `create_checkout_session()` should work immediately (the failure is purely at the credential-auth step, upstream of everything this integration's own code does), and the remaining verification (redirect to PAYable's hosted page, submit a sandbox test card, confirm the webhook fires and `pro_until` updates, confirm previously-blocked Pro features unlock for that real account) can proceed — that last step also needs a real browser to click through PAYable's hosted card form, which isn't available to run from this session either.
 
 ---

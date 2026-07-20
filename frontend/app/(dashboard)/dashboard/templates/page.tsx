@@ -75,7 +75,7 @@ function ProUpgradeModal({
 export default function TemplatesPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const isPro = user?.plan === "pro";
+  const isPro = user?.is_pro ?? false;
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [proModal, setProModal] = useState<string | null>(null);

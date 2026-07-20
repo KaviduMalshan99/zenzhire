@@ -140,7 +140,29 @@ class AIImproveRequest(BaseModel):
     text: str
     action: str
     context: str = ""
+    is_auto_fix: bool = False
 
 
 class AIImproveResponse(BaseModel):
     improved_text: str
+
+
+class SubScoreItem(BaseModel):
+    label: str
+    score: int
+    tip: str
+    section_type: str | None = None
+
+
+class CVScoreResponse(BaseModel):
+    score: int
+    missing: list[str]
+    sub_scores: dict[str, SubScoreItem] | None = None
+
+
+class JobMatchRequest(BaseModel):
+    job_description: str
+
+
+class JobMatchResponse(BaseModel):
+    match_score: int

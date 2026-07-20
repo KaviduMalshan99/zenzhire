@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Enum as SAEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from datetime import datetime, timezone
 import enum
 from app.core.database import Base
 
@@ -22,9 +23,17 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False, nullable=False)
     plan = Column(SAEnum(PlanType), default=PlanType.free, nullable=False)
+    pro_until = Column(DateTime(timezone=True), nullable=True)
+    ai_usage_count = Column(Integer, default=0, nullable=False)
+    ai_usage_date = Column(Date, nullable=True)
     contact_last_viewed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    @property
+    def is_pro(self) -> bool:
+        """Real Pro-access check. Replaces plan == "pro" everywhere it gates a feature."""
+        return self.pro_until is not None and self.pro_until > datetime.now(timezone.utc)
 
     cvs = relationship("CV", back_populates="owner", cascade="all, delete-orphan")
     cv_documents = relationship("CVDocument", back_populates="owner", cascade="all, delete-orphan")

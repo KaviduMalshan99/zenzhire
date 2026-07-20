@@ -24,7 +24,7 @@ async def analyze_cv(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.plan == "free":
+    if not current_user.is_pro:
         count = db.query(ATSResult).filter(ATSResult.user_id == current_user.id).count()
         if count >= FREE_LIMIT:
             raise HTTPException(

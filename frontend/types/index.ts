@@ -137,6 +137,8 @@ export interface User {
   is_active: boolean;
   is_admin: boolean;
   plan: PlanType;
+  pro_until: string | null;
+  is_pro: boolean;
   created_at: string;
 }
 

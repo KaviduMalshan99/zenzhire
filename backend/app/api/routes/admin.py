@@ -21,6 +21,7 @@ from app.schemas.admin import (
     AdminResetPasswordResponse,
     AdminNotifications,
 )
+from app.schemas.billing import AdminSetProRequest, AdminSetProResponse
 from app.schemas.review import ReviewRead
 from app.schemas.career_tip import CareerTipCreate, CareerTipRead
 
@@ -112,12 +113,32 @@ def list_users(plan: PlanType | None = None, db: Session = Depends(get_db)):
             id=u.id,
             email=u.email,
             plan=u.plan,
+            pro_until=u.pro_until,
+            is_pro=u.is_pro,
             created_at=u.created_at,
             cv_count=cv_counts.get(u.id, 0),
             ats_count=ats_counts.get(u.id, 0),
         )
         for u in users
     ]
+
+
+@router.post("/users/{user_id}/set-pro", response_model=AdminSetProResponse)
+def set_user_pro_until(user_id: int, payload: AdminSetProRequest, db: Session = Depends(get_db)):
+    """Manual override for support/edge cases (refunds, goodwill extensions, chargebacks).
+    Real upgrades happen via the PAYable webhook -- this exists because that flow needs
+    a manual escape hatch, not as the primary path."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.pro_until = payload.pro_until
+    if payload.pro_until is not None:
+        user.plan = PlanType.pro
+    db.commit()
+    db.refresh(user)
+
+    return AdminSetProResponse(user_id=user.id, pro_until=user.pro_until, is_pro=user.is_pro)
 
 
 @router.get("/career-tips", response_model=list[CareerTipRead])

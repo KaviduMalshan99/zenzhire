@@ -6,8 +6,11 @@ import { Check, Lock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
+import { useAuth } from "@/hooks/useAuth";
+import { BillingModal } from "@/components/billing/BillingModal";
 
 type Billing = "monthly" | "yearly";
+type PlanId = "monthly" | "yearly" | "pass7";
 
 const FEATURES: Array<{
   label: string;
@@ -19,7 +22,7 @@ const FEATURES: Array<{
   { label: "CVs", free: "1 CV, unlimited downloads", pro: "Unlimited, unlimited downloads" },
   { label: "Cover Letters", free: "1 saved, unlimited downloads", pro: "Unlimited" },
   { label: "ATS Checker", free: "5 checks total (lifetime)", pro: "Unlimited" },
-  { label: "Career Mentor (Zeni) onboarding", free: "Included", pro: "Unlimited (per new CV)" },
+  { label: "Zeni onboarding", free: "Included", pro: "Unlimited (per new CV)" },
   { label: "Zeni ongoing AI help", free: "3 uses/day", pro: "Unlimited" },
   { label: "CV Score", free: "Basic overall score only", pro: "Full 8 sub-scores + history" },
   { label: "Auto Fix", free: "Locked", pro: "Included", freeLocked: true },
@@ -43,9 +46,25 @@ const FAQS = [
 
 export default function PricingPage() {
   const [billing, setBilling] = useState<Billing>("yearly");
+  const { user } = useAuth();
+  const [checkoutPlan, setCheckoutPlan] = useState<PlanId | null>(null);
 
   const proPrice = billing === "monthly" ? "$9.99" : "$6.67";
   const proPeriod = billing === "monthly" ? "/month" : "/month";
+
+  const planMeta: Record<PlanId, { label: string; price: string }> = {
+    monthly: { label: "Pro Monthly", price: "$9.99/month" },
+    yearly: { label: "Pro Yearly", price: "$79.99/year" },
+    pass7: { label: "7-Day Pro Pass", price: "$2.99, one-time" },
+  };
+
+  const handleUpgradeClick = (plan: PlanId) => {
+    if (!user) {
+      window.location.href = "/signup";
+      return;
+    }
+    setCheckoutPlan(plan);
+  };
 
   return (
     <div className="min-h-screen bg-[#0d1117]">
@@ -146,12 +165,12 @@ export default function PricingPage() {
             <p className="text-[#8b949e] text-xs mb-6 h-4">
               {billing === "yearly" ? "$79.99/year, billed yearly" : " "}
             </p>
-            <Link
-              href="/signup"
+            <button
+              onClick={() => handleUpgradeClick(billing)}
               className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-md transition-colors mb-8"
             >
               Upgrade to Pro <ArrowRight className="w-4 h-4" />
-            </Link>
+            </button>
             <ul className="space-y-4">
               {FEATURES.map((f) => (
                 <li key={f.label} className="flex items-start justify-between gap-3 text-sm">
@@ -180,14 +199,22 @@ export default function PricingPage() {
               automatically.
             </p>
           </div>
-          <Link
-            href="/signup"
+          <button
+            onClick={() => handleUpgradeClick("pass7")}
             className="flex-shrink-0 inline-flex items-center justify-center gap-2 border border-[#30363d] hover:border-blue-500/60 text-white font-medium px-6 py-3 rounded-md transition-colors whitespace-nowrap"
           >
             Get 7-Day Access
-          </Link>
+          </button>
         </div>
       </div>
+
+      <BillingModal
+        open={checkoutPlan !== null}
+        plan={checkoutPlan ?? "monthly"}
+        planLabel={checkoutPlan ? planMeta[checkoutPlan].label : ""}
+        planPrice={checkoutPlan ? planMeta[checkoutPlan].price : ""}
+        onClose={() => setCheckoutPlan(null)}
+      />
 
       {/* FAQ */}
       <div className="border-t border-[#30363d] bg-[#0a0e14]">

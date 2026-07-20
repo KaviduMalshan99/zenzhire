@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Sparkles, ArrowRight, Loader2, Check, CheckCircle2, Circle } from "lucide-react";
 import { careerMentorApi, type CareerMentorStep } from "@/lib/api";
 import type { TemplateId } from "@/types";
@@ -115,7 +116,7 @@ function getAck(step: string, answer: string, nextStep?: string): string {
   }
 }
 
-function MentorAvatar({ size = "sm" }: { size?: "sm" | "lg" }) {
+function ZeniAvatar({ size = "sm" }: { size?: "sm" | "lg" }) {
   const dims = size === "lg" ? "w-14 h-14" : "w-7 h-7";
   const iconDims = size === "lg" ? "w-6 h-6" : "w-3.5 h-3.5";
   return (
@@ -130,8 +131,8 @@ function MentorAvatar({ size = "sm" }: { size?: "sm" | "lg" }) {
 
 function TypingBubble() {
   return (
-    <div className="flex items-end gap-2 animate-in fade-in duration-200" aria-label="Career Mentor is typing">
-      <MentorAvatar />
+    <div className="flex items-end gap-2 animate-in fade-in duration-200" aria-label="Zeni is typing">
+      <ZeniAvatar />
       <div className="bg-[#161b22] border border-[#30363d] rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
         <span className="typing-dot" />
         <span className="typing-dot" style={{ animationDelay: "0.2s" }} />
@@ -144,7 +145,7 @@ function TypingBubble() {
 function MentorBubble({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-end gap-2 animate-in fade-in slide-in-from-bottom-1 duration-300">
-      <MentorAvatar />
+      <ZeniAvatar />
       <div className="max-w-[85%] bg-[#161b22] border border-[#30363d] text-[#e6edf3] text-sm rounded-2xl rounded-bl-sm px-4 py-2.5">
         {children}
       </div>
@@ -155,7 +156,7 @@ function MentorBubble({ children }: { children: React.ReactNode }) {
 function MentorAckBubble({ text }: { text: string }) {
   return (
     <div className="flex items-end gap-2 animate-in fade-in slide-in-from-bottom-1 duration-300">
-      <MentorAvatar />
+      <ZeniAvatar />
       <div className="max-w-[85%] bg-[#161b22]/60 border border-[#30363d]/60 text-[#8b949e] text-xs italic rounded-2xl rounded-bl-sm px-3.5 py-2">
         {text}
       </div>
@@ -214,21 +215,32 @@ function WelcomeScreen({
   error: string | null;
 }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center gap-5 px-4">
-      <div className="animate-in zoom-in duration-500">
-        <MentorAvatar size="lg" />
+    <div className="flex-1 flex flex-col items-center justify-center text-center gap-7 px-4">
+      <div className="relative mx-auto w-32 sm:w-40 animate-in fade-in zoom-in-95 duration-700">
+        <div
+          className="pointer-events-none absolute inset-0 scale-150 rounded-full opacity-40"
+          style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)", filter: "blur(40px)" }}
+        />
+        <Image
+          src="/zeniai.png"
+          alt="Zeni, your AI Career Partner"
+          width={587}
+          height={949}
+          className="relative w-full h-auto drop-shadow-[0_15px_35px_rgba(37,99,235,0.35)]"
+          priority
+        />
       </div>
-      <div className="space-y-2 max-w-sm animate-in fade-in slide-in-from-bottom-1 duration-500">
-        <p className="text-white font-semibold text-lg">👋 Welcome to ZenzHire!</p>
+      <div className="space-y-3 max-w-sm animate-in fade-in slide-in-from-bottom-1 duration-500">
+        <p className="text-white font-semibold text-xl">👋 Welcome to ZenzHire!</p>
         <p className="text-[#8b949e] text-sm leading-relaxed">
-          I&apos;m your Career Mentor. I&apos;ll help you build your CV in about 5 minutes.
+          I&apos;m Zeni, your AI Career Partner. I&apos;ll help you build your CV in about 5 minutes.
         </p>
       </div>
       {error && <p className="text-red-400 text-xs">{error}</p>}
       <button
         onClick={onStart}
         disabled={starting}
-        className="mt-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2"
+        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2"
       >
         {starting && <Loader2 className="w-4 h-4 animate-spin" />}
         Let&apos;s start
@@ -323,7 +335,12 @@ function OnboardingFlow() {
         setCvId(res.data.cv_id);
         setPrefetched(res.data);
       })
-      .catch(() => setError("Couldn't start the conversation. Please try again."));
+      .catch((err) => {
+        setError(
+          (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+            "Couldn't start the conversation. Please try again."
+        );
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -384,8 +401,8 @@ function OnboardingFlow() {
           {/* Header */}
           <div className="flex items-center justify-between py-4 flex-shrink-0 gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-5 h-5 text-blue-400 flex-shrink-0" />
-              <span className="text-white font-semibold text-sm whitespace-nowrap">Career Mentor</span>
+              <ZeniAvatar />
+              <span className="text-white font-semibold text-sm whitespace-nowrap">Zeni</span>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               {started && !complete && (
@@ -484,7 +501,7 @@ function OnboardingFlow() {
 
                   {inputBusy ? (
                     <div className="flex items-center gap-2 text-[#8b949e] text-sm py-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> {submitting ? "Saving..." : "Mentor is responding..."}
+                      <Loader2 className="w-4 h-4 animate-spin" /> {submitting ? "Saving..." : "Zeni is responding..."}
                     </div>
                   ) : inputType === "buttons" && options ? (
                     <div className="flex flex-wrap gap-2">
