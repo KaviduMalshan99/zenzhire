@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import type { CVDocument } from "@/types";
+import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
+import { CAREER_MENTOR_ENABLED } from "@/lib/feature-flags";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 import { Lock, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPLATES, CATEGORIES, type Template } from "@/lib/templates-data";
@@ -79,16 +84,43 @@ export default function TemplatesPage() {
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [proModal, setProModal] = useState<string | null>(null);
+  const [creating, setCreating] = useState<string | null>(null);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   const filtered = TEMPLATES.filter(
     (t) => activeCategory === "all" || t.category === activeCategory
   ).sort((a, b) => (a.plan === b.plan ? 0 : a.plan === "free" ? -1 : 1));
 
-  const handleSelect = (template: Template) => {
+  const handleSelect = async (template: Template) => {
     if (template.plan === "pro" && !isPro) {
       setProModal(template.name);
       return;
     }
+
+    if (!CAREER_MENTOR_ENABLED) {
+      setCreating(template.id);
+      try {
+        const templateDefaults = TEMPLATE_DEFAULT_CUSTOMIZATION[template.id] ?? {};
+        const res = await api.post<CVDocument>("/cv/", {
+          title: "My CV",
+          template_id: template.id,
+          customization: {
+            ...DEFAULT_CUSTOMIZATION,
+            ...templateDefaults,
+            spacing: "normal",
+            skillStyle: "classic",
+            skillColumns: 2,
+          },
+        });
+        router.push(`/cv-builder/${res.data.id}`);
+      } catch (err: any) {
+        setLimitMessage(err?.response?.data?.detail || "Failed to create CV. Please try again.");
+      } finally {
+        setCreating(null);
+      }
+      return;
+    }
+
     router.push(`/cv-builder/onboarding?template=${template.id}`);
   };
 
@@ -141,6 +173,7 @@ export default function TemplatesPage() {
               template={template}
               locked={template.plan === "pro" && !isPro}
               actionLabel="Use Template"
+              actionLoading={creating === template.id}
               onAction={() => handleSelect(template)}
             />
           ))}
@@ -150,6 +183,8 @@ export default function TemplatesPage() {
       {proModal && (
         <ProUpgradeModal templateName={proModal} onClose={() => setProModal(null)} />
       )}
+
+      <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
     </div>
   );
 }

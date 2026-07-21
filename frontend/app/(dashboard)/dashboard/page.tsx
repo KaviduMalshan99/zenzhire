@@ -25,6 +25,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 
 // ── CV card with inline rename + dropdown menu ─────────────────────────────────
 
@@ -175,6 +176,7 @@ export default function DashboardPage() {
   const [coverLetters, setCoverLetters] = useState<CoverLetterListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<CVDocument | null>(null);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -281,13 +283,17 @@ export default function DashboardPage() {
 
           <button
             onClick={async () => {
-              const res = await coverLetterApi.create({
-                title: "My Cover Letter",
-                template_id: "classic",
-                job_title: "",
-                company: "",
-              });
-              router.push(`/cover-letter/${res.data.id}`);
+              try {
+                const res = await coverLetterApi.create({
+                  title: "My Cover Letter",
+                  template_id: "classic",
+                  job_title: "",
+                  company: "",
+                });
+                router.push(`/cover-letter/${res.data.id}`);
+              } catch (err: any) {
+                setLimitMessage(err?.response?.data?.detail || "Failed to create cover letter. Please try again.");
+              }
             }}
             className="bg-[#161b22] border border-[#30363d] hover:border-blue-600/50 rounded-lg p-6 flex items-center justify-between group transition-colors text-left"
           >
@@ -432,6 +438,8 @@ export default function DashboardPage() {
         onClose={() => setPendingDelete(null)}
         onConfirm={handleDeleteConfirm}
       />
+
+      <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
     </div>
   );
 }

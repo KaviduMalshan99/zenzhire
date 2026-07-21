@@ -7,6 +7,7 @@ import { coverLetterApi } from "@/lib/api";
 import type { CoverLetterListItem } from "@/types";
 import { Plus, Loader2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 
 const TEMPLATE_LABELS: Record<string, string> = {
   classic: "Classic",
@@ -178,6 +179,7 @@ export default function CoverLetterPage() {
   const [creating, setCreating] = useState(false);
   const [duplicating, setDuplicating] = useState<number | null>(null);
   const [token, setToken] = useState("");
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setToken(Cookies.get("token") ?? "");
@@ -197,6 +199,8 @@ export default function CoverLetterPage() {
         company: "",
       });
       router.push(`/cover-letter/${res.data.id}`);
+    } catch (err: any) {
+      setLimitMessage(err?.response?.data?.detail || "Failed to create cover letter. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -282,6 +286,8 @@ export default function CoverLetterPage() {
           />
         ))}
       </div>
+
+      <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
 import type { CVDocument, CVSection, SectionType } from "@/types";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -507,6 +508,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
   const [groupBySection, setGroupBySection] = useState(false);
   const [fixedIssues, setFixedIssues] = useState<Set<string>>(new Set());
   const [autoFixing, setAutoFixing] = useState<string | null>(null);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   const saveScoreHistory = useCallback((score: number) => {
     const now = new Date();
@@ -615,7 +617,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
       setFixedIssues((prev) => new Set([...prev, issue.id]));
       alert("Fixed! Result copied to clipboard. Paste it into the section.");
     } catch (err: any) {
-      alert(err?.response?.data?.detail || "Auto fix failed. Please try again.");
+      setLimitMessage(err?.response?.data?.detail || "Auto fix failed. Please try again.");
     } finally {
       setAutoFixing(null);
     }
@@ -1187,6 +1189,8 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
         )}
 
       </div>
+
+      <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
     </div>
   );
 }

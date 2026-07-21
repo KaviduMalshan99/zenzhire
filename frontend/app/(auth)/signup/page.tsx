@@ -11,11 +11,18 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { signup } from "@/lib/auth";
 import { GoogleButton } from "@/components/auth/GoogleButton";
+import { PasswordStrengthMeter } from "@/components/shared/PasswordStrengthMeter";
+import { PASSWORD_MIN_LENGTH, isPasswordValid, getPasswordHints } from "@/lib/password";
 
 const schema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+    .refine(isPasswordValid, (password) => ({
+      message: getPasswordHints(password).join(" · ") || "Password is too weak",
+    })),
   confirm_password: z.string(),
 }).refine((data) => data.password === data.confirm_password, {
   message: "Passwords do not match",
@@ -31,8 +38,11 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  const passwordValue = watch("password") || "";
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
@@ -108,6 +118,7 @@ export default function SignupPage() {
                 placeholder="••••••••"
                 className="w-full bg-[#0d1117] border border-[#30363d] hover:border-[#484f58] rounded-md px-3.5 py-2.5 text-[#e6edf3] placeholder:text-[#484f58] outline-none transition-all duration-200 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
+              <PasswordStrengthMeter password={passwordValue} />
               {errors.password && <p className="text-red-400 text-xs mt-1.5">{errors.password.message}</p>}
             </div>
 

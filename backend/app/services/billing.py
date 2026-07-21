@@ -95,7 +95,10 @@ def _get_access_token() -> str:
 def create_checkout_session(user: User, payload: CheckoutRequest, db: Session) -> tuple[str, str]:
     cfg = PLAN_CONFIG[payload.plan]
     amount = cfg["amount"]
-    invoice_id = f"ZH-{user.id}-{payload.plan}-{secrets.token_hex(4)}"
+    # PAYable rejects invoiceId over 20 chars, so this must stay compact even for
+    # large user ids: "ZH" + id + plan code + 8 hex chars fits ids up to 9 digits.
+    plan_code = {"monthly": "M", "yearly": "Y", "pass7": "P"}[payload.plan]
+    invoice_id = f"ZH{user.id}{plan_code}{secrets.token_hex(4)}"
 
     txn = BillingTransaction(
         user_id=user.id,

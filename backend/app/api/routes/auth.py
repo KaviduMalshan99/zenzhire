@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.security import hash_password, verify_password, create_access_token, password_strength_error
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, UserRead, TokenResponse
 from app.api.dependencies import get_current_user
@@ -25,6 +25,10 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    weakness = password_strength_error(payload.password)
+    if weakness:
+        raise HTTPException(status_code=400, detail=weakness)
 
     user = User(
         email=payload.email,

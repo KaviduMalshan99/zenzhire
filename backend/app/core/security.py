@@ -6,6 +6,35 @@ from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MIN_CATEGORIES = 3
+
+
+def password_strength_error(password: str) -> str | None:
+    """Returns a specific rejection message, or None if the password is strong
+    enough: at least PASSWORD_MIN_LENGTH characters, and at least
+    PASSWORD_MIN_CATEGORIES of {uppercase, lowercase, number, special char}.
+    Never trust the frontend's copy of this same rule — this is the check
+    that actually decides what gets stored."""
+    if len(password) < PASSWORD_MIN_LENGTH:
+        return f"Password must be at least {PASSWORD_MIN_LENGTH} characters long."
+
+    categories = [
+        ("an uppercase letter", any(c.isupper() for c in password)),
+        ("a lowercase letter", any(c.islower() for c in password)),
+        ("a number", any(c.isdigit() for c in password)),
+        ("a special character", any(not c.isalnum() for c in password)),
+    ]
+    satisfied = sum(1 for _, ok in categories if ok)
+    if satisfied < PASSWORD_MIN_CATEGORIES:
+        missing = ", ".join(name for name, ok in categories if not ok)
+        return (
+            f"Password is too weak. Add {missing} "
+            f"(needs at least {PASSWORD_MIN_CATEGORIES} of: uppercase letter, "
+            f"lowercase letter, number, special character)."
+        )
+    return None
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
