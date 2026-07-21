@@ -358,8 +358,8 @@ export default function CVEditorPage() {
     try {
       const res = await api.put<CVDocument>(`/cv/${cv.id}`, updates);
       setCV(res.data);
-    } catch {
-      toast.error("Failed to update CV");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to update CV");
     }
   }, [cv, pushHistory]);
 

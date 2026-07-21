@@ -27,6 +27,8 @@ class User(Base):
     ai_usage_count = Column(Integer, default=0, nullable=False)
     ai_usage_date = Column(Date, nullable=True)
     contact_last_viewed_at = Column(DateTime(timezone=True), nullable=True)
+    password_reset_token = Column(String, unique=True, index=True, nullable=True)
+    password_reset_expires = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

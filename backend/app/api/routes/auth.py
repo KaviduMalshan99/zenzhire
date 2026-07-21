@@ -1,4 +1,5 @@
 import secrets
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
@@ -7,10 +8,22 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password, create_access_token, password_strength_error
+from app.core.security import (
+    hash_password, verify_password, create_access_token, password_strength_error,
+    generate_reset_token, PASSWORD_RESET_TOKEN_EXPIRE_MINUTES,
+)
 from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin, UserRead, TokenResponse
+from app.models.cv_document import CVDocument
+from app.models.ats_result import ATSResult
+from app.models.billing_transaction import BillingTransaction
+from app.schemas.user import (
+    UserCreate, UserLogin, UserRead, TokenResponse,
+    ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest, UsageStats,
+)
 from app.api.dependencies import get_current_user
+from app.api.routes.cv import FREE_CV_LIMIT, AI_FREE_DAILY_LIMIT
+from app.api.routes.ats import FREE_LIMIT as ATS_FREE_LIMIT
+from app.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -55,9 +68,119 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
     return TokenResponse(access_token=token, user=UserRead.model_validate(user))
 
 
+GENERIC_FORGOT_PASSWORD_MESSAGE = "If that email exists, we've sent a password reset link."
+
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Never reveals whether the email exists -- always returns the same
+    generic message, regardless of the lookup/send outcome below."""
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user:
+        user.password_reset_token = generate_reset_token()
+        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(
+            minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+        )
+        db.commit()
+
+        reset_link = f"{settings.frontend_url}/reset-password?token={user.password_reset_token}"
+        send_email(
+            to=user.email,
+            subject="Reset your ZenzHire password",
+            body=(
+                f"Hi {user.full_name},\n\n"
+                f"We received a request to reset your ZenzHire password. Click the link below "
+                f"to choose a new one. This link expires in {PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes.\n\n"
+                f"{reset_link}\n\n"
+                "If you didn't request this, you can safely ignore this email."
+            ),
+        )
+
+    return {"message": GENERIC_FORGOT_PASSWORD_MESSAGE}
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.password_reset_token == payload.token).first()
+    if (
+        not user
+        or not user.password_reset_expires
+        or user.password_reset_expires < datetime.now(timezone.utc)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="This password reset link is invalid or has expired. Please request a new one.",
+        )
+
+    weakness = password_strength_error(payload.new_password)
+    if weakness:
+        raise HTTPException(status_code=400, detail=weakness)
+
+    user.hashed_password = hash_password(payload.new_password)
+    user.password_reset_token = None
+    user.password_reset_expires = None
+    db.commit()
+
+    return {"message": "Password reset successful. You can now log in with your new password."}
+
+
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/change-password")
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.hashed_password or not verify_password(
+        payload.current_password, current_user.hashed_password
+    ):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    weakness = password_strength_error(payload.new_password)
+    if weakness:
+        raise HTTPException(status_code=400, detail=weakness)
+
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+
+    return {"message": "Password changed successfully."}
+
+
+@router.get("/usage-stats", response_model=UsageStats)
+def usage_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    is_pro = current_user.is_pro
+
+    cv_count = db.query(CVDocument).filter(CVDocument.user_id == current_user.id).count()
+    ats_count = db.query(ATSResult).filter(ATSResult.user_id == current_user.id).count()
+
+    # ai_usage_count only reflects today's usage if the lazy daily-reset (in cv.py's
+    # ai_improve_text) has already run today -- otherwise it's still yesterday's value.
+    ai_usage_count = current_user.ai_usage_count if current_user.ai_usage_date == date.today() else 0
+
+    active_plan = None
+    if is_pro:
+        latest = (
+            db.query(BillingTransaction)
+            .filter(BillingTransaction.user_id == current_user.id, BillingTransaction.status == "success")
+            .order_by(BillingTransaction.completed_at.desc())
+            .first()
+        )
+        if latest:
+            active_plan = latest.plan
+
+    return UsageStats(
+        cv_count=cv_count,
+        cv_limit=None if is_pro else FREE_CV_LIMIT,
+        ats_count=ats_count,
+        ats_limit=None if is_pro else ATS_FREE_LIMIT,
+        ai_usage_count=ai_usage_count,
+        ai_usage_limit=None if is_pro else AI_FREE_DAILY_LIMIT,
+        active_plan=active_plan,
+    )
 
 
 @router.get("/google/login")

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   GripVertical, Eye, EyeOff, ChevronLeft, Plus, Trash2, Check,
-  FileText, Layers, Palette, Undo2, Redo2,
+  FileText, Layers, Palette, Undo2, Redo2, Lock,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -20,23 +20,33 @@ import { SectionForm } from "./SectionForms";
 import { AddSectionModal } from "./AddSectionModal";
 import { CustomizationPanel } from "./CustomizationPanel";
 import { cn } from "@/lib/utils";
+import { TEMPLATES } from "@/lib/templates-data";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 
+// Free templates first, then Pro — so a Free user sees everything usable
+// to them before the locked/dimmed ones.
 const TEMPLATE_OPTIONS: { id: TemplateId; label: string }[] = [
   { id: "classic", label: "Classic" },
-  { id: "modern", label: "Modern" },
   { id: "minimal", label: "Colorful" },
+  { id: "academic", label: "Inline" },
+  { id: "corporate", label: "Halo" },
+  { id: "nova", label: "Nova" },
+  { id: "modern", label: "Modern" },
   { id: "executive", label: "Executive" },
   { id: "tech", label: "Bordered" },
   { id: "creative", label: "Timeline" },
-  { id: "academic", label: "Inline" },
   { id: "gcc", label: "GCC" },
   { id: "portrait", label: "Portrait" },
   { id: "milestone", label: "Milestone" },
-  { id: "corporate", label: "Halo" },
   { id: "vega", label: "Vega" },
   { id: "aurora", label: "Aurora" },
-  { id: "nova", label: "Nova" },
 ];
+
+// Same free/pro classification the template gallery and backend enforce —
+// sourced from templates-data.ts, not duplicated here.
+const PRO_TEMPLATE_IDS = new Set<string>(
+  TEMPLATES.filter((t) => t.plan === "pro").map((t) => t.id)
+);
 
 interface Props {
   cv: CVDocument;
@@ -190,6 +200,7 @@ export function LeftPanel({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(cv.title);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -304,22 +315,38 @@ export function LeftPanel({
               <span className="text-[#8b949e] text-[11px] uppercase tracking-wide font-medium">Template</span>
             </div>
             <div className="grid grid-cols-4 gap-1">
-              {TEMPLATE_OPTIONS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => onUpdateCV({ template_id: t.id })}
-                  className={cn(
-                    "text-[10px] py-1.5 px-1 rounded border transition-colors text-center truncate",
-                    cv.template_id === t.id
-                      ? "border-blue-500 bg-blue-600/10 text-blue-400"
-                      : "border-[#30363d] text-[#8b949e] hover:border-[#8b949e] hover:text-[#e6edf3]"
-                  )}
-                >
-                  {t.label}
-                </button>
-              ))}
+              {TEMPLATE_OPTIONS.map((t) => {
+                const locked = !isPro && PRO_TEMPLATE_IDS.has(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      if (locked) {
+                        setLimitMessage(
+                          `'${t.id}' is a Pro template. Upgrade to Pro to use all 14 templates, or choose one of the 5 Free templates.`
+                        );
+                        return;
+                      }
+                      onUpdateCV({ template_id: t.id });
+                    }}
+                    className={cn(
+                      "flex items-center justify-center gap-1 text-[10px] py-1.5 px-1 rounded border transition-colors text-center truncate",
+                      cv.template_id === t.id
+                        ? "border-blue-500 bg-blue-600/10 text-blue-400"
+                        : locked
+                        ? "border-[#21262d] text-[#484f58] opacity-50 hover:opacity-70"
+                        : "border-[#30363d] text-[#8b949e] hover:border-[#8b949e] hover:text-[#e6edf3]"
+                    )}
+                  >
+                    {locked && <Lock className="w-2.5 h-2.5 flex-shrink-0" />}
+                    <span className="truncate">{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
 
           {/* Sections / Style tabs */}
           <div className="flex border-b border-[#30363d] flex-shrink-0">

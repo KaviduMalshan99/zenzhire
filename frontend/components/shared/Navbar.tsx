@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Target, LogOut, Crown, Mail, LayoutTemplate } from "lucide-react";
+import { LayoutDashboard, FileText, Target, LogOut, Crown, Mail, LayoutTemplate, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ const navLinks = [
   { href: "/cv-builder", label: "CV Builder", icon: FileText },
   { href: "/cover-letter", label: "Cover Letters", icon: Mail },
   { href: "/ats-checker", label: "ATS Checker", icon: Target },
+  { href: "/profile", label: "Profile", icon: UserIcon },
 ];
 
 export function Navbar() {
@@ -62,9 +63,13 @@ export function Navbar() {
             </span>
           )}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
+            <Link
+              href="/profile"
+              title="Profile"
+              className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            >
               {user?.full_name?.[0]?.toUpperCase() ?? "U"}
-            </div>
+            </Link>
             <button
               onClick={logout}
               className="text-[#8b949e] hover:text-white transition-colors p-2 rounded-md hover:bg-[#161b22]"

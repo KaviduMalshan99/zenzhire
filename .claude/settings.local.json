@@ -109,7 +109,8 @@
       "Bash(python -c \"print\\('python ok'\\)\")",
       "Bash(pip show *)",
       "PowerShell(& \"C:\\\\Program Files\\\\Python311\\\\python.exe\" \"C:\\\\Users\\\\kavidu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\F--zenzhire-zenzhire\\\\625aa62d-9eaf-4e40-89bb-b5c1adb0ade0\\\\scratchpad\\\\check_db.py\")",
-      "Bash(python \"C:\\\\Users\\\\kavidu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\F--zenzhire-zenzhire\\\\a5a44c2a-81f3-42cd-b6ca-9f40b8f74f3c\\\\scratchpad\\\\payable_auth_retry.py\")"
+      "Bash(python \"C:\\\\Users\\\\kavidu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\F--zenzhire-zenzhire\\\\a5a44c2a-81f3-42cd-b6ca-9f40b8f74f3c\\\\scratchpad\\\\payable_auth_retry.py\")",
+      "Bash(sort -k9)"
     ]
   }
 }

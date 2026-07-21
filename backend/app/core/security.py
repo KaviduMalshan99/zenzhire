@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from jose import JWTError, jwt
@@ -8,6 +9,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_MIN_CATEGORIES = 3
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 60
+
+
+def generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def password_strength_error(password: str) -> str | None:

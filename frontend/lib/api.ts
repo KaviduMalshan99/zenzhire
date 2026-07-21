@@ -224,3 +224,19 @@ export const adminApi = {
 
   notifications: () => api.get<AdminNotifications>("/admin/notifications"),
 };
+
+// ── Profile / Usage Stats API ───────────────────────────────────────────────────
+
+export interface UsageStats {
+  cv_count: number;
+  cv_limit: number | null;
+  ats_count: number;
+  ats_limit: number | null;
+  ai_usage_count: number;
+  ai_usage_limit: number | null;
+  active_plan: "monthly" | "yearly" | "pass7" | null;
+}
+
+export const profileApi = {
+  usageStats: () => api.get<UsageStats>("/auth/usage-stats"),
+};
