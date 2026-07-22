@@ -5,6 +5,7 @@ import { Lock, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
 import type { Template } from "@/lib/templates-data";
+import { TemplatePreviewFrame } from "@/components/templates/TemplatePreviewFrame";
 
 // Gallery-only live preview colors — purely client-side, never persisted or sent to the API.
 const PREVIEW_COLORS = [
@@ -30,7 +31,6 @@ export function TemplateGalleryCard({
   onAction: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
 
   const defaultAccent = TEMPLATE_DEFAULT_CUSTOMIZATION[template.id]?.accentColor ?? DEFAULT_CUSTOMIZATION.accentColor;
   const [previewColor, setPreviewColor] = useState(defaultAccent);
@@ -69,37 +69,11 @@ export function TemplateGalleryCard({
         )}
       </div>
 
-      {/* Template preview — aspect-ratio locked to the real A4 page (794x1122) so the full
-          page is always visible without cropping, at any card width. */}
-      <div className="relative overflow-hidden bg-white w-full" style={{ aspectRatio: "794 / 1122" }}>
-        {!iframeLoaded && (
-          <div className="absolute inset-0 bg-[#f8fafc] flex items-center justify-center">
-            <Loader2 className="w-5 h-5 text-[#d1d5db] animate-spin" />
-          </div>
-        )}
-
-        <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "hidden" }}>
-          <iframe
-            src={`/cv-template-preview/${template.id}?accentColor=${encodeURIComponent(previewColor)}`}
-            style={{
-              width: "794px",
-              height: "1122px",
-              border: "none",
-              transformOrigin: "top left",
-              pointerEvents: "none",
-              opacity: iframeLoaded ? 1 : 0,
-              transition: "opacity 0.3s ease",
-            }}
-            onLoad={(e) => {
-              const container = e.currentTarget.parentElement?.parentElement;
-              if (container) {
-                const scale = container.offsetWidth / 794;
-                e.currentTarget.style.transform = `scale(${scale})`;
-              }
-              setIframeLoaded(true);
-            }}
-          />
-        </div>
+      {/* Template preview — same shared frame as the hero mockup, so both stay locked to
+          the real A4 aspect ratio and never crop. Keyed by color so switching swatches
+          remounts it and the loading spinner reappears for the new render. */}
+      <div className="relative">
+        <TemplatePreviewFrame key={previewColor} templateId={template.id} accentColor={previewColor} />
 
         {/* Pro gating — kept light so the real design (colors, layout, photo) stays legible
             and sells itself; the lock badge + CTA pill make the gate obvious without a
@@ -158,10 +132,7 @@ export function TemplateGalleryCard({
               type="button"
               title={c.name}
               aria-label={`Preview ${template.name} in ${c.name}`}
-              onClick={() => {
-                setPreviewColor(c.value);
-                setIframeLoaded(false);
-              }}
+              onClick={() => setPreviewColor(c.value)}
               className="w-4 h-4 rounded-full transition-all"
               style={{
                 backgroundColor: c.value,

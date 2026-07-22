@@ -26,6 +26,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
+import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 
 // ── CV card with inline rename + dropdown menu ─────────────────────────────────
 
@@ -176,6 +177,7 @@ export default function DashboardPage() {
   const [coverLetters, setCoverLetters] = useState<CoverLetterListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<CVDocument | null>(null);
+  const [pendingDeleteCL, setPendingDeleteCL] = useState<CoverLetterListItem | null>(null);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -220,6 +222,19 @@ export default function DashboardPage() {
       toast.success("CV deleted successfully");
     } catch {
       toast.error("Failed to delete CV");
+    }
+  }
+
+  async function handleDeleteCLConfirm() {
+    if (!pendingDeleteCL) return;
+    const id = pendingDeleteCL.id;
+    setPendingDeleteCL(null);
+    try {
+      await coverLetterApi.delete(id);
+      setCoverLetters((prev) => prev.filter((c) => c.id !== id));
+      toast.success("Cover letter deleted successfully");
+    } catch {
+      toast.error("Failed to delete cover letter");
     }
   }
 
@@ -411,12 +426,9 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <button
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm("Delete this cover letter?")) {
-                            await coverLetterApi.delete(cl.id);
-                            setCoverLetters((prev) => prev.filter((c) => c.id !== cl.id));
-                          }
+                          setPendingDeleteCL(cl);
                         }}
                         className="text-[#484f58] hover:text-red-400 transition-colors text-xs p-1 ml-2 flex-shrink-0"
                       >
@@ -437,6 +449,13 @@ export default function DashboardPage() {
         cv={pendingDelete}
         onClose={() => setPendingDelete(null)}
         onConfirm={handleDeleteConfirm}
+      />
+      <DeleteConfirmDialog
+        open={!!pendingDeleteCL}
+        title="Delete Cover Letter"
+        itemName={pendingDeleteCL?.title}
+        onClose={() => setPendingDeleteCL(null)}
+        onConfirm={handleDeleteCLConfirm}
       />
 
       <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />

@@ -623,15 +623,45 @@ CV TEXT:
 
 # ── layer 6: professional data ────────────────────────────────────────────────
 
+def _has_standalone_dev_or_io_link(cv_text: str) -> bool:
+    """
+    Matches a genuine standalone portfolio-style domain (e.g. "janedoe.dev",
+    "myproject.io") while excluding the same substring appearing inside an email
+    address (e.g. "michael.fernando.dev@gmail.com", "someone@company.io") --
+    those aren't portfolio links, just incidental text next to an "@".
+    """
+    for m in re.finditer(r"[\w\-]+\.(?:dev|io)\b", cv_text, re.I):
+        start, end = m.span()
+        before = cv_text[start - 1] if start > 0 else ""
+        after = cv_text[end] if end < len(cv_text) else ""
+        if before == "@" or after == "@":
+            continue
+        return True
+    return False
+
+
+def _extract_experience_section(cv_text: str) -> str:
+    """
+    Isolates the Experience section's own text so date-range analysis (e.g. the
+    employment-gap check) doesn't accidentally pick up Education section years --
+    a 4-year degree span isn't an employment gap.
+    """
+    m = re.search(
+        r"(experience|employment|work history)(.*?)(education|skills|certifications|projects|$)",
+        cv_text, re.DOTALL | re.IGNORECASE,
+    )
+    return m.group(2) if m else ""
+
+
 def _layer_professional(cv_text: str) -> dict:
     issues: list[str] = []
     score = 0.0
 
     has_linkedin = bool(re.search(r"linkedin\.com/in/[\w\-]+", cv_text, re.I))
     has_portfolio = bool(re.search(
-        r"github\.com/[\w\-]+|behance\.net|dribbble\.com|portfolio|[\w\-]+\.dev\b|[\w\-]+\.io\b",
+        r"github\.com/[\w\-]+|behance\.net|dribbble\.com|portfolio",
         cv_text, re.I,
-    ))
+    )) or _has_standalone_dev_or_io_link(cv_text)
 
     date_re = (
         r"\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?"
@@ -642,7 +672,8 @@ def _layer_professional(cv_text: str) -> dict:
 
     has_certs = bool(re.search(r"certif|certificate|certified|credentials?|license|accredit", cv_text, re.I))
 
-    years = sorted({int(y) for y in re.findall(r"\b(20\d{2})\b", cv_text)})
+    experience_text = _extract_experience_section(cv_text)
+    years = sorted({int(y) for y in re.findall(r"\b(20\d{2})\b", experience_text)})
     no_gaps = True
     for i in range(len(years) - 1):
         if years[i + 1] - years[i] > 2:
@@ -742,31 +773,42 @@ CV:
             "score": score,
             "max_score": 10,
             "percentage": round(score / 10 * 100, 1),
+            "issues": [],
             "first_impression": data.get("first_impression", ""),
             "strengths": data.get("strengths", [])[:3],
             "red_flags": data.get("red_flags", [])[:3],
             "seniority_assessment": data.get("seniority_assessment", ""),
             "hire_likelihood": pct,
             "most_important_improvement": data.get("most_important_improvement", ""),
+            "failed": False,
+            "error": None,
         }
-    except Exception as exc:
+    except Exception:
+        # Do NOT fabricate a plausible-looking score or leak the raw exception —
+        # be honest that this layer could not be completed (same pattern as Layer 5/Grammar).
+        error_msg = "AI Recruiter analysis could not be completed — please try again."
         return {
-            "score": 5.0,
+            "score": None,
             "max_score": 10,
-            "percentage": 50.0,
-            "first_impression": "AI analysis unavailable.",
+            "percentage": None,
+            "issues": [error_msg],
+            "first_impression": "",
             "strengths": [],
             "red_flags": [],
-            "seniority_assessment": "Unknown",
-            "hire_likelihood": 50.0,
-            "most_important_improvement": str(exc)[:120],
+            "seniority_assessment": "",
+            "hire_likelihood": None,
+            "most_important_improvement": "",
+            "failed": True,
+            "error": error_msg,
         }
 
 
 # ── overall score ──────────────────────────────────────────────────────────────
 
 def _overall(layers: dict) -> float:
-    total = sum(layers[k]["score"] for k in layers)
+    # A layer that failed (score is None, e.g. AI Recruiter after an API error) contributes
+    # nothing to the total rather than a fabricated fallback value.
+    total = sum(l["score"] for l in layers.values() if l.get("score") is not None)
     return round(total, 1)
 
 

@@ -1,5 +1,10 @@
 import React from "react";
+import DOMPurify from "dompurify";
 import type { CoverLetter, CoverLetterCustomization, CLPersonalDetails } from "@/types";
+
+function isHtmlContent(str: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(str);
+}
 
 interface Props {
   content: string;
@@ -42,6 +47,18 @@ function ContactRow({ personal, color = "#6b7280" }: { personal: CLPersonalDetai
   );
 }
 
+const HEADER_PROTECT_STYLE: React.CSSProperties = {
+  breakInside: "avoid",
+  pageBreakInside: "avoid",
+  breakAfter: "avoid",
+  pageBreakAfter: "avoid",
+};
+
+const PARA_PROTECT_STYLE: React.CSSProperties = {
+  breakInside: "avoid",
+  pageBreakInside: "avoid",
+};
+
 function Body({ content, fontFamily }: { content: string; fontFamily: string }) {
   if (!content) {
     return (
@@ -50,10 +67,21 @@ function Body({ content, fontFamily }: { content: string; fontFamily: string }) 
       </p>
     );
   }
+  if (isHtmlContent(content)) {
+    const clean = typeof window === "undefined" ? content.replace(/<[^>]*>/g, "") : DOMPurify.sanitize(content);
+    return (
+      <div
+        className="cl-html-body"
+        style={{ fontFamily, fontSize: 12, lineHeight: 1.8, color: "#374151" }}
+        dangerouslySetInnerHTML={{ __html: clean }}
+      />
+    );
+  }
+
   return (
     <>
       {content.split("\n").filter(p => p.trim()).map((p, i) => (
-        <p key={i} style={{ marginBottom: 14, fontSize: 12, lineHeight: 1.8, color: "#374151", fontFamily }}>{p}</p>
+        <p key={i} style={{ marginBottom: 14, fontSize: 12, lineHeight: 1.8, color: "#374151", fontFamily, ...PARA_PROTECT_STYLE }}>{p}</p>
       ))}
     </>
   );
@@ -69,24 +97,26 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
   if (templateId === "classic") {
     return (
       <div style={{ fontFamily, padding: "28px 32px", minHeight: "297mm", backgroundColor: "#ffffff" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily }}>{name}</span>
-              {personal.title && (
-                <span style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic", fontFamily }}>· {personal.title}</span>
-              )}
+        <div style={HEADER_PROTECT_STYLE}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily }}>{name}</span>
+                {personal.title && (
+                  <span style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic", fontFamily }}>· {personal.title}</span>
+                )}
+              </div>
+              <div style={{ marginTop: 6 }}><ContactRow personal={personal} color="#6b7280" /></div>
             </div>
-            <div style={{ marginTop: 6 }}><ContactRow personal={personal} color="#6b7280" /></div>
+            {hasPhoto && <img src={photoSrc} alt="" style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover", marginLeft: 16, border: `2px solid ${accentColor}40` }} />}
           </div>
-          {hasPhoto && <img src={photoSrc} alt="" style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover", marginLeft: 16, border: `2px solid ${accentColor}40` }} />}
+          <div style={{ borderBottom: "2px solid #111827", marginBottom: 16 }} />
+          {(jobTitle || company) && (
+            <div style={{ marginBottom: 16, fontSize: 12, fontFamily }}>
+              <span style={{ fontWeight: 600, color: accentColor }}>Re: Application for {jobTitle}{company && ` at ${company}`}</span>
+            </div>
+          )}
         </div>
-        <div style={{ borderBottom: "2px solid #111827", marginBottom: 16 }} />
-        {(jobTitle || company) && (
-          <div style={{ marginBottom: 16, fontSize: 12, fontFamily }}>
-            <span style={{ fontWeight: 600, color: accentColor }}>Re: Application for {jobTitle}{company && ` at ${company}`}</span>
-          </div>
-        )}
         <Body content={content} fontFamily={fontFamily} />
       </div>
     );
@@ -96,7 +126,7 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
   if (templateId === "modern") {
     return (
       <div style={{ fontFamily, minHeight: "297mm", backgroundColor: "#ffffff", display: "flex" }}>
-        <div style={{ width: "35%", backgroundColor: accentColor, padding: "28px 16px", color: "#fff", flexShrink: 0 }}>
+        <div style={{ width: "35%", backgroundColor: accentColor, padding: "28px 16px", color: "#fff", flexShrink: 0, ...HEADER_PROTECT_STYLE }}>
           {hasPhoto && <img src={photoSrc} alt="" style={{ width: 90, height: 90, borderRadius: "50%", objectFit: "cover", marginBottom: 12, border: "3px solid rgba(255,255,255,0.3)", display: "block", marginLeft: "auto", marginRight: "auto" }} />}
           <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", textAlign: "center", marginBottom: 4, fontFamily }}>{name}</div>
           {personal.title && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 16, fontFamily }}>{personal.title}</div>}
@@ -133,7 +163,7 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
   if (templateId === "colorful") {
     return (
       <div style={{ fontFamily, minHeight: "297mm", backgroundColor: "#ffffff" }}>
-        <div style={{ backgroundColor: accentColor, padding: "24px 32px", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ backgroundColor: accentColor, padding: "24px 32px", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", ...HEADER_PROTECT_STYLE }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 2, fontFamily }}>{name}</div>
             {personal.title && <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 8, fontFamily }}>{personal.title}</div>}
@@ -157,14 +187,16 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
   if (templateId === "executive") {
     return (
       <div style={{ fontFamily, padding: "20px 30px", minHeight: "297mm", backgroundColor: "#ffffff" }}>
-        <div style={{ textAlign: "center", marginBottom: 16, paddingBottom: 16 }}>
-          {hasPhoto && <img src={photoSrc} alt="" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 12px", border: `2px solid ${accentColor}`, display: "block" }} />}
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontFamily, letterSpacing: "0.02em", marginBottom: 4 }}>{name}</div>
-          {personal.title && <div style={{ fontSize: 13, color: accentColor, fontStyle: "italic", marginBottom: 8, fontFamily }}>{personal.title}</div>}
-          <div style={{ display: "flex", justifyContent: "center" }}><ContactRow personal={personal} color="#6b7280" /></div>
-        </div>
-        <div style={{ borderTop: `1px solid ${accentColor}`, borderBottom: `1px solid ${accentColor}`, padding: "6px 0", marginBottom: 20, textAlign: "center", fontSize: 11, color: accentColor, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          {jobTitle && company ? `Application — ${jobTitle} at ${company}` : jobTitle || company || "Cover Letter"}
+        <div style={HEADER_PROTECT_STYLE}>
+          <div style={{ textAlign: "center", marginBottom: 16, paddingBottom: 16 }}>
+            {hasPhoto && <img src={photoSrc} alt="" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 12px", border: `2px solid ${accentColor}`, display: "block" }} />}
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontFamily, letterSpacing: "0.02em", marginBottom: 4 }}>{name}</div>
+            {personal.title && <div style={{ fontSize: 13, color: accentColor, fontStyle: "italic", marginBottom: 8, fontFamily }}>{personal.title}</div>}
+            <div style={{ display: "flex", justifyContent: "center" }}><ContactRow personal={personal} color="#6b7280" /></div>
+          </div>
+          <div style={{ borderTop: `1px solid ${accentColor}`, borderBottom: `1px solid ${accentColor}`, padding: "6px 0", marginBottom: 20, textAlign: "center", fontSize: 11, color: accentColor, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {jobTitle && company ? `Application — ${jobTitle} at ${company}` : jobTitle || company || "Cover Letter"}
+          </div>
         </div>
         <Body content={content} fontFamily={fontFamily} />
       </div>
@@ -177,21 +209,23 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
       <div style={{ fontFamily, minHeight: "297mm", backgroundColor: "#ffffff", position: "relative" }}>
         <div style={{ position: "absolute", inset: 0, border: `6px solid ${accentColor}`, pointerEvents: "none", zIndex: 1 }} />
         <div style={{ padding: "28px 32px", position: "relative", zIndex: 2 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e5e7eb" }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily }}>{name}</span>
-                {personal.title && <span style={{ fontSize: 13, color: accentColor, fontStyle: "italic", fontFamily }}>· {personal.title}</span>}
+          <div style={HEADER_PROTECT_STYLE}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e5e7eb" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily }}>{name}</span>
+                  {personal.title && <span style={{ fontSize: 13, color: accentColor, fontStyle: "italic", fontFamily }}>· {personal.title}</span>}
+                </div>
+                <ContactRow personal={personal} color="#6b7280" />
               </div>
-              <ContactRow personal={personal} color="#6b7280" />
+              {hasPhoto && <img src={photoSrc} alt="" style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover", marginLeft: 16, border: `2px solid ${accentColor}40` }} />}
             </div>
-            {hasPhoto && <img src={photoSrc} alt="" style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover", marginLeft: 16, border: `2px solid ${accentColor}40` }} />}
+            {(jobTitle || company) && (
+              <div style={{ marginBottom: 16, padding: "6px 10px", border: `1px solid ${accentColor}40`, borderRadius: 4, backgroundColor: `${accentColor}08`, fontSize: 11, color: accentColor, fontWeight: 600 }}>
+                Re: {jobTitle}{company && ` — ${company}`}
+              </div>
+            )}
           </div>
-          {(jobTitle || company) && (
-            <div style={{ marginBottom: 16, padding: "6px 10px", border: `1px solid ${accentColor}40`, borderRadius: 4, backgroundColor: `${accentColor}08`, fontSize: 11, color: accentColor, fontWeight: 600 }}>
-              Re: {jobTitle}{company && ` — ${company}`}
-            </div>
-          )}
           <Body content={content} fontFamily={fontFamily} />
         </div>
       </div>
@@ -203,20 +237,22 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
     return (
       <div style={{ fontFamily, minHeight: "297mm", backgroundColor: "#ffffff", borderLeft: `5px solid ${accentColor}` }}>
         <div style={{ padding: "28px 32px 28px 40px" }}>
-          <div style={{ marginBottom: 8, paddingBottom: 16, borderBottom: "1px solid #e5e7eb" }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontFamily, marginBottom: 2 }}>{name}</div>
-            {personal.title && <div style={{ fontSize: 13, color: accentColor, fontStyle: "italic", marginBottom: 8, fontFamily }}>{personal.title}</div>}
-            <ContactRow personal={personal} color="#6b7280" />
-          </div>
-          {(jobTitle || company) && (
-            <div style={{ display: "flex", gap: 20, marginBottom: 16, alignItems: "baseline" }}>
-              <div style={{ width: 100, flexShrink: 0, fontSize: 10, color: "#6b7280" }}>Applying for</div>
-              <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "#111827", fontFamily }}>
-                {jobTitle}
-                {company && <span style={{ fontWeight: 400, color: accentColor, fontStyle: "italic" }}> @ {company}</span>}
-              </div>
+          <div style={HEADER_PROTECT_STYLE}>
+            <div style={{ marginBottom: 8, paddingBottom: 16, borderBottom: "1px solid #e5e7eb" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", fontFamily, marginBottom: 2 }}>{name}</div>
+              {personal.title && <div style={{ fontSize: 13, color: accentColor, fontStyle: "italic", marginBottom: 8, fontFamily }}>{personal.title}</div>}
+              <ContactRow personal={personal} color="#6b7280" />
             </div>
-          )}
+            {(jobTitle || company) && (
+              <div style={{ display: "flex", gap: 20, marginBottom: 16, alignItems: "baseline" }}>
+                <div style={{ width: 100, flexShrink: 0, fontSize: 10, color: "#6b7280" }}>Applying for</div>
+                <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "#111827", fontFamily }}>
+                  {jobTitle}
+                  {company && <span style={{ fontWeight: 400, color: accentColor, fontStyle: "italic" }}> @ {company}</span>}
+                </div>
+              </div>
+            )}
+          </div>
           <Body content={content} fontFamily={fontFamily} />
         </div>
       </div>
@@ -227,22 +263,24 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
   if (templateId === "inline") {
     return (
       <div style={{ fontFamily, padding: "20px 28px", minHeight: "297mm", backgroundColor: "#ffffff" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-              <span style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily, lineHeight: 1.1 }}>{name}</span>
-              {personal.title && <span style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic", fontFamily }}>&nbsp;·&nbsp;{personal.title}</span>}
+        <div style={HEADER_PROTECT_STYLE}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                <span style={{ fontSize: 22, fontWeight: 700, color: "#111827", fontFamily, lineHeight: 1.1 }}>{name}</span>
+                {personal.title && <span style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic", fontFamily }}>&nbsp;·&nbsp;{personal.title}</span>}
+              </div>
+              <ContactRow personal={personal} color="#6b7280" />
             </div>
-            <ContactRow personal={personal} color="#6b7280" />
+            {hasPhoto && <img src={photoSrc} alt="" style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover", marginLeft: 20, flexShrink: 0 }} />}
           </div>
-          {hasPhoto && <img src={photoSrc} alt="" style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover", marginLeft: 20, flexShrink: 0 }} />}
+          <div style={{ borderBottom: "2px solid #111827", marginBottom: 12 }} />
+          {(jobTitle || company) && (
+            <div style={{ marginBottom: 14, fontSize: 11, color: accentColor, fontWeight: 600 }}>
+              Re: Application for {jobTitle}{company && ` at ${company}`}
+            </div>
+          )}
         </div>
-        <div style={{ borderBottom: "2px solid #111827", marginBottom: 12 }} />
-        {(jobTitle || company) && (
-          <div style={{ marginBottom: 14, fontSize: 11, color: accentColor, fontWeight: 600 }}>
-            Re: Application for {jobTitle}{company && ` at ${company}`}
-          </div>
-        )}
         <Body content={content} fontFamily={fontFamily} />
       </div>
     );
@@ -276,37 +314,39 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
     };
     return (
       <div style={{ fontFamily, minHeight: "297mm", backgroundColor: "#ffffff" }}>
-        {/* Header — accent color background matching GCC CV */}
-        <div style={{ backgroundColor: accentColor, padding: "20px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 26, fontWeight: "bold", color: "#ffffff", letterSpacing: "0.01em", lineHeight: 1.2, fontFamily }}>
-              {personal.full_name || "Your Name"}
+        <div style={HEADER_PROTECT_STYLE}>
+          {/* Header — accent color background matching GCC CV */}
+          <div style={{ backgroundColor: accentColor, padding: "20px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 26, fontWeight: "bold", color: "#ffffff", letterSpacing: "0.01em", lineHeight: 1.2, fontFamily }}>
+                {personal.full_name || "Your Name"}
+              </div>
+              {personal.title && (
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", marginTop: 4, letterSpacing: "0.03em", fontFamily }}>
+                  {personal.title}
+                </div>
+              )}
+              {pills.length > 0 && (
+                <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: "6px 8px", alignItems: "center" }}>
+                  {pills.map((pill, i) => (
+                    <span key={i} style={clBadgeStyle}>{pill}</span>
+                  ))}
+                </div>
+              )}
             </div>
-            {personal.title && (
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", marginTop: 4, letterSpacing: "0.03em", fontFamily }}>
-                {personal.title}
-              </div>
-            )}
-            {pills.length > 0 && (
-              <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: "6px 8px", alignItems: "center" }}>
-                {pills.map((pill, i) => (
-                  <span key={i} style={clBadgeStyle}>{pill}</span>
-                ))}
-              </div>
+            {hasPhoto && (
+              <img src={photoSrc} alt="" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(255,255,255,0.6)", flexShrink: 0, marginLeft: 20 }} />
             )}
           </div>
-          {hasPhoto && (
-            <img src={photoSrc} alt="" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(255,255,255,0.6)", flexShrink: 0, marginLeft: 20 }} />
-          )}
-        </div>
-        {/* Contact row — #f0f4f8 background matching GCC CV */}
-        <div style={{ backgroundColor: "#f0f4f8", borderBottom: "1px solid #dde3ea", padding: "8px 16px", display: "flex", flexWrap: "wrap", gap: "4px 20px", fontSize: 10, color: "#6b7280", fontFamily }}>
-          {personal.email && <span>{personal.email}</span>}
-          {personal.phone && <span>{personal.phone}</span>}
-          {personal.location && <span>{personal.location}</span>}
-          {personal.linkedin && <span>{personal.linkedin}</span>}
-          {personal.github && <span>{personal.github}</span>}
-          {personal.portfolio && <span>{personal.portfolio}</span>}
+          {/* Contact row — #f0f4f8 background matching GCC CV */}
+          <div style={{ backgroundColor: "#f0f4f8", borderBottom: "1px solid #dde3ea", padding: "8px 16px", display: "flex", flexWrap: "wrap", gap: "4px 20px", fontSize: 10, color: "#6b7280", fontFamily }}>
+            {personal.email && <span>{personal.email}</span>}
+            {personal.phone && <span>{personal.phone}</span>}
+            {personal.location && <span>{personal.location}</span>}
+            {personal.linkedin && <span>{personal.linkedin}</span>}
+            {personal.github && <span>{personal.github}</span>}
+            {personal.portfolio && <span>{personal.portfolio}</span>}
+          </div>
         </div>
         {/* Content — no accent bar, matching GCC CV */}
         <div style={{ padding: "24px 16px" }}>
@@ -321,5 +361,17 @@ export function CoverLetterPreview({ content, templateId, customization, jobTitl
     );
   }
 
-  return null;
+  // Unrecognized template id (e.g. stale/legacy value) — fall back to Classic
+  // instead of rendering a blank page. (Every known id already returned above.)
+  return (
+    <CoverLetterPreview
+      content={content}
+      templateId="classic"
+      customization={customization}
+      jobTitle={jobTitle}
+      company={company}
+      letter={letter}
+      personal={personal}
+    />
+  );
 }

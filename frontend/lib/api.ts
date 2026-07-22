@@ -73,6 +73,7 @@ export const coverLetterApi = {
     job_description: string;
     tone: string;
     customization: object;
+    personal_details: object;
   }>) => api.put<CoverLetter>(`/cover-letter/${id}`, data),
 
   delete: (id: number) =>

@@ -6,16 +6,34 @@ interface Props {
     strengths: string[];
     red_flags: string[];
     seniority_assessment: string;
-    hire_likelihood: number;
+    hire_likelihood: number | null;
     most_important_improvement: string;
-    score: number;
+    score: number | null;
     max_score: number;
+    failed?: boolean;
+    error?: string | null;
   };
   isPro: boolean;
 }
 
 export function RecruiterCard({ layer, isPro }: Props) {
-  const likelihood = layer.hire_likelihood;
+  if (layer.failed) {
+    return (
+      <div className="rounded-lg overflow-hidden border border-yellow-600/30 bg-gradient-to-br from-yellow-600/5 to-[#161b22]">
+        <div className="p-6 flex flex-col items-center text-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-yellow-600/15 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-yellow-400" />
+          </div>
+          <p className="text-white font-semibold">AI Recruiter analysis could not be completed</p>
+          <p className="text-[#8b949e] text-sm max-w-md">
+            {layer.error ?? "Please try running the analysis again."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const likelihood = layer.hire_likelihood ?? 0;
   const likeColor =
     likelihood >= 70 ? "text-green-400" : likelihood >= 50 ? "text-yellow-400" : "text-red-400";
 

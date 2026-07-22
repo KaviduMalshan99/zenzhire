@@ -9,10 +9,11 @@ interface Props {
   percentage: number;
   issues: string[];
   locked?: boolean;
+  failed?: boolean;
   children?: React.ReactNode;
 }
 
-export function LayerCard({ title, icon, score, maxScore, percentage, issues: rawIssues, locked, children }: Props) {
+export function LayerCard({ title, icon, score, maxScore, percentage, issues: rawIssues, locked, failed, children }: Props) {
   const issues = rawIssues ?? [];
   const color =
     percentage >= 75 ? "bg-green-500" : percentage >= 50 ? "bg-yellow-500" : "bg-red-500";
@@ -34,35 +35,48 @@ export function LayerCard({ title, icon, score, maxScore, percentage, issues: ra
           <span className="text-[#8b949e]">{icon}</span>
           <span className="text-white font-medium text-sm">{title}</span>
         </div>
-        <span className={`text-sm font-bold ${textColor}`}>
-          {score}/{maxScore}
-        </span>
+        {failed ? (
+          <span className="text-xs font-semibold text-[#8b949e]">N/A</span>
+        ) : (
+          <span className={`text-sm font-bold ${textColor}`}>
+            {score}/{maxScore}
+          </span>
+        )}
       </div>
 
-      {/* progress bar */}
-      <div className="w-full bg-[#0d1117] rounded-full h-2 mb-3">
-        <div
-          className={cn("h-2 rounded-full transition-all duration-700", color)}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
+      {failed ? (
+        <div className="flex items-center gap-2 text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-md px-3 py-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          {issues[0] ?? "This analysis could not be completed."}
+        </div>
+      ) : (
+        <>
+          {/* progress bar */}
+          <div className="w-full bg-[#0d1117] rounded-full h-2 mb-3">
+            <div
+              className={cn("h-2 rounded-full transition-all duration-700", color)}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
 
-      {/* issues */}
-      {issues.length > 0 && (
-        <ul className="space-y-1.5 mb-3">
-          {issues.slice(0, 3).map((issue, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-[#8b949e]">
-              <AlertCircle className="w-3.5 h-3.5 text-yellow-500 mt-0.5 flex-shrink-0" />
-              {issue}
-            </li>
-          ))}
-        </ul>
-      )}
+          {/* issues */}
+          {issues.length > 0 && (
+            <ul className="space-y-1.5 mb-3">
+              {issues.slice(0, 3).map((issue, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs text-[#8b949e]">
+                  <AlertCircle className="w-3.5 h-3.5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  {issue}
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {issues.length === 0 && (
-        <p className="flex items-center gap-1.5 text-xs text-green-400">
-          <CheckCircle className="w-3.5 h-3.5" /> All checks passed
-        </p>
+          {issues.length === 0 && (
+            <p className="flex items-center gap-1.5 text-xs text-green-400">
+              <CheckCircle className="w-3.5 h-3.5" /> All checks passed
+            </p>
+          )}
+        </>
       )}
 
       {children}

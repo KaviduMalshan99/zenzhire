@@ -16,12 +16,10 @@ import {
   Globe,
   TrendingUp,
   Award,
-  Linkedin,
-  Facebook,
 } from "lucide-react";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
-import { WhatsAppIcon } from "@/components/marketing/WhatsAppIcon";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
 const WHAT_WE_BUILT = [
   {
@@ -79,11 +77,11 @@ const VALUES = [
   },
 ];
 
+const COMPANY_SOCIAL_LABELS = ["LinkedIn", "Facebook", "WhatsApp"];
+
 const COMPANY_LINKS = [
   { icon: Globe, label: "Website", href: "https://zenzhire.com" },
-  { icon: Linkedin, label: "LinkedIn", href: "#" },
-  { icon: Facebook, label: "Facebook", href: "#" },
-  { icon: WhatsAppIcon, label: "WhatsApp", href: "#" },
+  ...SOCIAL_LINKS.filter((l) => COMPANY_SOCIAL_LABELS.includes(l.label)),
 ];
 
 export default function AboutPage() {

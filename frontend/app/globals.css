@@ -127,6 +127,17 @@
 .cv-html-content.career-tip-prose strong { color: #fff; }
 .cv-html-content.career-tip-prose a { color: #60a5fa; }
 
+/* ── Cover letter manual (Tiptap) body content ─────────────────────────── */
+.cl-html-body p { margin: 0 0 14px; }
+.cl-html-body ul { margin: 0 0 14px 20px; padding: 0; list-style: disc; }
+.cl-html-body ol { margin: 0 0 14px 20px; padding: 0; list-style: decimal; }
+.cl-html-body li { margin-bottom: 4px; }
+.cl-html-body strong { font-weight: 700; }
+.cl-html-body em { font-style: italic; }
+.cl-html-body u { text-decoration: underline; }
+.cl-html-body a { color: inherit; text-decoration: underline; }
+.cl-html-body p, .cl-html-body li { page-break-inside: avoid; break-inside: avoid; }
+
 /* ── CV page-break helpers ─────────────────────────────────────────────── */
 .cv-section {
   page-break-inside: avoid !important;

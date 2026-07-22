@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Sparkles, Check, X, Loader2, RefreshCw, Target, ChevronDown,
-  AlertCircle, AlertTriangle, Lightbulb, Zap,
+  AlertCircle, AlertTriangle, Lightbulb, Zap, Wand2,
 } from "lucide-react";
 import type { CVDocument, CVSection, SectionType } from "@/types";
-import api from "@/lib/api";
+import api, { profileApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 
@@ -20,6 +20,7 @@ interface Props {
   targetRole: string;
   onTargetRoleChange: (role: string) => void;
   onJumpToSection: (sectionType: SectionType) => void;
+  onSectionDataChange: (section: CVSection, newData: Record<string, any>) => void;
 }
 
 interface Issue {
@@ -31,23 +32,12 @@ interface Issue {
 
 interface SubScore { label: string; score: number; tip: string; sectionType?: string | null; }
 
-// ─── AI usage (localStorage) ──────────────────────────────────────────────────
+// ─── AI usage (backend-sourced) ────────────────────────────────────────────────
+// The displayed "uses left" count must always reflect the real server-side
+// enforcement in users.ai_usage_count, not a locally-guessed counter — a local
+// counter can drift and show uses as available when the server already denies them.
 
 const AI_FREE_LIMIT = 3;
-function getAIUsageToday(): number {
-  try {
-    const s = localStorage.getItem("zh_ai_uses");
-    if (!s) return 0;
-    const { count, date } = JSON.parse(s);
-    return date === new Date().toISOString().slice(0, 10) ? (count ?? 0) : 0;
-  } catch { return 0; }
-}
-function incrementAIUsage() {
-  try {
-    const count = getAIUsageToday() + 1;
-    localStorage.setItem("zh_ai_uses", JSON.stringify({ count, date: new Date().toISOString().slice(0, 10) }));
-  } catch {}
-}
 
 // ─── ATS Score ────────────────────────────────────────────────────────────────
 
@@ -387,6 +377,153 @@ function computeIssues(sections: CVSection[], targetRole: string): Issue[] {
   return issues;
 }
 
+// ─── Grouped skills (AI response parsing) ──────────────────────────────────────
+
+interface SkillGroup { category: string; skills: string[]; }
+
+function parseGroupedSkills(text: string): SkillGroup[] | null {
+  try {
+    // The model sometimes wraps the JSON in a code fence and/or appends a trailing
+    // commentary note, so pull out just the {...} object rather than parsing the whole reply.
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1 || end < start) return null;
+    const parsed = JSON.parse(text.slice(start, end + 1));
+    if (!parsed || !Array.isArray(parsed.groups)) return null;
+    const groups = parsed.groups
+      .filter((g: any) => g && typeof g.category === "string" && Array.isArray(g.skills))
+      .map((g: any) => ({ category: g.category, skills: g.skills.map(String) }));
+    return groups.length > 0 ? groups : null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Polish Whole CV ────────────────────────────────────────────────────────────
+// Runs the same fix_grammar behavior as the per-section "Fix grammar" button
+// across every filled section/entry, then writes the result straight into the
+// CV (unlike the per-section buttons, which only copy to clipboard). Rich-text
+// fields (summary/description/subskills) are stored as HTML, but the AI
+// endpoint is plain-text-in/out, so each field is decomposed into lines (one
+// per <li>, or one per <p>, or one blob), sent as newline-joined plain text,
+// and only re-assembled into HTML if the corrected text splits back into the
+// exact same number of lines -- a structural mismatch is treated as a failure
+// for that one item rather than risking mangled/lost content.
+
+interface PolishLineBlock { kind: "list" | "paragraphs"; lines: string[]; }
+
+function htmlToPlainLines(html: string): PolishLineBlock {
+  if (!html || !html.trim() || typeof document === "undefined") return { kind: "paragraphs", lines: [] };
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  const listItems = Array.from(container.querySelectorAll("li"));
+  if (listItems.length > 0) {
+    const lines = listItems.map((li) => (li.textContent ?? "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    if (lines.length > 0) return { kind: "list", lines };
+  }
+  const paras = Array.from(container.querySelectorAll("p"));
+  if (paras.length > 0) {
+    const lines = paras.map((p) => (p.textContent ?? "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    if (lines.length > 0) return { kind: "paragraphs", lines };
+  }
+  const text = (container.textContent ?? "").replace(/\s+/g, " ").trim();
+  return { kind: "paragraphs", lines: text ? [text] : [] };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function linesToHtml(kind: "list" | "paragraphs", lines: string[]): string {
+  if (kind === "list") return `<ul>${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`;
+  return lines.map((l) => `<p>${escapeHtml(l)}</p>`).join("");
+}
+
+function splitCorrectedLines(corrected: string, expectedCount: number): string[] | null {
+  const lines = corrected.split("\n").map((l) => l.trim()).filter(Boolean);
+  return lines.length === expectedCount ? lines : null;
+}
+
+interface PolishTask {
+  section: CVSection;
+  label: string;
+  text: string;
+  apply: (correctedText: string) => Record<string, any> | null;
+}
+
+function buildPolishTasks(sections: CVSection[]): PolishTask[] {
+  const tasks: PolishTask[] = [];
+  const working = new Map<number, Record<string, any>>();
+  const getWorking = (s: CVSection) => {
+    if (!working.has(s.id)) working.set(s.id, JSON.parse(JSON.stringify(s.data ?? {})));
+    return working.get(s.id)!;
+  };
+
+  for (const s of sections) {
+    if (s.section_type === "profile_summary") {
+      const parsed = htmlToPlainLines(s.data?.summary ?? "");
+      if (parsed.lines.length === 0) continue;
+      tasks.push({
+        section: s,
+        label: "Profile Summary",
+        text: parsed.lines.join("\n"),
+        apply: (corrected) => {
+          const lines = splitCorrectedLines(corrected, parsed.lines.length);
+          if (!lines) return null;
+          const data = getWorking(s);
+          data.summary = linesToHtml(parsed.kind, lines);
+          return data;
+        },
+      });
+    } else if (s.section_type === "experience" || s.section_type === "education" || s.section_type === "projects") {
+      const entries: any[] = s.data?.entries ?? [];
+      entries.forEach((entry, idx) => {
+        const parsed = htmlToPlainLines(entry.description ?? "");
+        if (parsed.lines.length === 0) return;
+        const label =
+          s.section_type === "experience" ? `Experience: ${entry.job_title || entry.employer || `Entry ${idx + 1}`}`
+          : s.section_type === "education" ? `Education: ${entry.degree || entry.institution || `Entry ${idx + 1}`}`
+          : `Project: ${entry.title || `Entry ${idx + 1}`}`;
+        tasks.push({
+          section: s,
+          label,
+          text: parsed.lines.join("\n"),
+          apply: (corrected) => {
+            const lines = splitCorrectedLines(corrected, parsed.lines.length);
+            if (!lines) return null;
+            const data = getWorking(s);
+            data.entries = data.entries.map((e: any, i: number) =>
+              i === idx ? { ...e, description: linesToHtml(parsed.kind, lines) } : e
+            );
+            return data;
+          },
+        });
+      });
+    } else if (s.section_type === "skills") {
+      const entries: any[] = s.data?.entries ?? [];
+      entries.forEach((entry, idx) => {
+        const parsed = htmlToPlainLines(entry.subskills ?? "");
+        if (parsed.lines.length === 0) return;
+        tasks.push({
+          section: s,
+          label: `Skills: ${entry.skill_name || `Entry ${idx + 1}`}`,
+          text: parsed.lines.join("\n"),
+          apply: (corrected) => {
+            const lines = splitCorrectedLines(corrected, parsed.lines.length);
+            if (!lines) return null;
+            const data = getWorking(s);
+            data.entries = data.entries.map((e: any, i: number) =>
+              i === idx ? { ...e, subskills: linesToHtml(parsed.kind, lines) } : e
+            );
+            return data;
+          },
+        });
+      });
+    }
+  }
+  return tasks;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ScoreRing({ score, size = 56 }: { score: number; size?: number }) {
@@ -483,16 +620,18 @@ function IssueCard({ issue, isPro, autoFixing, onFix, onAutoFix }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onTargetRoleChange, onJumpToSection }: Props) {
+export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onTargetRoleChange, onJumpToSection, onSectionDataChange }: Props) {
   const [activeTab, setActiveTab] = useState<"ai" | "score" | "fixes">("ai");
   const [aiInput, setAiInput] = useState("");
   const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [lastAiAction, setLastAiAction] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [tone, setTone] = useState<"executive" | "technical" | "friendly">("executive");
   const [showToneMenu, setShowToneMenu] = useState(false);
   const [showTranslateInput, setShowTranslateInput] = useState(false);
   const [translateLang, setTranslateLang] = useState("");
   const [aiUsageToday, setAiUsageToday] = useState(0);
+  const [aiUsageLimit, setAiUsageLimit] = useState<number | null>(isPro ? null : AI_FREE_LIMIT);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -509,6 +648,9 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
   const [fixedIssues, setFixedIssues] = useState<Set<string>>(new Set());
   const [autoFixing, setAutoFixing] = useState<string | null>(null);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [polishing, setPolishing] = useState(false);
+  const [polishProgress, setPolishProgress] = useState<{ done: number; total: number; label: string } | null>(null);
+  const [polishResult, setPolishResult] = useState<{ succeeded: string[]; failed: string[] } | null>(null);
 
   const saveScoreHistory = useCallback((score: number) => {
     const now = new Date();
@@ -520,9 +662,17 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
     });
   }, [cv.id]);
 
-  useEffect(() => {
-    setAiUsageToday(getAIUsageToday());
+  const fetchUsageStats = useCallback(async () => {
+    try {
+      const res = await profileApi.usageStats();
+      setAiUsageToday(res.data.ai_usage_count);
+      setAiUsageLimit(res.data.ai_usage_limit);
+    } catch {}
   }, []);
+
+  useEffect(() => {
+    fetchUsageStats();
+  }, [fetchUsageStats]);
 
   useEffect(() => {
     const newData = computeATSScore(sections);
@@ -554,7 +704,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
   }, [activeSection, sectionType]);
 
   const runAI = async (actionId: string) => {
-    if (!isPro && aiUsageToday >= AI_FREE_LIMIT) return;
+    if (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT)) return;
     const text = aiInput.trim() || getSampleText();
     if (!text) return;
     setAiLoading(true);
@@ -577,8 +727,8 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
         : "";
       const res = await api.post<{ improved_text: string }>("/cv/ai/improve", { text, action: actionId, context });
       setAiResponse(res.data.improved_text);
-      incrementAIUsage();
-      setAiUsageToday(getAIUsageToday());
+      setLastAiAction(actionId);
+      fetchUsageStats();
     } catch (err: any) {
       setAiResponse(err?.response?.data?.detail || "Failed to get AI response. Please try again.");
     } finally {
@@ -623,6 +773,64 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
     }
   };
 
+  // Charged as a SINGLE usage credit for the whole run, not once per section --
+  // see the backend's /cv/ai/polish-cv/item docstring for how that's enforced
+  // server-side via a short-lived batch token (the client can't just "promise"
+  // not to be charged again, since usage limits must stay server-authoritative).
+  const handlePolishWholeCV = async () => {
+    if (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT)) return;
+    const tasks = buildPolishTasks(sections);
+    if (tasks.length === 0) {
+      setPolishResult({ succeeded: [], failed: [] });
+      return;
+    }
+
+    setPolishing(true);
+    setPolishResult(null);
+    setPolishProgress({ done: 0, total: tasks.length, label: tasks[0].label });
+
+    const succeeded: string[] = [];
+    const failed: string[] = [];
+    let batchToken: string | undefined;
+
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      setPolishProgress({ done: i, total: tasks.length, label: task.label });
+      try {
+        const res = await api.post<{ improved_text: string | null; batch_token: string; error: string | null }>(
+          "/cv/ai/polish-cv/item",
+          { text: task.text, batch_token: batchToken }
+        );
+        batchToken = res.data.batch_token;
+        if (res.data.error || !res.data.improved_text) {
+          failed.push(task.label);
+          continue;
+        }
+        const newData = task.apply(res.data.improved_text);
+        if (!newData) {
+          failed.push(`${task.label} (formatting changed too much to apply safely)`);
+          continue;
+        }
+        onSectionDataChange(task.section, newData);
+        succeeded.push(task.label);
+      } catch (err: any) {
+        if (i === 0) {
+          // First call failed outright (limit hit, network down) — stop the whole run.
+          setPolishing(false);
+          setPolishProgress(null);
+          setLimitMessage(err?.response?.data?.detail || "Failed to polish CV. Please try again.");
+          return;
+        }
+        failed.push(task.label);
+      }
+    }
+
+    setPolishProgress({ done: tasks.length, total: tasks.length, label: "Done" });
+    setPolishing(false);
+    setPolishResult({ succeeded, failed });
+    fetchUsageStats();
+  };
+
   const criticalCount = hasScanned ? issues.filter((i) => i.severity === "critical").length : 0;
 
   // ── Render AI tab action buttons ──────────────────────────────────────────
@@ -631,7 +839,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
     const btnClass = "text-[11px] px-2.5 py-1.5 bg-blue-600/10 border border-blue-600/20 text-blue-400 rounded hover:bg-blue-600/20 transition-colors disabled:opacity-40 flex-shrink-0";
 
     const Btn = ({ id, label }: { id: string; label: string }) => (
-      <button key={id} onClick={() => runAI(id)} disabled={aiLoading || (!isPro && aiUsageToday >= AI_FREE_LIMIT)} className={btnClass}>{label}</button>
+      <button key={id} onClick={() => runAI(id)} disabled={aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))} className={btnClass}>{label}</button>
     );
 
     switch (sectionType) {
@@ -698,7 +906,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
             <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => runAI("tailor_for_role")}
-                disabled={aiLoading || (!isPro && aiUsageToday >= AI_FREE_LIMIT) || !targetRole}
+                disabled={aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT)) || !targetRole}
                 className={cn(btnClass, !targetRole && "opacity-40 cursor-not-allowed")}
                 title={!targetRole ? "Set a target role above" : ""}>
                 {targetRole ? `Tailor for ${targetRole}` : "Tailor for role"}
@@ -839,6 +1047,63 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
         {/* ── AI ASSISTANT ─────────────────────────────────────────────────── */}
         {activeTab === "ai" && (
           <div className="px-4 py-3">
+
+            {/* Polish Whole CV — bulk action, separate from per-section buttons */}
+            <div className="mb-4 bg-gradient-to-br from-purple-600/10 to-blue-600/10 border border-purple-500/20 rounded-lg p-3">
+              <button
+                onClick={handlePolishWholeCV}
+                disabled={polishing || aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-md bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 transition-colors text-xs font-semibold disabled:opacity-40"
+              >
+                {polishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                ✨ Polish Whole CV
+              </button>
+              <p className="text-[10px] text-[#8b949e] mt-1.5 text-center">
+                Proofreads grammar &amp; wording across every filled section at once · counts as 1 use
+              </p>
+
+              {polishing && polishProgress && (
+                <div className="mt-2.5">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-purple-300">Polishing {polishProgress.label}…</span>
+                    <span className="text-[10px] text-[#8b949e]">{polishProgress.done}/{polishProgress.total}</span>
+                  </div>
+                  <div className="h-1.5 bg-[#30363d] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-purple-500 rounded-full transition-all duration-300"
+                      style={{ width: `${(polishProgress.done / polishProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {!polishing && polishResult && (
+                <div className="mt-2.5 bg-[#0d1117] border border-[#30363d] rounded p-2.5">
+                  {polishResult.succeeded.length === 0 && polishResult.failed.length === 0 ? (
+                    <p className="text-[11px] text-[#8b949e]">Nothing to polish — add some content to your CV first.</p>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-green-400 font-medium flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Polished {polishResult.succeeded.length} section{polishResult.succeeded.length === 1 ? "" : "s"}
+                      </p>
+                      {polishResult.failed.length > 0 && (
+                        <div className="mt-1.5">
+                          <p className="text-[11px] text-yellow-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> {polishResult.failed.length} failed — retry manually via that section's own button:
+                          </p>
+                          <ul className="mt-1 space-y-0.5">
+                            {polishResult.failed.map((label) => (
+                              <li key={label} className="text-[10px] text-[#8b949e] pl-4">• {label}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
             {activeSection && (
               <p className="text-[11px] text-blue-400 mb-3">
                 Active: <span className="capitalize">{activeSection.section_type.replace(/_/g, " ")}</span>
@@ -866,8 +1131,8 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
             {/* Free user limit */}
             {!isPro && (
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-[10px] text-[#8b949e]">{Math.max(0, AI_FREE_LIMIT - aiUsageToday)} AI uses left today</span>
-                {aiUsageToday >= AI_FREE_LIMIT && (
+                <span className="text-[10px] text-[#8b949e]">{Math.max(0, (aiUsageLimit ?? AI_FREE_LIMIT) - aiUsageToday)} AI uses left today</span>
+                {aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT) && (
                   <a href="/pricing" className="text-[10px] text-blue-400 hover:underline">Upgrade to Pro</a>
                 )}
               </div>
@@ -881,34 +1146,55 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
             )}
 
             {/* Upgrade prompt for free users at limit */}
-            {!isPro && aiUsageToday >= AI_FREE_LIMIT && !aiLoading && (
+            {!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT) && !aiLoading && (
               <div className="mt-3 bg-blue-600/10 border border-blue-600/20 rounded p-3 text-center">
                 <Zap className="w-4 h-4 text-blue-400 mx-auto mb-1" />
-                <p className="text-[11px] text-[#e6edf3] mb-2">You've used all {AI_FREE_LIMIT} free AI assists today</p>
+                <p className="text-[11px] text-[#e6edf3] mb-2">You've used all {aiUsageLimit ?? AI_FREE_LIMIT} free AI assists today</p>
                 <a href="/pricing" className="text-[11px] text-blue-400 hover:underline font-medium">Upgrade to Pro for unlimited →</a>
               </div>
             )}
 
             {/* AI response */}
-            {aiResponse && !aiLoading && (
-              <div className="mt-3 bg-[#0d1117] border border-[#30363d] rounded p-3">
-                <p className="text-[#e6edf3] text-xs leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
-                <div className="flex gap-2 mt-2.5">
-                  <button
-                    onClick={() => { navigator.clipboard?.writeText(aiResponse); setAiResponse(null); setAiInput(""); }}
-                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 bg-green-600/10 border border-green-600/20 text-green-400 rounded hover:bg-green-600/20 transition-colors"
-                  >
-                    <Check className="w-3 h-3" /> Copy & Accept
-                  </button>
-                  <button
-                    onClick={() => setAiResponse(null)}
-                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 bg-[#21262d] border border-[#30363d] text-[#8b949e] rounded hover:text-white transition-colors"
-                  >
-                    <X className="w-3 h-3" /> Reject
-                  </button>
+            {aiResponse && !aiLoading && (() => {
+              const groupedSkills = lastAiAction === "group_skills" ? parseGroupedSkills(aiResponse) : null;
+              return (
+                <div className="mt-3 bg-[#0d1117] border border-[#30363d] rounded p-3">
+                  {groupedSkills ? (
+                    <div className="space-y-2.5">
+                      {groupedSkills.map((group) => (
+                        <div key={group.category}>
+                          <p className="text-[#e6edf3] text-[11px] font-semibold mb-1">{group.category}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {group.skills.map((skill, i) => (
+                              <span key={i} className="text-[10px] px-2 py-0.5 bg-blue-600/10 border border-blue-600/20 text-blue-400 rounded">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[#e6edf3] text-xs leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
+                  )}
+                  <div className="flex gap-2 mt-2.5">
+                    <button
+                      onClick={() => { navigator.clipboard?.writeText(aiResponse); setAiResponse(null); setAiInput(""); }}
+                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 bg-green-600/10 border border-green-600/20 text-green-400 rounded hover:bg-green-600/20 transition-colors"
+                    >
+                      <Check className="w-3 h-3" /> Copy Suggestion
+                    </button>
+                    <button
+                      onClick={() => setAiResponse(null)}
+                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 bg-[#21262d] border border-[#30363d] text-[#8b949e] rounded hover:text-white transition-colors"
+                    >
+                      <X className="w-3 h-3" /> Reject
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[#8b949e] mt-1.5">Paste it into the section field.</p>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 

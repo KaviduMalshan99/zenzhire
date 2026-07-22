@@ -26,6 +26,7 @@ import { VegaTemplate, VEGA_SIDEBAR_TYPES } from "./templates/VegaTemplate";
 import { AuroraTemplate, AURORA_SIDEBAR_TYPES, AURORA_GRAY_ZONE_HEIGHT, AURORA_GRAY_ZONE_COLOR } from "./templates/AuroraTemplate";
 import { NovaTemplate, NOVA_FOOTER_HEIGHT } from "./templates/NovaTemplate";
 import { cn } from "@/lib/utils";
+import { DownloadSuccessDialog } from "@/components/shared/DownloadSuccessDialog";
 
 interface Props {
   cv: CVDocument;
@@ -208,6 +209,7 @@ function calcPageLayout(el: HTMLElement): PageLayout {
 export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS, onSectionDataChange, onReorder }: Props) {
   const hiddenRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [showDownloadSuccess, setShowDownloadSuccess] = useState(false);
   const [pageStartY, setPageStartY] = useState<number[]>([0]);
   const [sidebarPageStart, setSidebarPageStart] = useState<number[]>([0]);
   const [bodyTop, setBodyTop] = useState(0);
@@ -303,6 +305,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(downloadUrl);
+      setShowDownloadSuccess(true);
     } catch (e) {
       console.error("PDF export error:", e);
     } finally {
@@ -1195,6 +1198,11 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
       </div>
       </SortableContext>
       </DndContext>
+      <DownloadSuccessDialog
+        open={showDownloadSuccess}
+        onClose={() => setShowDownloadSuccess(false)}
+        documentLabel="CV"
+      />
     </div>
   );
 }

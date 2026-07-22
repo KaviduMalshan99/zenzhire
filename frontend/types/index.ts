@@ -244,7 +244,7 @@ export interface KeywordLayer extends LayerBase {
   missing_keywords: string[];
   semantic_matches: string[];
   total_jd_keywords: number;
-  mode: "jd_match" | "industry_coverage" | "ai_role_estimate";
+  mode: "jd_match" | "ai_role_estimate";
 }
 
 export interface BulletAnalysis {
@@ -286,13 +286,19 @@ export interface ProfessionalLayer extends LayerBase {
   details: ProfessionalDetail;
 }
 
-export interface RecruiterLayer extends LayerBase {
+export interface RecruiterLayer {
+  score: number | null;
+  max_score: number;
+  percentage: number | null;
+  issues: string[];
   first_impression: string;
   strengths: string[];
   red_flags: string[];
   seniority_assessment: string;
-  hire_likelihood: number;
+  hire_likelihood: number | null;
   most_important_improvement: string;
+  failed: boolean;
+  error: string | null;
 }
 
 export interface ATSLayers {
@@ -388,6 +394,7 @@ export interface CoverLetter {
   job_description: string;
   tone: string;
   customization: CoverLetterCustomization;
+  personal_details: Partial<CLPersonalDetails>;
   created_at: string;
   updated_at: string;
 }

@@ -21,6 +21,7 @@ class CoverLetterUpdate(BaseModel):
     job_description: Optional[str] = None
     tone: Optional[str] = None
     customization: Optional[dict] = None
+    personal_details: Optional[dict] = None
 
 
 class CoverLetterRead(BaseModel):
@@ -35,6 +36,7 @@ class CoverLetterRead(BaseModel):
     job_description: str
     tone: str
     customization: dict
+    personal_details: dict
     created_at: datetime
     updated_at: datetime
 

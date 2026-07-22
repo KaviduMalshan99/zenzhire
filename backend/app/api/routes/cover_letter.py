@@ -49,6 +49,17 @@ async def ai_generate_cover_letter(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not current_user.is_pro:
+        used = db.query(CoverLetter).filter(
+            CoverLetter.user_id == current_user.id,
+            CoverLetter.content != "",
+        ).count()
+        if used >= FREE_COVER_LETTER_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail="You've used your free cover letter generation. Upgrade to Pro for unlimited AI generations.",
+            )
+
     cv_data = None
     if payload.cv_id:
         cv = db.query(CVDocument).filter(
@@ -174,6 +185,7 @@ def duplicate_cover_letter(
         job_description=source.job_description,
         tone=source.tone,
         customization=source.customization,
+        personal_details=source.personal_details,
     )
     db.add(new_cl)
     db.commit()

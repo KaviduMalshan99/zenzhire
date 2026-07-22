@@ -7,10 +7,6 @@ import {
   Mail,
   MessageCircle,
   Phone,
-  Twitter,
-  Linkedin,
-  Instagram,
-  Facebook,
   Send,
   CheckCircle2,
   AlertTriangle,
@@ -18,18 +14,13 @@ import {
 import { contactApi } from "@/lib/api";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
-import { TikTokIcon } from "@/components/marketing/TikTokIcon";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const SOCIALS = [
-  { icon: Twitter, label: "Twitter / X", href: "#" },
-  { icon: Linkedin, label: "LinkedIn", href: "#" },
-  { icon: Instagram, label: "Instagram", href: "#" },
-  { icon: Facebook, label: "Facebook", href: "#" },
-  { icon: Send, label: "Telegram", href: "#" },
-  { icon: TikTokIcon, label: "TikTok", href: "#" },
-];
+// Telegram has no profile-link env var (not part of the centralized social
+// set) so it stays as a static placeholder alongside the dynamic ones.
+const SOCIALS = [...SOCIAL_LINKS, { icon: Send, label: "Telegram", href: "#" }];
 
 type Status = "idle" | "submitting" | "success" | "error";
 

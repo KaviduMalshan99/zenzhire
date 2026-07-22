@@ -12,6 +12,8 @@ import { LeftPanel } from "@/components/cv-builder/LeftPanel";
 import { CentrePanel } from "@/components/cv-builder/CentrePanel";
 import { RightPanel } from "@/components/cv-builder/RightPanel";
 
+const LEADING_BULLET_RE = /^[•\-*►▸▪◦‣⋅]\s*/;
+
 function extractCVText(sections: CVSection[]): string {
   const lines: string[] = [];
   for (const s of sections) {
@@ -23,6 +25,10 @@ function extractCVText(sections: CVSection[]): string {
         if (d.title) lines.push(d.title);
         const contacts = [d.email, d.phone, d.location].filter(Boolean);
         if (contacts.length) lines.push(contacts.join(" | "));
+        const links = (d.links ?? []).filter((l: any) => l.url);
+        if (links.length) {
+          lines.push(links.map((l: any) => `${l.platform}: ${l.url}`).join(" | "));
+        }
         break;
       }
       case "profile_summary":
@@ -33,7 +39,12 @@ function extractCVText(sections: CVSection[]): string {
           lines.push("\nEXPERIENCE");
           for (const e of d.entries) {
             lines.push(`${e.job_title} at ${e.employer}${e.location ? `, ${e.location}` : ""} (${e.start_date} - ${e.current ? "Present" : e.end_date})`);
-            for (const b of (e.bullets ?? [])) { if (b.text) lines.push(`• ${b.text}`); }
+            for (const b of (e.bullets ?? [])) {
+              if (!b.text) continue;
+              // Don't double-prepend a bullet marker if the stored text already has one
+              // (defends against already-saved CVs from before the AI-response fix).
+              lines.push(LEADING_BULLET_RE.test(b.text) ? b.text : `• ${b.text}`);
+            }
           }
         }
         break;
@@ -526,6 +537,7 @@ export default function CVEditorPage() {
                 targetRole={targetRole}
                 onTargetRoleChange={setTargetRole}
                 onJumpToSection={handleJumpToSection}
+                onSectionDataChange={saveSectionData}
               />
             </div>
           </div>

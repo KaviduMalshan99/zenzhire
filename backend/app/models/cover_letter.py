@@ -19,6 +19,7 @@ class CoverLetter(Base):
     job_description = Column(Text, nullable=False, default="")
     tone = Column(String(50), nullable=False, default="formal")
     customization = Column(JSONB, nullable=False, default={})
+    personal_details = Column(JSONB, nullable=False, default={})
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

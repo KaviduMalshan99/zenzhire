@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { getATSScoreLevel } from "@/lib/ats-score";
 import type { ATSResult } from "@/types";
 
 interface Props {
@@ -17,10 +18,7 @@ const JUMP_LINKS = [
 ];
 
 function scoreColor(score: number) {
-  if (score >= 80) return "#22c55e";
-  if (score >= 60) return "#eab308";
-  if (score >= 40) return "#f97316";
-  return "#ef4444";
+  return getATSScoreLevel(score).color;
 }
 
 function MiniGauge({ score }: { score: number }) {

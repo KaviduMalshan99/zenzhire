@@ -1,43 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Twitter, Linkedin, Instagram, Facebook, Send } from "lucide-react";
-import { TikTokIcon } from "./TikTokIcon";
-import { WhatsAppIcon } from "./WhatsAppIcon";
+import { Send } from "lucide-react";
+import { SHARE_LINKS } from "@/lib/share-links";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
-const SITE_URL = "https://zenzhire.com";
-const SHARE_MESSAGE = "Check out ZenzHire — build a CV that actually gets you hired.";
-
-const SHARE_LINKS = [
-  {
-    icon: Twitter,
-    label: "Share on Twitter / X",
-    href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_MESSAGE)}&url=${encodeURIComponent(SITE_URL)}`,
-  },
-  {
-    icon: Facebook,
-    label: "Share on Facebook",
-    href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SITE_URL)}`,
-  },
-  {
-    icon: Linkedin,
-    label: "Share on LinkedIn",
-    href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SITE_URL)}`,
-  },
-  {
-    icon: WhatsAppIcon,
-    label: "Share on WhatsApp",
-    href: `https://wa.me/?text=${encodeURIComponent(`${SHARE_MESSAGE} ${SITE_URL}`)}`,
-  },
-];
-
-const FOLLOW_LINKS = [
-  { icon: Twitter, label: "Twitter / X", href: "#" },
-  { icon: Linkedin, label: "LinkedIn", href: "#" },
-  { icon: Instagram, label: "Instagram", href: "#" },
-  { icon: Facebook, label: "Facebook", href: "#" },
-  { icon: Send, label: "Telegram", href: "#" },
-  { icon: TikTokIcon, label: "TikTok", href: "#" },
-];
+// Telegram has no profile-link env var (not part of the centralized social
+// set) so it stays as a static placeholder alongside the dynamic ones.
+const FOLLOW_LINKS = [...SOCIAL_LINKS, { icon: Send, label: "Telegram", href: "#" }];
 
 const PRODUCT_LINKS = [
   { label: "Templates", href: "/templates" },

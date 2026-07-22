@@ -1,6 +1,9 @@
 import json
+import re
 import anthropic
 from app.core.config import settings
+
+_LEADING_BULLET_RE = re.compile(r"^[•\-\*►▸▪◦‣⋅]\s*", re.MULTILINE)
 
 client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
@@ -126,7 +129,12 @@ Text to improve:
         max_tokens=600,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text.strip()
+    result = message.content[0].text.strip()
+    # Claude sometimes prepends its own bullet marker despite being told to return only
+    # the text -- the UI/PDF render bullets visually, so stored CV text must never bake
+    # one in (a stray leading "•" here becomes a doubled "• •" wherever this gets rendered
+    # as a bullet later, e.g. extractCVText for the ATS Checker).
+    return _LEADING_BULLET_RE.sub("", result).strip()
 
 
 async def analyze_cv_with_ai(cv_text: str, job_description: str | None) -> dict:

@@ -110,15 +110,18 @@ class ProfessionalLayer(BaseModel):
 
 
 class RecruiterLayer(BaseModel):
-    score: float
+    score: Optional[float] = None
     max_score: int
-    percentage: float
+    percentage: Optional[float] = None
+    issues: list[str] = []
     first_impression: str
     strengths: list[str]
     red_flags: list[str]
     seniority_assessment: str
-    hire_likelihood: float
+    hire_likelihood: Optional[float] = None
     most_important_improvement: str
+    failed: bool = False
+    error: Optional[str] = None
 
 
 class ATSLayers(BaseModel):

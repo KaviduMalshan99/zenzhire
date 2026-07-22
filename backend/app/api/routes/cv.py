@@ -1,4 +1,6 @@
 import copy
+import secrets
+import time
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from app.schemas.cv import (
     CVSectionCreate, CVSectionUpdate, CVSectionRead,
     ReorderRequest, AIImproveRequest, AIImproveResponse,
     CVScoreResponse, JobMatchRequest, JobMatchResponse,
+    PolishItemRequest, PolishItemResponse,
 )
 from app.services.ai_service import improve_cv_text
 from app.services.score_service import compute_ats_score, compute_sub_scores, compute_job_match
@@ -133,6 +136,89 @@ async def ai_improve_text(
 
     improved = await improve_cv_text(payload.text, payload.action, payload.context)
     return AIImproveResponse(improved_text=improved)
+
+
+# ── "Polish Whole CV" bulk action ──────────────────────────────────────────────
+# Runs fix_grammar (same improve_cv_text() call the per-section buttons use --
+# no new AI logic) once per filled section/entry, sequentially from the
+# frontend so the UI can show genuine per-item progress. Billing is a single
+# flat usage credit for the whole run rather than one credit per section --
+# metering per-section would let one click burn a Free user's entire 3/day
+# limit, which is punishing rather than helpful for a bulk convenience action.
+#
+# The daily-limit check can only run once (on the first call of a run), but
+# usage charging is enforced server-side, so the frontend can't simply "count
+# once" on its own -- a modified client could otherwise flag every call as
+# "already charged" and get unlimited free AI. Instead the first call (no
+# batch_token) charges the usage credit and mints a short-lived batch_token;
+# every subsequent call in that run must present a valid, unexpired token
+# scoped to that user, so charging stays server-authoritative while later
+# calls in the same run are genuinely free.
+#
+# Token store is an in-memory dict, not a DB table: it only needs to live a
+# few minutes and this avoids a migration on launch day (see the template-enum
+# migration incident). Known limitation: doesn't survive a process restart and
+# isn't shared across multiple uvicorn workers -- fine for current deployment
+# scale, worth revisiting if the backend is ever run with >1 worker.
+_polish_batch_tokens: dict[str, tuple[int, float]] = {}
+POLISH_BATCH_TTL_SECONDS = 180
+
+
+def _purge_expired_polish_tokens() -> None:
+    now = time.time()
+    expired = [t for t, (_, exp) in _polish_batch_tokens.items() if exp < now]
+    for t in expired:
+        _polish_batch_tokens.pop(t, None)
+
+
+def _issue_polish_batch_token(user_id: int) -> str:
+    _purge_expired_polish_tokens()
+    token = secrets.token_urlsafe(24)
+    _polish_batch_tokens[token] = (user_id, time.time() + POLISH_BATCH_TTL_SECONDS)
+    return token
+
+
+def _polish_token_valid(token: str, user_id: int) -> bool:
+    entry = _polish_batch_tokens.get(token)
+    if not entry:
+        return False
+    owner_id, expiry = entry
+    return owner_id == user_id and time.time() <= expiry
+
+
+@router.post("/ai/polish-cv/item", response_model=PolishItemResponse)
+async def polish_cv_item(
+    payload: PolishItemRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if payload.batch_token:
+        if not _polish_token_valid(payload.batch_token, current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail="Polish session expired. Please restart Polish Whole CV.",
+            )
+        token = payload.batch_token
+    else:
+        if not current_user.is_pro:
+            today = date.today()
+            if current_user.ai_usage_date != today:
+                current_user.ai_usage_date = today
+                current_user.ai_usage_count = 0
+            if current_user.ai_usage_count >= AI_FREE_DAILY_LIMIT:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Free plan limited to {AI_FREE_DAILY_LIMIT} AI assists per day. Upgrade to Pro for unlimited access.",
+                )
+            current_user.ai_usage_count += 1
+            db.commit()
+        token = _issue_polish_batch_token(current_user.id)
+
+    try:
+        improved = await improve_cv_text(payload.text, "fix_grammar", "")
+        return PolishItemResponse(improved_text=improved, batch_token=token)
+    except Exception:
+        return PolishItemResponse(batch_token=token, error="failed")
 
 
 # ── CV Document CRUD ──────────────────────────────────────────────────────────

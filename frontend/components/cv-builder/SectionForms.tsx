@@ -736,13 +736,6 @@ function SkillsForm({ section, onChange }: FormProps) {
                 <X className="w-3 h-3" />
               </button>
             </div>
-            <div>
-              <span className="block text-[9px] text-[#8b949e] mb-1 uppercase tracking-wide">Subskills / Details</span>
-              <RichTextEditor
-                value={entry.subskills ?? ""}
-                onChange={(html) => updateEntry(entry.id, "subskills", html)}
-              />
-            </div>
           </div>
         ))}
       </div>

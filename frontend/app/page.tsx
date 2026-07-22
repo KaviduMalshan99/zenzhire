@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   ShieldCheck,
@@ -13,6 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { TemplateCarousel } from "@/components/marketing/TemplateCarousel";
+import { TemplatePreviewFrame } from "@/components/templates/TemplatePreviewFrame";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 
@@ -118,104 +120,101 @@ export default function LandingPage() {
                 See Templates
               </Link>
             </div>
+
+            {/* Cover letter mention — a quiet second line, not a mockup, so it doesn't compete with the CTAs */}
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-[#8b949e] justify-center lg:justify-start">
+              <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
+              Matching cover letters generated automatically from your CV
+            </div>
           </div>
 
-          {/* Visual: two live template preview mockups, stacked. Composed at a fixed 480x520 "design size"
-              then scaled down as a single unit on narrow viewports (Tailwind's responsive scale utilities)
-              so the whole composition shrinks together — the outer box's own width/height shrink to match,
-              which is what actually prevents mobile overflow (transform alone doesn't affect layout size). */}
-          <div className="relative mx-auto w-[270px] h-[293px] sm:w-[480px] sm:h-[520px]">
-          <div className="absolute top-0 left-0 origin-top-left scale-[0.5625] sm:scale-100" style={{ width: 480, height: 520 }}>
+          {/* Visual: a single, larger live template preview mockup rendered with the shared
+              aspect-ratio-locked TemplatePreviewFrame (real A4 proportions, full content, never
+              cropped) — the CV fills its card edge-to-edge, no inset chrome around it. The ATS
+              badge hangs off the card's bottom-left corner (mostly outside it, small overlap at
+              the corner only — never over the middle of the CV), and Zeni stands beside the card
+              to its right with their bottoms aligned, reading as one deliberately composed pair
+              rather than two elements floating at different heights.
+
+              Two separate layouts rather than one scaled-down composition: this fixed-width
+              design (505px) needs a genuinely reliable 505px of column space, and the grid
+              column here only reaches that width once the container hits its max-w-6xl cap
+              (~524px per column) — which happens at the `xl` breakpoint and up, not `lg`. Using
+              `lg` here would let the box silently overflow its column on real laptop widths
+              (1024–1279px), which is exactly the kind of drift that caused this to look
+              unintentionally misaligned before. Below `xl`, it stacks in normal flow instead. */}
+
+          {/* Mobile / tablet / small laptop: simple stacked flow, no absolute positioning */}
+          <div className="xl:hidden flex flex-col items-center gap-6">
+            <div
+              className="rounded-xl border border-[#30363d] overflow-hidden w-[240px]"
+              style={{ boxShadow: "0 25px 50px -12px rgba(0,0,0,0.6)" }}
+            >
+              <TemplatePreviewFrame templateId="aurora" accentColor="#111827" photoSize={146} />
+            </div>
+            <div className="flex items-center gap-5">
+              <div
+                className="bg-[#161b22] border border-blue-500/30 rounded-xl px-4 py-3 flex items-center gap-3"
+                style={{ boxShadow: "0 0 0 1px rgba(37,99,235,0.15), 0 16px 32px rgba(0,0,0,0.5)" }}
+              >
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/25 to-blue-600/10 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-4.5 h-4.5 text-blue-400" />
+                </div>
+                <div>
+                  <div className="text-white text-sm font-semibold leading-none">87 / 100</div>
+                  <div className="text-[#8b949e] text-[11px] mt-1">ATS Score</div>
+                </div>
+              </div>
+              <div className="relative w-16 flex-shrink-0">
+                <div
+                  className="pointer-events-none absolute inset-0 scale-150 rounded-full opacity-40"
+                  style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)", filter: "blur(24px)" }}
+                />
+                <Image
+                  src="/zeniai.png"
+                  alt="Zeni, the ZenzHire mascot"
+                  width={587}
+                  height={949}
+                  className="relative w-full h-auto drop-shadow-[0_10px_20px_rgba(37,99,235,0.35)]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop (xl+): CV mockup + corner badge, and Zeni standing beside it, bottoms aligned */}
+          <div className="hidden xl:block relative mx-auto" style={{ width: 505, height: 460 }}>
             {/* Soft blue glow blobs — resume.io-style layered depth, on-brand blue only */}
             <div
-              className="pointer-events-none absolute -top-16 -right-10 w-[520px] h-[520px] rounded-full opacity-50"
+              className="pointer-events-none absolute -top-16 -right-10 w-[420px] h-[420px] rounded-full opacity-50"
               style={{ background: "radial-gradient(circle, #3b82f6 0%, #2563eb 40%, transparent 72%)", filter: "blur(85px)" }}
             />
             <div
-              className="pointer-events-none absolute -bottom-14 -left-10 w-[340px] h-[340px] rounded-full opacity-25"
+              className="pointer-events-none absolute -bottom-14 -left-10 w-[280px] h-[280px] rounded-full opacity-25"
               style={{ background: "radial-gradient(circle, #1d4ed8 0%, transparent 70%)", filter: "blur(70px)" }}
             />
 
-            {/* Back mockup: Nova (single-column, blue accent) — dimmed + softer shadow so depth reads clearly behind the front card. Cropped to where content + footer bar actually end. Single rotate only, no skew. */}
-            <div
-              className="absolute"
-              style={{ top: 16, left: 4, zIndex: 0, transform: "rotate(-5deg)" }}
-            >
+            {/* CV mockup + its attached badges — no dots/padding chrome around the preview, so
+                the CV fills the card exactly instead of floating small within it. */}
+            <div className="absolute" style={{ top: 20, left: 40, zIndex: 10 }}>
               <div
-                className="rounded-xl border border-[#30363d] bg-[#161b22] p-3 opacity-75"
-                style={{ boxShadow: "0 20px 40px -12px rgba(0,0,0,0.5)" }}
+                className="relative rounded-xl border border-[#30363d] overflow-hidden"
+                style={{ width: 280, boxShadow: "0 30px 60px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03)" }}
               >
-                <div className="flex items-center gap-1.5 px-1 pb-2.5">
-                  <span className="w-2 h-2 rounded-full bg-[#30363d]" />
-                  <span className="w-2 h-2 rounded-full bg-[#30363d]" />
-                  <span className="w-2 h-2 rounded-full bg-[#30363d]" />
-                </div>
-                <div className="relative overflow-hidden rounded-lg bg-white" style={{ width: 258, height: 281 }}>
-                  <iframe
-                    src={`/cv-template-preview/nova?accentColor=${encodeURIComponent("#2563eb")}`}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "794px",
-                      height: "1122px",
-                      border: "none",
-                      transformOrigin: "top left",
-                      transform: `scale(${258 / 794})`,
-                      pointerEvents: "none",
-                    }}
-                    tabIndex={-1}
-                    title="Nova template preview"
-                  />
-                  {/* Subtle dim overlay so the eye is drawn to the front card as the main one */}
-                  <div className="pointer-events-none absolute inset-0 bg-[#0d1117]/15" />
-                </div>
-              </div>
-            </div>
-
-            {/* Front mockup group: Aurora (sidebar layout, black accent) + its attached floating badges — kept perfectly upright as the clear "main" card */}
-            <div className="absolute" style={{ top: 44, left: 128, zIndex: 10 }}>
-              <div
-                className="relative rounded-xl border border-[#30363d] bg-[#161b22] p-3.5"
-                style={{ boxShadow: "0 30px 60px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03)" }}
-              >
-                <div className="flex items-center gap-1.5 px-1 pb-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#30363d]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#30363d]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#30363d]" />
-                </div>
-                {/* Cropped to where Aurora's sidebar/main content actually ends — no dead white space */}
-                <div className="relative overflow-hidden rounded-lg bg-white" style={{ width: 320, height: 306 }}>
-                  <iframe
-                    src={`/cv-template-preview/aurora?accentColor=${encodeURIComponent("#111827")}&photoSize=150`}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "794px",
-                      height: "1122px",
-                      border: "none",
-                      transformOrigin: "top left",
-                      transform: `scale(${320 / 794})`,
-                      pointerEvents: "none",
-                    }}
-                    tabIndex={-1}
-                    title="Aurora template preview"
-                  />
-                </div>
+                <TemplatePreviewFrame templateId="aurora" accentColor="#111827" photoSize={146} />
               </div>
 
-              {/* Floating: icon-only Grammarly-style circular badge — pinned deliberately to the front card's top-right corner */}
+              {/* Floating: icon-only verified badge, pinned to the card's top-right corner */}
               <div
-                className="absolute w-11 h-11 rounded-full bg-blue-600 items-center justify-center hidden sm:flex ring-4 ring-[#0d1117]"
+                className="absolute w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center ring-4 ring-[#0d1117]"
                 style={{ top: -20, right: -20, boxShadow: "0 8px 20px rgba(37,99,235,0.55)" }}
               >
                 <Check className="w-5 h-5 text-white" strokeWidth={3} />
               </div>
 
-              {/* Floating: ATS score badge — anchored to the front card's bottom-left corner, clear of the card edge */}
+              {/* Floating: ATS score badge — hangs off the bottom-left corner, mostly outside the
+                  card. Never sits over the middle of the CV content. */}
               <div
-                className="absolute bg-[#161b22] border border-blue-500/30 rounded-xl px-4 py-3 hidden sm:flex items-center gap-3"
+                className="absolute bg-[#161b22] border border-blue-500/30 rounded-xl px-4 py-3 flex items-center gap-3"
                 style={{
                   bottom: -28,
                   left: -32,
@@ -230,22 +229,24 @@ export default function LandingPage() {
                   <div className="text-[#8b949e] text-[11px] mt-1">ATS Score</div>
                 </div>
               </div>
-
-              {/* Floating: AI writing suggestion card — anchored to the front card's bottom-right corner, mirroring the ATS badge on the opposite side. Positioned below the card (not out to the side) so it stays within the composition's own bounds instead of depending on viewport width. */}
-              <div
-                className="absolute bg-[#161b22] border border-[#30363d] rounded-xl px-4 py-3.5 hidden lg:flex items-start gap-3 w-[205px]"
-                style={{ bottom: -34, right: -28, boxShadow: "0 16px 32px rgba(0,0,0,0.5)" }}
-              >
-                <div className="w-6 h-6 rounded-full bg-blue-600/15 border border-blue-600/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                </div>
-                <p className="text-[12px] text-[#c9d1d9] leading-snug">
-                  <span className="text-blue-400 font-medium">AI Suggestion:</span>{" "}
-                  Add a measurable result to this bullet.
-                </p>
-              </div>
             </div>
-          </div>
+
+            {/* Zeni — standing beside the card to its right, bottom aligned with the card's own
+                bottom edge so the two read as one composed pair, not two floating elements. Same
+                soft blue glow treatment as the About page. */}
+            <div className="absolute" style={{ top: 197, left: 346, width: 135, zIndex: 5 }}>
+              <div
+                className="pointer-events-none absolute inset-0 scale-150 rounded-full opacity-40"
+                style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)", filter: "blur(40px)" }}
+              />
+              <Image
+                src="/zeniai.png"
+                alt="Zeni, the ZenzHire mascot"
+                width={587}
+                height={949}
+                className="relative w-full h-auto drop-shadow-[0_15px_30px_rgba(37,99,235,0.35)]"
+              />
+            </div>
           </div>
         </div>
       </section>

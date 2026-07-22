@@ -8,6 +8,7 @@ import type { CoverLetterListItem } from "@/types";
 import { Plus, Loader2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
+import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 
 const TEMPLATE_LABELS: Record<string, string> = {
   classic: "Classic",
@@ -180,6 +181,7 @@ export default function CoverLetterPage() {
   const [duplicating, setDuplicating] = useState<number | null>(null);
   const [token, setToken] = useState("");
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CoverLetterListItem | null>(null);
 
   useEffect(() => {
     setToken(Cookies.get("token") ?? "");
@@ -206,8 +208,10 @@ export default function CoverLetterPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this cover letter? This cannot be undone.")) return;
+  const handleDeleteConfirm = async () => {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setPendingDelete(null);
     await coverLetterApi.delete(id);
     setLetters((prev) => prev.filter((l) => l.id !== id));
   };
@@ -217,6 +221,8 @@ export default function CoverLetterPage() {
     try {
       const res = await coverLetterApi.duplicate(id);
       setLetters((prev) => [...prev, res.data]);
+    } catch (err: any) {
+      setLimitMessage(err?.response?.data?.detail || "Failed to duplicate cover letter. Please try again.");
     } finally {
       setDuplicating(null);
     }
@@ -281,13 +287,20 @@ export default function CoverLetterPage() {
             token={token}
             onOpen={() => router.push(`/cover-letter/${letter.id}`)}
             onDuplicate={() => handleDuplicate(letter.id)}
-            onDelete={() => handleDelete(letter.id)}
+            onDelete={() => setPendingDelete(letter)}
             duplicating={duplicating === letter.id}
           />
         ))}
       </div>
 
       <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
+      <DeleteConfirmDialog
+        open={!!pendingDelete}
+        title="Delete Cover Letter"
+        itemName={pendingDelete?.title}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

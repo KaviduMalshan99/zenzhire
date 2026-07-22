@@ -7,6 +7,8 @@ import api from "@/lib/api";
 import type { CVDocument } from "@/types";
 import { Plus, Loader2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
+import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 
 const TEMPLATE_LABELS: Record<string, string> = {
   classic: "Classic",
@@ -183,6 +185,8 @@ export default function CVBuilderPage() {
   const [loading, setLoading] = useState(true);
   const [duplicating, setDuplicating] = useState<number | null>(null);
   const [token, setToken] = useState("");
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CVDocument | null>(null);
 
   useEffect(() => {
     setToken(Cookies.get("token") ?? "");
@@ -196,8 +200,10 @@ export default function CVBuilderPage() {
     router.push("/dashboard/templates");
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this CV? This cannot be undone.")) return;
+  const handleDeleteConfirm = async () => {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setPendingDelete(null);
     await api.delete(`/cv/${id}`);
     setCvs((prev) => prev.filter((c) => c.id !== id));
   };
@@ -207,6 +213,8 @@ export default function CVBuilderPage() {
     try {
       const res = await api.post<CVDocument>(`/cv/${id}/duplicate`);
       setCvs((prev) => [...prev, res.data]);
+    } catch (err: any) {
+      setLimitMessage(err?.response?.data?.detail || "Failed to duplicate CV. Please try again.");
     } finally {
       setDuplicating(null);
     }
@@ -270,11 +278,20 @@ export default function CVBuilderPage() {
             token={token}
             onOpen={() => router.push(`/cv-builder/${cv.id}`)}
             onDuplicate={() => handleDuplicate(cv.id)}
-            onDelete={() => handleDelete(cv.id)}
+            onDelete={() => setPendingDelete(cv)}
             duplicating={duplicating === cv.id}
           />
         ))}
       </div>
+
+      <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
+      <DeleteConfirmDialog
+        open={!!pendingDelete}
+        title="Delete CV"
+        itemName={pendingDelete?.title}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

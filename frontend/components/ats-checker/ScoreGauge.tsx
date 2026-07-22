@@ -1,5 +1,7 @@
 "use client";
 
+import { getATSScoreLevel } from "@/lib/ats-score";
+
 interface Props {
   score: number; // 0-100
   size?: number;
@@ -12,11 +14,7 @@ export function ScoreGauge({ score, size = 200 }: Props) {
   const filled = (pct / 100) * circumference;
   const gap = circumference - filled;
 
-  const color =
-    pct >= 75 ? "#22c55e" : pct >= 50 ? "#f59e0b" : "#ef4444";
-
-  const label =
-    pct >= 75 ? "Strong" : pct >= 50 ? "Moderate" : "Needs Work";
+  const { label, color } = getATSScoreLevel(pct);
 
   const cx = size / 2;
   const cy = size / 2 + radius * 0.18;

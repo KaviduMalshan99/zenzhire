@@ -8,6 +8,9 @@ import { DEFAULT_CL_CUSTOMIZATION } from "@/types";
 import { Loader2, Download, Sparkles, ChevronLeft, Save, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverLetterPreview } from "./CoverLetterPreview";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
+import { DownloadSuccessDialog } from "@/components/shared/DownloadSuccessDialog";
+import { RichTextEditor } from "@/components/cv-builder/RichTextEditor";
 
 const TEMPLATES = [
   { id: "classic",      name: "Classic",      desc: "Clean traditional — matches Classic CV" },
@@ -63,6 +66,8 @@ export default function CoverLetterEditor() {
   const [activeTab, setActiveTab] = useState<"details" | "style">("details");
   const [editMode, setEditMode] = useState(false);
   const [autoMatchMsg, setAutoMatchMsg] = useState<string | null>(null);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [showDownloadSuccess, setShowDownloadSuccess] = useState(false);
 
   // Letter fields
   const [title, setTitle] = useState("");
@@ -159,7 +164,16 @@ export default function CoverLetterEditor() {
       } as CoverLetterCustomization);
       setSelectedCvId(cl.cv_id);
       setCvList(cvRes.data);
-      if (cl.cv_id) extractPersonalFromCV(cl.cv_id);
+      if (cl.cv_id) {
+        extractPersonalFromCV(cl.cv_id);
+      } else if (cl.personal_details && Object.keys(cl.personal_details).length > 0) {
+        setPersonalDetails({ ...EMPTY_PERSONAL, ...cl.personal_details });
+        setManualName(cl.personal_details.full_name ?? "");
+        setManualTitle(cl.personal_details.title ?? "");
+        setManualEmail(cl.personal_details.email ?? "");
+        setManualPhone(cl.personal_details.phone ?? "");
+        setManualLocation(cl.personal_details.location ?? "");
+      }
     }).finally(() => setLoading(false));
   }, [id, extractPersonalFromCV]);
 
@@ -171,6 +185,7 @@ export default function CoverLetterEditor() {
         job_description: jobDesc, tone, content,
         template_id: templateId, customization,
         cv_id: selectedCvId ?? undefined,
+        personal_details: personalDetails,
         ...updates,
       });
       setSaved(true);
@@ -178,7 +193,7 @@ export default function CoverLetterEditor() {
     } finally {
       setSaving(false);
     }
-  }, [id, title, jobTitle, company, jobDesc, tone, content, templateId, customization, selectedCvId]);
+  }, [id, title, jobTitle, company, jobDesc, tone, content, templateId, customization, selectedCvId, personalDetails]);
 
   const handleGenerate = async () => {
     if (!jobTitle || !company) {
@@ -193,8 +208,12 @@ export default function CoverLetterEditor() {
         job_description: jobDesc, tone,
       });
       setContent(res.data.content);
-    } catch {
-      alert("Generation failed. Please try again.");
+    } catch (err: any) {
+      if (err?.response?.status === 403) {
+        setLimitMessage(err.response.data?.detail || "You've used your free cover letter generation. Upgrade to Pro for unlimited AI generations.");
+      } else {
+        alert("Generation failed. Please try again.");
+      }
     } finally {
       setGenerating(false);
     }
@@ -215,6 +234,7 @@ export default function CoverLetterEditor() {
       a.download = `${title.replace(/\s+/g, "_")}-cover-letter.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      setShowDownloadSuccess(true);
     } catch {
       alert("PDF export failed.");
     }
@@ -316,25 +336,27 @@ export default function CoverLetterEditor() {
 
               {/* Manual fields when no CV linked */}
               {!selectedCvId && (
-                <div className="space-y-2 p-3 bg-[#0d1117] border border-[#30363d] rounded-lg">
+                <div className="space-y-2.5 p-3 bg-[#0d1117] border border-[#30363d] rounded-lg">
                   <p className="text-[10px] text-[#8b949e] uppercase tracking-wide font-medium">Your Details</p>
                   {[
-                    { label: "Full Name",  value: manualName,     setter: setManualName,     placeholder: "John Smith",       key: "full_name" },
-                    { label: "Job Title",  value: manualTitle,    setter: setManualTitle,    placeholder: "Backend Engineer", key: "title" },
-                    { label: "Email",      value: manualEmail,    setter: setManualEmail,    placeholder: "john@email.com",   key: "email" },
-                    { label: "Phone",      value: manualPhone,    setter: setManualPhone,    placeholder: "+1 234 567 890",   key: "phone" },
-                    { label: "Location",   value: manualLocation, setter: setManualLocation, placeholder: "New York, USA",    key: "location" },
+                    { label: "Full Name",  value: manualName,     setter: setManualName,     placeholder: "e.g. John Smith",       key: "full_name" },
+                    { label: "Job Title",  value: manualTitle,    setter: setManualTitle,    placeholder: "e.g. Backend Engineer", key: "title" },
+                    { label: "Email",      value: manualEmail,    setter: setManualEmail,    placeholder: "e.g. john@email.com",   key: "email" },
+                    { label: "Phone",      value: manualPhone,    setter: setManualPhone,    placeholder: "e.g. +1 234 567 890",   key: "phone" },
+                    { label: "Location",   value: manualLocation, setter: setManualLocation, placeholder: "e.g. New York, USA",    key: "location" },
                   ].map((field) => (
-                    <input
-                      key={field.key}
-                      value={field.value}
-                      onChange={(e) => {
-                        field.setter(e.target.value);
-                        setPersonalDetails((prev) => ({ ...prev, [field.key]: e.target.value }));
-                      }}
-                      placeholder={field.placeholder}
-                      className="w-full bg-[#161b22] border border-[#30363d] rounded px-2 py-1 text-[11px] text-[#e6edf3] placeholder:text-[#484f58] focus:outline-none focus:border-blue-500"
-                    />
+                    <div key={field.key}>
+                      <label className="text-[10px] text-[#8b949e] block mb-1">{field.label}</label>
+                      <input
+                        value={field.value}
+                        onChange={(e) => {
+                          field.setter(e.target.value);
+                          setPersonalDetails((prev) => ({ ...prev, [field.key]: e.target.value }));
+                        }}
+                        placeholder={field.placeholder}
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded px-2 py-1 text-[11px] text-[#e6edf3] placeholder:text-[#484f58] placeholder:italic focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -354,12 +376,15 @@ export default function CoverLetterEditor() {
               {/* Job Description */}
               <div>
                 <label className={labelCls}>Job Description</label>
+                <p className="text-[10px] text-[#8b949e] mb-1.5 -mt-1">
+                  Paste the job posting details here — we&apos;ll use this to tailor your cover letter.
+                </p>
                 <textarea
                   value={jobDesc}
                   onChange={(e) => setJobDesc(e.target.value)}
-                  placeholder="Paste the job description here for better AI results..."
+                  placeholder="Paste the job description from the listing..."
                   rows={6}
-                  className={cn(inputCls, "resize-none")}
+                  className={cn(inputCls, "resize-none placeholder:italic")}
                 />
               </div>
 
@@ -479,6 +504,7 @@ export default function CoverLetterEditor() {
             <span className="text-[#8b949e] text-xs">Cover Letter Preview</span>
             <button
               onClick={() => setEditMode((p) => !p)}
+              title={editMode ? "Back to the formatted preview" : "Skip AI and write your own letter instead"}
               className={cn(
                 "px-3 py-1 rounded text-xs border transition-colors",
                 editMode
@@ -486,7 +512,7 @@ export default function CoverLetterEditor() {
                   : "border-[#30363d] text-[#8b949e] hover:border-[#8b949e]"
               )}
             >
-              {editMode ? "Preview" : "Edit"}
+              {editMode ? "← Preview" : "Write Manually"}
             </button>
           </div>
           <button
@@ -502,13 +528,14 @@ export default function CoverLetterEditor() {
         <div className="flex-1 overflow-auto flex items-start justify-center p-8" style={{ backgroundColor: "#94a3b8" }}>
           {editMode ? (
             <div style={{ width: "210mm", minHeight: "297mm", backgroundColor: "#ffffff", padding: "40px 48px", boxShadow: "0 4px 32px rgba(0,0,0,0.4)" }}>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onBlur={() => save()}
-                placeholder="Write or edit your cover letter here..."
-                style={{ width: "100%", minHeight: "217mm", border: "none", outline: "none", resize: "none", fontSize: 12, lineHeight: 1.8, color: "#374151", fontFamily: customization.fontFamily, backgroundColor: "transparent" }}
-              />
+              <RichTextEditor value={content} onChange={setContent} />
+              <button
+                onClick={() => save()}
+                className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" />
+                Save cover letter
+              </button>
             </div>
           ) : (
             <div style={{ width: "210mm", minHeight: "297mm", backgroundColor: "#ffffff", boxShadow: "0 4px 32px rgba(0,0,0,0.4)", fontFamily: customization.fontFamily }}>
@@ -552,6 +579,10 @@ export default function CoverLetterEditor() {
             <p className="text-[10px] text-[#8b949e] text-center">Enter job title and company in the left panel first</p>
           )}
 
+          <p className="text-[10px] text-[#8b949e] text-center">
+            Prefer to write it yourself? Use <span className="text-[#e6edf3]">Write Manually</span> above the preview to skip AI.
+          </p>
+
           <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
             <p className="text-[11px] text-[#8b949e] font-medium mb-2">💡 Tips for better results</p>
             <ul className="space-y-1.5">
@@ -589,6 +620,13 @@ export default function CoverLetterEditor() {
 
         </div>
       </div>
+
+      <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
+      <DownloadSuccessDialog
+        open={showDownloadSuccess}
+        onClose={() => setShowDownloadSuccess(false)}
+        documentLabel="cover letter"
+      />
     </div>
   );
 }

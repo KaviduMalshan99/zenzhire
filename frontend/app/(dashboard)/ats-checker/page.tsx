@@ -6,12 +6,13 @@ import { toast } from "sonner";
 import {
   Upload, FileText, Target, Loader2, ChevronRight, RotateCcw,
   Shield, AlignLeft, Key, Sparkles, BookOpen, User, Brain,
-  CheckCircle, Clock,
+  CheckCircle, Clock, Lock,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import type { ATSResult } from "@/types";
 import { cn } from "@/lib/utils";
+import { getATSScoreLevel } from "@/lib/ats-score";
 import { ScoreGauge } from "@/components/ats-checker/ScoreGauge";
 import { LayerCard } from "@/components/ats-checker/LayerCard";
 import { KeywordHeatmap } from "@/components/ats-checker/KeywordHeatmap";
@@ -344,18 +345,23 @@ function ATSCheckerInner() {
           <h2 className="text-xl font-bold text-white">Overall ATS Score</h2>
           <p className="text-[#8b949e] text-sm leading-relaxed">
             Your CV scored <strong className="text-white">{result.overall_score.toFixed(0)}/100</strong> across 7 analysis dimensions.
-            {result.overall_score < 60 && " Significant improvements can be made."}
-            {result.overall_score >= 60 && result.overall_score < 80 && " Good foundation — targeted improvements will help."}
-            {result.overall_score >= 80 && " Strong CV — you're well-positioned for ATS screening."}
+            {" " + getATSScoreLevel(result.overall_score).sentence}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
             {(["ats_compatibility", "keyword_match", "content_quality", "ai_recruiter"] as const).map((key) => {
               const layer = result.layers[key];
               const Meta = layerMeta(key);
-              const color = layer.percentage >= 75 ? "text-green-400" : layer.percentage >= 50 ? "text-yellow-400" : "text-red-400";
+              const recruiterLocked = key === "ai_recruiter" && !isPro;
+              const isFailed = key === "ai_recruiter" && result.layers.ai_recruiter.failed;
+              const pct = layer.percentage ?? 0;
+              const color = recruiterLocked || isFailed ? "text-[#8b949e]" : pct >= 75 ? "text-green-400" : pct >= 50 ? "text-yellow-400" : "text-red-400";
               return (
                 <div key={key} className="bg-[#0d1117] rounded-md p-3 text-center border border-[#30363d]">
-                  <p className={`text-xl font-bold ${color}`}>{layer.score.toFixed(0)}</p>
+                  {recruiterLocked ? (
+                    <Lock className="w-4 h-4 mx-auto text-[#8b949e]" />
+                  ) : (
+                    <p className={`text-xl font-bold ${color}`}>{isFailed ? "N/A" : (layer.score ?? 0).toFixed(0)}</p>
+                  )}
                   <p className="text-[#8b949e] text-xs mt-0.5">{Meta.label}</p>
                 </div>
               );
@@ -431,17 +437,19 @@ function ATSCheckerInner() {
             const layer = result.layers[key];
             const Meta = layerMeta(key);
             const locked = !isPro && (key === "ai_recruiter");
+            const failed = key === "ai_recruiter" && result.layers.ai_recruiter.failed;
             const Icon = Meta.icon;
             return (
               <LayerCard
                 key={key}
                 title={Meta.label}
                 icon={<Icon className="w-4 h-4" />}
-                score={layer.score}
+                score={layer.score ?? 0}
                 maxScore={layer.max_score}
-                percentage={layer.percentage}
+                percentage={layer.percentage ?? 0}
                 issues={layer.issues}
                 locked={locked}
+                failed={failed}
               />
             );
           })}

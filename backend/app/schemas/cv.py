@@ -147,6 +147,21 @@ class AIImproveResponse(BaseModel):
     improved_text: str
 
 
+class PolishItemRequest(BaseModel):
+    text: str
+    # Omitted on the first call of a "Polish Whole CV" run (that call is the one
+    # that gets charged against the daily AI limit). Every subsequent call in the
+    # same run passes back the batch_token issued by that first call so the
+    # whole multi-section run is billed as a single usage credit.
+    batch_token: str | None = None
+
+
+class PolishItemResponse(BaseModel):
+    improved_text: str | None = None
+    batch_token: str
+    error: str | None = None
+
+
 class SubScoreItem(BaseModel):
     label: str
     score: int
