@@ -9,6 +9,9 @@ export function SiteHeader() {
           <Image src="/logo.png" alt="ZenzHire" width={165} height={37} className="h-7 w-auto" priority />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm">
+          <Link href="/" className="text-[#8b949e] hover:text-white transition-colors">
+            Home
+          </Link>
           <Link href="/templates" className="text-[#8b949e] hover:text-white transition-colors">
             Templates
           </Link>
