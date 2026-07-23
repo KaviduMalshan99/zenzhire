@@ -1,4 +1,4 @@
-import { Twitter, Facebook, Linkedin } from "lucide-react";
+import { Twitter, Facebook, Linkedin , Instagram } from "lucide-react";
 import type { ComponentType } from "react";
 import { WhatsAppIcon } from "@/components/marketing/WhatsAppIcon";
 
@@ -14,11 +14,7 @@ export const SHARE_MESSAGE = "Check out ZenzHire — build a CV that actually ge
 // Share-intent URLs built from our own site URL — unlike SOCIAL_LINKS (our
 // profile pages), these need no env vars since the target is always us.
 export const SHARE_LINKS: ShareLink[] = [
-  {
-    icon: Twitter,
-    label: "Share on Twitter / X",
-    href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_MESSAGE)}&url=${encodeURIComponent(SITE_URL)}`,
-  },
+  
   {
     icon: Facebook,
     label: "Share on Facebook",
@@ -33,5 +29,10 @@ export const SHARE_LINKS: ShareLink[] = [
     icon: WhatsAppIcon,
     label: "Share on WhatsApp",
     href: `https://wa.me/?text=${encodeURIComponent(`${SHARE_MESSAGE} ${SITE_URL}`)}`,
+  },
+  {
+    icon: Twitter,
+    label: "Share on Twitter / X",
+    href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_MESSAGE)}&url=${encodeURIComponent(SITE_URL)}`,
   },
 ];

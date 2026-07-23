@@ -5,7 +5,7 @@ interface Props {
   missing: string[];
   semantic: string[];
   matchPct: number;
-  mode: "jd_match" | "ai_role_estimate";
+  mode: "jd_match" | "industry_coverage" | "ai_role_estimate";
   isPro: boolean;
 }
 

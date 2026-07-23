@@ -16,8 +16,8 @@ const CANDIDATES: { icon: ComponentType<{ className?: string }>; label: string; 
   { icon: Facebook, label: "Facebook", href: process.env.NEXT_PUBLIC_FACEBOOK_URL },
   { icon: Instagram, label: "Instagram", href: process.env.NEXT_PUBLIC_INSTAGRAM_URL },
   { icon: Linkedin, label: "LinkedIn", href: process.env.NEXT_PUBLIC_LINKEDIN_URL },
-  { icon: Twitter, label: "Twitter / X", href: process.env.NEXT_PUBLIC_TWITTER_URL },
   { icon: TikTokIcon, label: "TikTok", href: process.env.NEXT_PUBLIC_TIKTOK_URL },
+  { icon: Twitter, label: "Twitter / X", href: process.env.NEXT_PUBLIC_TWITTER_URL },
   { icon: WhatsAppIcon, label: "WhatsApp", href: process.env.NEXT_PUBLIC_WHATSAPP_URL },
 ];
 

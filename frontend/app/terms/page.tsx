@@ -81,15 +81,6 @@ export default function TermsPage() {
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Terms of Service</h1>
         <p className="text-[#8b949e] text-sm mb-8">Last updated: July 8, 2026</p>
 
-        <div className="flex items-start gap-3 bg-amber-500/[0.08] border border-amber-500/30 rounded-lg px-5 py-4 mb-10">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-          <p className="text-amber-200 text-sm leading-relaxed">
-            <span className="font-semibold">This is a template policy and has not been
-            reviewed by a lawyer.</span> Please consult a legal professional before
-            relying on this document for your business.
-          </p>
-        </div>
-
         <div className="space-y-8">
           {SECTIONS.map((s) => (
             <div key={s.title}>

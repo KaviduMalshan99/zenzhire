@@ -380,6 +380,10 @@ export interface CLPersonalDetails {
   visa_status?: string;
   photo_base64?: string;
   photo_url?: string;
+  marital_status?: string;
+  religion?: string;
+  nic?: string;
+  driving_license?: string;
 }
 
 export interface CoverLetter {
