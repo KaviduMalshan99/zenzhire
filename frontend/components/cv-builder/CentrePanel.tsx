@@ -31,9 +31,9 @@ import { DownloadSuccessDialog } from "@/components/shared/DownloadSuccessDialog
 interface Props {
   cv: CVDocument;
   sections: CVSection[];
-  zoom: 75 | 100 | 125;
+  zoom: number;
   customization: CVCustomization;
-  onZoomChange: (z: 75 | 100 | 125) => void;
+  onZoomChange: (z: number) => void;
   onSendToATS?: () => void;
   onSectionDataChange?: (section: CVSection, data: Record<string, any>) => void;
   onReorder?: (sections: CVSection[]) => void;

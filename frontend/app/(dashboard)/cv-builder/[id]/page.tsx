@@ -114,7 +114,7 @@ export default function CVEditorPage() {
   const [sections, setSections] = useState<CVSection[]>([]);
   const [activeSection, setActiveSection] = useState<CVSection | null>(null);
   const [customization, setCustomizationState] = useState<CVCustomization>(DEFAULT_CUSTOMIZATION);
-  const [zoom, setZoom] = useState<75 | 100 | 125>(100);
+  const [zoom, setZoom] = useState<number>(100);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [loading, setLoading] = useState(true);
   const [targetRole, setTargetRole] = useState("");
@@ -140,6 +140,18 @@ export default function CVEditorPage() {
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
   useEffect(() => { customizationRef.current = customization; }, [customization]);
   useEffect(() => { isRestoringRef.current = isRestoringHistory; }, [isRestoringHistory]);
+
+  // Mobile default zoom: fit the A4 page (794px base width, see CentrePanel's
+  // A4_W) to whatever width is actually available, instead of loading at the
+  // desktop 100% default which is always wider than a phone screen. Desktop
+  // (>=768px, matching the md: breakpoint the two-panel layout switches on)
+  // is untouched — this only runs once on mount and only below that width.
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    const availableWidth = window.innerWidth - 48; // matches the 24px flex padding on each side in CentrePanel
+    const fitPercent = Math.floor((availableWidth / 794) * 100);
+    setZoom(Math.max(25, Math.min(100, fitPercent)));
+  }, []);
 
   const snapshotNow = useCallback((): HistorySnapshot | null => {
     if (!cvRef.current) return null;
