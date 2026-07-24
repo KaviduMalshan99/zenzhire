@@ -188,6 +188,34 @@ export interface AdminNotifications {
   new_contact_submissions: boolean;
 }
 
+export interface AdminEarningsStats {
+  total_revenue: number;
+  revenue_this_month: number;
+  revenue_today: number;
+  revenue_by_plan: Record<string, number>;
+  total_pro_members: number;
+  total_free_users: number;
+  conversion_rate: number;
+  new_signups_week: number;
+  new_signups_month: number;
+}
+
+export interface AdminTransaction {
+  id: number;
+  user_email: string;
+  plan: string;
+  amount: number;
+  currency_code: string;
+  status: string;
+  created_at: string;
+}
+
+export interface AdminProMember {
+  email: string;
+  plan: string;
+  pro_until: string;
+}
+
 export const adminApi = {
   stats: () => api.get<AdminStats>("/admin/stats"),
 
@@ -224,6 +252,13 @@ export const adminApi = {
     api.post<{ email: string; new_password: string }>(`/admin/admins/${id}/reset-password`),
 
   notifications: () => api.get<AdminNotifications>("/admin/notifications"),
+
+  earningsStats: () => api.get<AdminEarningsStats>("/admin/earnings/stats"),
+
+  earningsTransactions: (params?: { status?: string; search?: string }) =>
+    api.get<AdminTransaction[]>("/admin/earnings/transactions", { params }),
+
+  proMembers: () => api.get<AdminProMember[]>("/admin/earnings/pro-members"),
 };
 
 // ── Profile / Usage Stats API ───────────────────────────────────────────────────

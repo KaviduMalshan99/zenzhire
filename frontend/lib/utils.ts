@@ -13,6 +13,10 @@ export function formatDate(dateStr: string): string {
   });
 }
 
+export function formatCurrency(amount: number, currency: string = "USD"): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+}
+
 export function scoreColor(score: number): string {
   if (score >= 75) return "text-green-400";
   if (score >= 50) return "text-yellow-400";

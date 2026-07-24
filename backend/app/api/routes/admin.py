@@ -1,6 +1,7 @@
 import secrets
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import cast, func, Numeric
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import hash_password, password_strength_error
@@ -12,6 +13,8 @@ from app.models.contact_submission import ContactSubmission
 from app.models.review import Review
 from app.models.ats_result import ATSResult
 from app.models.career_tip import CareerTip
+from app.models.billing_transaction import BillingTransaction
+from app.services.billing import PLAN_CONFIG
 from app.schemas.admin import (
     AdminStats,
     AdminContactSubmissionRead,
@@ -20,6 +23,9 @@ from app.schemas.admin import (
     AdminCreateRequest,
     AdminResetPasswordResponse,
     AdminNotifications,
+    AdminEarningsStats,
+    AdminTransactionRead,
+    AdminProMemberRead,
 )
 from app.schemas.billing import AdminSetProRequest, AdminSetProResponse
 from app.schemas.review import ReviewRead
@@ -227,3 +233,116 @@ def get_notifications(
         pending_reviews_count=pending_reviews_count,
         new_contact_submissions=new_contact_submissions,
     )
+
+
+@router.get("/earnings/stats", response_model=AdminEarningsStats)
+def get_earnings_stats(db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    amount_expr = cast(BillingTransaction.amount, Numeric)
+    success = BillingTransaction.status == "success"
+
+    total_revenue = db.query(func.coalesce(func.sum(amount_expr), 0)).filter(success).scalar()
+    revenue_this_month = (
+        db.query(func.coalesce(func.sum(amount_expr), 0))
+        .filter(success, BillingTransaction.created_at >= month_start)
+        .scalar()
+    )
+    revenue_today = (
+        db.query(func.coalesce(func.sum(amount_expr), 0))
+        .filter(success, BillingTransaction.created_at >= day_start)
+        .scalar()
+    )
+
+    plan_totals = dict(
+        db.query(BillingTransaction.plan, func.coalesce(func.sum(amount_expr), 0))
+        .filter(success)
+        .group_by(BillingTransaction.plan)
+        .all()
+    )
+    revenue_by_plan = {plan_id: float(plan_totals.get(plan_id, 0)) for plan_id in PLAN_CONFIG}
+
+    total_users = db.query(User).count()
+    total_pro_members = (
+        db.query(User).filter(User.pro_until.isnot(None), User.pro_until > now).count()
+    )
+    total_free_users = total_users - total_pro_members
+    conversion_rate = (total_pro_members / total_users * 100) if total_users else 0.0
+
+    week_start = now - timedelta(days=7)
+    new_signups_week = db.query(User).filter(User.created_at >= week_start).count()
+    new_signups_month = db.query(User).filter(User.created_at >= month_start).count()
+
+    return AdminEarningsStats(
+        total_revenue=float(total_revenue),
+        revenue_this_month=float(revenue_this_month),
+        revenue_today=float(revenue_today),
+        revenue_by_plan=revenue_by_plan,
+        total_pro_members=total_pro_members,
+        total_free_users=total_free_users,
+        conversion_rate=round(conversion_rate, 2),
+        new_signups_week=new_signups_week,
+        new_signups_month=new_signups_month,
+    )
+
+
+@router.get("/earnings/transactions", response_model=list[AdminTransactionRead])
+def list_earnings_transactions(
+    status_filter: str | None = Query(None, alias="status"),
+    search: str | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(BillingTransaction, User.email).join(User, BillingTransaction.user_id == User.id)
+    if status_filter:
+        query = query.filter(BillingTransaction.status == status_filter)
+    if search:
+        query = query.filter(User.email.ilike(f"%{search}%"))
+    rows = query.order_by(BillingTransaction.created_at.desc()).all()
+
+    return [
+        AdminTransactionRead(
+            id=tx.id,
+            user_email=email,
+            plan=tx.plan,
+            amount=float(tx.amount),
+            currency_code=tx.currency_code,
+            status=tx.status,
+            created_at=tx.created_at,
+        )
+        for tx, email in rows
+    ]
+
+
+@router.get("/earnings/pro-members", response_model=list[AdminProMemberRead])
+def list_pro_members(db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    pro_users = (
+        db.query(User)
+        .filter(User.pro_until.isnot(None), User.pro_until > now)
+        .order_by(User.pro_until.asc())
+        .all()
+    )
+    if not pro_users:
+        return []
+
+    user_ids = [u.id for u in pro_users]
+    successful_transactions = (
+        db.query(BillingTransaction)
+        .filter(BillingTransaction.user_id.in_(user_ids), BillingTransaction.status == "success")
+        .order_by(BillingTransaction.user_id, BillingTransaction.created_at.desc())
+        .all()
+    )
+    latest_plan_by_user: dict[int, str] = {}
+    for tx in successful_transactions:
+        latest_plan_by_user.setdefault(tx.user_id, tx.plan)
+
+    return [
+        AdminProMemberRead(
+            email=u.email,
+            plan=latest_plan_by_user.get(u.id, "unknown"),
+            pro_until=u.pro_until,
+        )
+        for u in pro_users
+    ]

@@ -56,3 +56,31 @@ class AdminResetPasswordResponse(BaseModel):
 class AdminNotifications(BaseModel):
     pending_reviews_count: int
     new_contact_submissions: bool
+
+
+class AdminEarningsStats(BaseModel):
+    total_revenue: float
+    revenue_this_month: float
+    revenue_today: float
+    revenue_by_plan: dict[str, float]
+    total_pro_members: int
+    total_free_users: int
+    conversion_rate: float
+    new_signups_week: int
+    new_signups_month: int
+
+
+class AdminTransactionRead(BaseModel):
+    id: int
+    user_email: str
+    plan: str
+    amount: float
+    currency_code: str
+    status: str
+    created_at: datetime
+
+
+class AdminProMemberRead(BaseModel):
+    email: str
+    plan: str
+    pro_until: datetime

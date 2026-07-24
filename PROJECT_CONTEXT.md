@@ -1,6 +1,19 @@
 # ZenzHire — Project Context for Claude Sessions
 
-> Last updated: 2026-07-22 (session 16 — Zeni CV Assistant drawer: fixed 3 confirmed bugs (`group_skills` raw-JSON display, split frontend/backend AI-usage counters, misleadingly-named "Copy & Accept" button) and shipped a new "Polish Whole CV" bulk action — see rewritten section 15. Also corrected two stale claims found while touching this area: the Free AI limit was still documented as 5/day in section 15 (actual enforced value is 3/day, server-side, since session 13) and the "Zeni" persona rename (section 24.6) was documented as "still planned" but is actually fully shipped in the live product — corrected both in place.) Working directory: `F:\zenzhire\zenzhire\`
+> Last updated: 2026-07-24 (session 18 — built the new Earnings admin dashboard (`/admin/earnings`, see new section 36) and did a full audit of this file against real code/DB state, since sessions 17's giant "final launch updates" commit had gone almost entirely undocumented (only its Zeni slice made it into session 16, below). Session 17 covered Cover Letter PDF/rich-text/persistence fixes, ATS score-legend unification + AI Recruiter honest-failure fix, Home page hero rework, mobile hamburger menu fixes, mobile CV Builder zoom, several small UX fixes, and production deployment — see new sections 12 (rewritten), 18 (extended), 23.5, 33, 34, 35. **Two real problems found during the audit, not just doc drift**: (1) the assumed "honest fallback message" fix for cover letters on the 6 newer CV templates was never actually built — the CV→CL auto-match still silently maps to Classic with a misleading "auto-matched to classic" toast, see section 12's correction. (2) Local dev's `backend/.env` currently has `PAYABLE_ENV=live` pointing at ngrok tunnels — it was NOT reverted to sandbox, meaning a local checkout right now would hit the real PAYable account, not a test one. See section 35.) Working directory: `F:\zenzhire\zenzhire\`
+
+**Session 18 (2026-07-24) — Earnings admin dashboard + full doc audit.** See new section 36 for the dashboard and the sections listed above for the audit. Headline points:
+- New `/admin/earnings` page (sidebar item added to the existing 6, same `require_admin`-gated pattern, same dashboard shell/styling — no new design system, no new tables). Reads exclusively from the existing `BillingTransaction`/`User` tables via 3 new endpoints (`GET /admin/earnings/stats`, `/transactions`, `/pro-members`). Four sections: Earnings Overview (total/month/today revenue + revenue-by-plan breakdown), a filterable/searchable Transactions table, a Pro Members list (sorted soonest-expiring-first, with a 7-day "Expiring soon" badge), and Counts & Reports (Pro/Free counts, conversion rate, weekly/monthly signups). Every number was cross-checked against independent raw SQL against the real local dev DB before being trusted (e.g. total revenue $2.99 from 1 success transaction, 4 active Pro members) — see section 36 for the full verification log. Auth-gating verified both ways: non-admin/no-token requests to all 3 new endpoints return 403 (same `require_admin` dependency every other `/admin/*` route already uses), and the frontend guard is inherited automatically from the existing shared `admin/layout.tsx` (no new guard code needed, since Next's nested layouts apply it to any new page under `app/admin/`).
+- **Full re-audit of PROJECT_CONTEXT.md against real code/DB/git state** (same standard as the session 4/6/12 audits) — prompted by the user noticing session 17's work had gone almost entirely undocumented. Used 3 parallel research passes (cover letters, ATS+Zeni, home/mobile/small-fixes) each verifying claims against `git show` diffs **and** current HEAD file reads, not just the commit message. Found the codebase mostly matches what actually shipped, with the two exceptions called out above (cover letter template fallback, and the live-PAYable `.env` drift) — see each section for full evidence.
+- Also made `it23565876@my.sliit.lk` an admin (`is_admin=true`) on the local dev DB this session, on request — unrelated to the above, noted here only because it's a real DB mutation this session made. This account already had permanent Pro status set in an earlier session (see memory) — untouched by this change.
+
+**Session 17 (2026-07-22 late / 2026-07-23) — large undocumented "final launch updates" commit + 3 follow-ups.** Reconstructed session 18 via `git show` on 4 commits (`4e27999` "all final launch updates complete", 45 files; `fc73644` "home page link added to the header"; `d13256b` "updates of mobile view"; `0d3319b` "update center pannel to support mobile view") since none of these — except the Zeni slice already in session 16 below — had been written up. Headline points, full detail in the sections cited:
+- **Cover Letter Builder** (section 12, rewritten): PDF pagination fixes (mid-paragraph/header cuts via new `HEADER_PROTECT`/`PARA_PROTECT` CSS, and a spurious blank trailing page fixed by correcting a margin/min-height overflow), a `FREE_COVER_LETTER_LIMIT = 1` AI-generation limit shared with the save-count limit, a reused `RichTextEditor` (Tiptap) "Write Manually" mode, a new `personal_details` JSONB column so manually-typed details on a no-CV letter now actually persist (previously silently discarded on reload), and first-time-user UX copy (field labels, job-description helper text, a "Write Manually" tooltip). **Correction, not confirmation**: the assumed "6 newer CV templates get an honest fallback message" fix does not exist — see section 12.
+- **ATS Checker** (section 18, extended): a new `frontend/lib/ats-score.ts` single source of truth for score-band thresholds/colors/labels, now used by `ScoreGauge`/results `page.tsx`/`ResultsSidebar` (previously 3 independently-hardcoded, mutually-inconsistent band systems); an AI-Recruiter-score-leak fix (Free users could previously read the actual locked score in the top stat row, now shows a lock icon); and an honest-failure fix for the AI Recruiter layer itself (previously fabricated a fake 50%/5.0 score and leaked raw exception text on API failure, now returns a genuine `failed: true` state surfaced honestly in the UI).
+- **Home page hero** (section 23.5, new): now built on a shared `TemplatePreviewFrame` component (also used by the template gallery cards) instead of a one-off mockup, with Zeni repositioned beside/next to the CV card and an ATS badge moved to the card's bottom-left corner. Plus a "Home" nav link added to the marketing header, and independent (not shared) mobile hamburger-menu fixes for both `SiteHeader.tsx` and the dashboard `Navbar.tsx`.
+- **Mobile CV Builder zoom** (section 33, new): a "fit to screen" zoom percentage now computes once on mount from `window.innerWidth`, but is **not** recalculated on resize/rotation — see section 33 for why this is a real, if minor, limitation of the current implementation.
+- **Small UX fixes** (section 34, new): `window.confirm()` replaced with a real `DeleteConfirmDialog` for CV/Cover Letter deletes; the Skills form's "Subskills" sub-editor was removed from the UI only (the underlying `subskills` data field is untouched, still read/written elsewhere); a `DownloadSuccessDialog` (follow-us/share/review prompts) now shows after **every** successful CV or Cover Letter PDF download, not just the first; and social/share links were centralized into `lib/social-links.ts` (env-driven follow-us links, hidden if unset) vs. `lib/share-links.ts` (hardcoded share-intent URLs, no env vars needed).
+- **Production deployment** (section 35, new): backend and frontend are live on the real production server behind Nginx (`zenzhire.com` → Next.js `:3000`, `zenzhire.com/api` → FastAPI `:8000`, no separate subdomain), PAYable is confirmed live in production (`PAYABLE_ENV=live`, real credentials, real webhook URL), and a production admin account was created directly on the production DB. **Operational lesson**: local dev and production are entirely separate databases/`.env` files — nothing set up locally (accounts, admin flags, Pro status) carries over automatically. See section 35 for the full writeup, including the local-`.env`-still-live finding.
 
 **Session 16 (2026-07-22) — Zeni CV Assistant bug-fix pass + "Polish Whole CV" feature.** See rewritten section 15 and corrected section 24.6. Headline points:
 - **Three confirmed bugs fixed in the Zeni drawer (`RightPanel.tsx`):** (1) the `group_skills` AI action returned structured JSON but the response renderer treated every action identically and dumped raw `{"groups": [...]}` text into the UI — fixed with a dedicated parser that extracts the JSON even when Claude wraps it in a code fence or appends a trailing commentary note, rendering real category headings + skill chips. (2) The "uses left today" counter was tracked in a separate client-side `localStorage` counter never reconciled with the real backend `users.ai_usage_count` — could show uses as available when the server had already exhausted the limit. Fixed by deleting the local counter entirely and sourcing the displayed count from the existing `GET /auth/usage-stats` endpoint (same one the Profile page already uses), refetched after every AI call. (3) "Copy & Accept" only copied to clipboard and never actually wrote the suggestion into the CV — renamed to "Copy Suggestion" with a "Paste it into the section field" caption, matching the honest pattern Quick Fixes' Auto Fix already used.
@@ -643,6 +656,8 @@ If you touch `generate-pdf/route.ts` again: do not reach for a blanket per-secti
 
 ## 12. Cover Letter Builder
 
+⚠️ **Rewritten session 18 (2026-07-24)** to add session 17's fixes (PDF pagination, AI limits, manual rich-text mode, no-CV persistence, UX copy), verified via `git show 4e27999` + direct reads of current HEAD, not just the commit summary.
+
 ### 8 Templates (matching CV templates):
 classic, modern, colorful, executive, bordered, creative(timeline), inline, gcc
 
@@ -651,8 +666,9 @@ classic, modern, colorful, executive, bordered, creative(timeline), inline, gcc
 - 3 tones: formal / friendly / confident
 - Pan+zoom photo crop editor (same as CV)
 - Auto-match CV template when CV is linked
+- **Manual rich-text writing mode** (NEW, session 17) — see 12.4
 - Edit/Preview toggle
-- PDF export
+- PDF export, with real pagination handling (NEW, session 17) — see 12.1
 
 ### Flow:
 ```
@@ -671,12 +687,13 @@ export const DEFAULT_CL_CUSTOMIZATION = {
 };
 ```
 
-### CV template → CL template mapping:
+### CV template → CL template mapping — ⚠️ still only covers the original 8 CV templates
 ```
 classic→classic, modern→modern, minimal→colorful,
 executive→executive, tech→bordered, creative→creative,
 academic→inline, gcc→gcc
 ```
+`CV_TO_CL_TEMPLATE` (`cover-letter/[id]/page.tsx`) is **unchanged by session 17** — confirmed no diff hunk touches it. For any of the 6 newer CV templates (Portrait, Milestone, Corporate, Vega, Aurora, Nova — none of which have a Cover Letter equivalent), the lookup falls through to `?? "classic"` and the UI shows a toast reading `"Template auto-matched to classic from your CV"` — worded exactly like a real, successful match, not a warning. **This was assumed fixed going into the session-18 audit (an "honest fallback message" instead of a silent Classic substitution) — it is not.** See section 22's new item for tracking. What session 17 *did* add is a different, narrower fallback in `CoverLetterPreview.tsx`'s own render `switch` (guards a stale/invalid `templateId` string already in the DB by rendering Classic instead of a blank page) — this only protects against corrupted data, since `CV_TO_CL_TEMPLATE` can never actually produce an unrecognized id in the first place.
 
 ### Cover Letter PDF:
 ```
@@ -684,6 +701,48 @@ POST /api/generate-cl-pdf { content, templateId, customization, jobTitle, compan
 → Puppeteer renders HTML with template styles
 → Returns PDF download
 ```
+
+### 12.1 PDF pagination fixes (session 17, 2026-07-22/23)
+
+Two real bugs fixed in `frontend/app/api/generate-cl-pdf/route.ts`, mirrored in `CoverLetterPreview.tsx` for in-app visual parity (the preview itself never paginates, it's single-page):
+
+1. **Mid-paragraph / mid-header page cuts.** New shared style strings applied across all 8 templates' `buildHtml()` output:
+   ```
+   HEADER_PROTECT = "page-break-inside:avoid;break-inside:avoid;page-break-after:avoid;break-after:avoid"
+   PARA_PROTECT   = "page-break-inside:avoid;break-inside:avoid"
+   ```
+   `HEADER_PROTECT` wraps each template's whole header block (name/photo/contact/"Re:" line) as one non-breakable unit; `PARA_PROTECT` is applied per-`<p>` in `paragraphs()` so Chrome's print engine can no longer split a paragraph or a header across a page boundary.
+2. **Spurious blank trailing page.** Previously `page.pdf({ margin: { bottom: "8mm", ... } })` combined with template body wrappers using `min-height: 297mm` meant content height + bottom margin exceeded the physical A4 page box, overflowing a thin blank sliver onto page 2. Fixed: `margin.bottom` changed to `"0"`, and body wrappers' `min-height` changed to `calc(297mm - 2mm)` so content fits inside one page exactly.
+3. **Rich-text HTML rendering.** A shared `isHtmlContent()` helper (present in both `route.ts` and `CoverLetterPreview.tsx`) detects whether `content` is Tiptap-authored HTML (see 12.4) vs. plain AI-generated text, and renders it through a dedicated `.cl-html-body` wrapper (with `PARA_PROTECT` applied to its `p`/`li` children) instead of naively splitting on `\n`, which would otherwise mangle real HTML markup.
+
+### 12.2 AI generation limit (session 17)
+
+`backend/app/api/routes/cover_letter.py`: `FREE_COVER_LETTER_LIMIT = 1`, enforced (all gated by `not current_user.is_pro`) in three places:
+- `ai_generate_cover_letter` (`POST /cover-letter/ai/generate`) — counts letters with non-empty `content`, blocks at 1 with a 403 explaining the upgrade.
+- `create_cover_letter` — counts **all** letters (not just AI-generated ones), same 1-letter cap.
+- `duplicate_cover_letter` — same check before allowing a duplicate.
+
+So Free is capped at 1 letter total, shared between "AI generation" and "saved letter" — not two separate counters — and Pro bypasses all three via `is_pro`. This is a flat lifetime cap, unlike the CV builder's unrelated *daily* AI limit (`AI_FREE_DAILY_LIMIT = 3`, section 15). Frontend: `cover-letter/[id]/page.tsx`'s `handleGenerate()` now catches a 403 and shows the backend's real message via `PlanLimitDialog` instead of a generic `alert()`.
+
+### 12.3 Duplicate & Delete — silent-failure fixes (session 17)
+
+Both `cv-builder/page.tsx` and `cover-letter/page.tsx` had a `try { await api.post(...) } finally { ... }` with **no `catch`** on their Duplicate action — a failed duplicate (e.g. hitting the Free-tier limit) threw an unhandled promise rejection with zero user feedback beyond the loading spinner clearing. Both now `catch` the error and show it via `PlanLimitDialog` (using the backend's real `detail` message, e.g. the 12.2 limit text, with a generic fallback otherwise).
+
+Same two pages also replaced a blocking `window.confirm()` on Delete with a real modal — new `frontend/components/shared/DeleteConfirmDialog.tsx` (see section 34.1).
+
+### 12.4 Manual rich-text writing mode (session 17)
+
+The editor's Edit/Preview toggle was relabeled "Write Manually" / "← Preview" (with a `title` tooltip: *"Skip AI and write your own letter instead"*), and its plain `<textarea>` was replaced with the **pre-existing** `RichTextEditor` (Tiptap — already used for CV bullet/summary editing, not newly built) plus an explicit "Save cover letter" button (previously only saved `onBlur`). `content` remains a single shared string: generating via AI overwrites it with plain text; switching to "Write Manually" and editing turns it into Tiptap HTML from that point on. There's no explicit merge logic — whichever form of `content` is currently in state is what gets saved/rendered, with `isHtmlContent()` (12.1) branching the preview/PDF rendering accordingly, and DOMPurify sanitizing before `dangerouslySetInnerHTML` client-side (SSR fallback strips tags entirely, same pattern as `HtmlContent.tsx` elsewhere in the app — section 6's rendering-gotcha callout).
+
+### 12.5 No-CV personal-details persistence (session 17)
+
+New `cover_letters.personal_details` JSONB column (`nullable=False, server_default="{}"`, migration `020_add_personal_details_to_cover_letters.py`, confirmed `alembic current == alembic heads == 020_add_personal_details`), added to the `CoverLetter` model and to `CoverLetterUpdate`/`CoverLetterRead` schemas, and copied through by `duplicate_cover_letter`.
+
+**Before:** a cover letter with no linked CV had nowhere server-side to store manually-typed name/email/phone/etc. — the "Your Details" fields only ever lived in local React state and were silently discarded on navigation/reload, with no error or indication anything was lost. **After:** `cover-letter/[id]/page.tsx` still auto-extracts personal details live from the linked CV when one exists (unchanged, CV remains the source of truth in that case); when there's no linked CV, it now falls back to loading the persisted `personal_details` blob on open, and every save now includes `personal_details` in the update payload.
+
+### 12.6 First-time-user UX clarity (session 17)
+
+All in `cover-letter/[id]/page.tsx`: the 5 manual "Your Details" inputs gained explicit `<label>`s (previously placeholder-only) and example-style placeholders (`"e.g. John Smith"`); a one-line helper sentence was added above the Job Description textarea (*"Paste the job posting details here — we'll use this to tailor your cover letter."*); and the "Write Manually" toggle gained both a hover tooltip and a standing hint line below the Generate button pointing users to it.
 
 ---
 
@@ -837,6 +896,25 @@ Flagged during session 16 while documenting the actions above, not introduced th
 **Known, documented, deliberately NOT fixed (same test run, judgement calls not bugs):**
 - **Keyword layer structurally caps out around 30-40% for any realistically-sized CV.** The no-JD path (`_generate_role_keywords`) always generates ~18-20 "ideal" keywords for the target role, but a realistic Skills section is 8-12 items — so even a strong, relevant CV can't cover more than about half the list. In the real test, the CV Builder's own "Suggest Skills" AI action correctly recommended several of the missing keywords (PostgreSQL, Redis, Kubernetes, System Design), but only 2 were kept to stay at a realistic list length. This is a real content/calibration tension, not a parsing bug — worth a product decision (e.g. weighting by keyword importance rather than raw count) but not touched this session.
 - **Language & Grammar and AI Recruiter layers are not deterministic run-to-run.** Two `/ats/analyze` calls on near-identical text swung Language & Grammar 10/10↔6/10 and AI Recruiter 60%↔40%, purely from normal Claude sampling variance (no `temperature=0` or similar pinning). In the test case the swing turned out to be catching a real defect inconsistently (see fix 1 above) rather than being spurious, but the underlying non-determinism is real and independent of content changes — worth flagging for anyone reasoning about "the score" as a single stable number.
+
+### Session 17 (2026-07-22/23) — score-legend unification + 2 more honesty fixes
+
+Part of the same large `4e27999` commit as sessions 17's other work (section 12, 23.5, 33, 34) — verified via `git show` diff + current HEAD reads.
+
+**1. Unified score legend — new `frontend/lib/ats-score.ts`, single source of truth.** Previously `ScoreGauge.tsx`, the results `page.tsx`, and `ResultsSidebar.tsx` each hardcoded their own score-band thresholds/colors/labels independently, and they didn't even agree with each other (`ScoreGauge` used a 75/50 split labeled "Strong/Moderate/Needs Work"; `ResultsSidebar` used an 80/60/40 split with different hex codes). New shared export:
+```ts
+export function getATSScoreLevel(score: number): { label: string; color: string; sentence: string } {
+  if (score >= 85) return { label: "Excellent", ... };
+  if (score >= 70) return { label: "Good", ... };
+  if (score >= 50) return { label: "Needs Improvement", ... };
+  return { label: "Weak", ... };
+}
+```
+All three call sites now import and use it — this wasn't just a refactor, it also fixed a real inconsistency where the same score could read as a different tier depending on which component you were looking at. Scoped deliberately to the *overall* 0-100 score only — `LayerCard.tsx`'s per-layer percentage colors and the top-stat-row's per-layer colors (see #2 below) still have their own local thresholds, which is correct/expected, not a missed spot.
+
+**2. AI Recruiter score leak fixed.** The top stat row on the results page previously rendered every layer's numeric score unconditionally, including `ai_recruiter` — so a Free user could read the actual AI Recruiter percentage in that row even though the full `RecruiterCard` further down is Pro-gated (blurred+locked). Fixed: that one tile now checks `!isPro` and renders a `Lock` icon instead of the number, matching the gating already applied everywhere else this score appears.
+
+**3. AI Recruiter honest-failure fix.** Previously, if the Claude call for this layer threw, the catch block **fabricated a plausible-looking mid-range result** (`score: 5.0`, `percentage: 50.0`, `hire_likelihood: 50.0`) — indistinguishable from a real analysis — and leaked the raw exception text (`str(exc)[:120]`) into the user-facing `most_important_improvement` field. Fixed to match this product's stated philosophy (section 1) and the existing Layer 5/Grammar honest-failure pattern: the schema's `score`/`percentage`/`hire_likelihood` are now `Optional[float] = None`, plus new `failed: bool` / `error: str | None` fields; on failure the layer now returns `score: None`, `failed: True`, and a generic `error` message with no exception text. `_overall()` was updated to sum only non-`None` layer scores (previously would have crashed on `None`, or pre-fix baked in the fake 5.0). Frontend: `RecruiterCard.tsx` shows a distinct "could not be completed" panel when `failed` is true instead of rendering fabricated numbers; `LayerCard.tsx` shows `N/A` + an inline warning instead of a progress bar.
 
 ### Input options:
 - Upload PDF file (max 5MB)
@@ -1007,7 +1085,7 @@ Priority order:
 7. **ATS target_role enforcement** — add UI warning when empty (see section 18 known gap)
 8. **`/features/ats-checker` marketing page** — linked from Home and the new footer, doesn't exist yet (session 9 finding, re-confirmed session 12, see section 22 item 16)
 9. ~~**"Zeni" persona/name/avatar unification**~~ **CONFIRMED SHIPPED (corrected session 16)** — was wrongly logged as "still planned"; the onboarding chat, `RightPanel` tab, and CV Builder FAB/drawer all actually say "Zeni" already. See rewritten section 24.6.
-10. **Production Deployment** — Vercel (frontend) + Railway (backend) + Supabase (DB)
+10. ~~**Production Deployment** — Vercel (frontend) + Railway (backend) + Supabase (DB)~~ **DONE, differently than planned (session 17)** — actual deployment is a single Nginx-fronted server (`zenzhire.com` → Next.js `:3000`, `/api` → FastAPI `:8000`), not the originally-planned Vercel/Railway/Supabase split. PAYable confirmed live in production. See new section 35 — including an open action item (local dev `.env` still has `PAYABLE_ENV=live` pointed at ngrok, not reverted to sandbox).
 11. **Re-enable Career Mentor onboarding** (~2 weeks from 2026-07-21, i.e. around early August) — flip `CAREER_MENTOR_ENABLED` back to `true` in `frontend/lib/feature-flags.ts` once it's had more real-world testing post-launch. See 24.7.
 12. **⚠️ HIGH PRIORITY — pre-launch regression testing** (full 14-template pass, Cover Letter, ATS Checker) — planned but not executed session 14. See new section 32.
 
@@ -1041,7 +1119,20 @@ Priority order:
 24. ~~**NEW (session 13, OPEN): PAYable sandbox Direct Auth is rejecting our business credentials.**~~ **RESOLVED session 14.** This was a PAYable-side provisioning/credential issue, since fixed by them — no code or credential change was needed on our end; the exact same request that 404'd in session 13 now succeeds. Checkout session creation, a real sandbox payment, and independently-verified webhook delivery (`checkValue` recomputed and matched byte-for-byte) are all now confirmed working end-to-end, and `pro_until` was confirmed correctly set on the real test account. See rewritten section 28.4. Still not production-ready — temporary ngrok tunnels + sandbox credentials — see new 28.5 for the production checklist.
 25. ~~**NEW (session 14): cover letter creation had no error handling at all.**~~ **RESOLVED session 14** — a Free user hitting the 1-cover-letter limit via the dashboard quick-action or the cover-letter list page's "New Cover Letter" button previously got zero feedback of any kind, not even a console-visible error. Both call sites now show `PlanLimitDialog` like every other plan-limit moment in the app. See 27.3.
 26. **NEW (session 14, OPEN, HIGH PRIORITY): full regression testing not yet done this session for templates, Cover Letter, and ATS Checker.** A 14-template regression test plan was designed but not executed; Cover Letter and ATS Checker have had no systematic test pass at all this session. See new section 32 for the specific list — this is a pre-launch blocker, not a minor gap.
-27. **NEW (session 16, OPEN, post-launch product decision): `add_metrics`/`add_impact` AI actions can fabricate plausible-sounding numbers.** `ai_service.py`'s `add_metrics` prompt explicitly permits "realistic estimates" (e.g. "~30%," "a team of 5") when no real number is available — in tension with this product's stated "honest, not flattering, no fabricated numbers" scoring philosophy (section 1). Not a bug, not touched this session — flagged for a product decision (rephrase the prompt to require real user-supplied numbers, or surface a visible "estimated" disclaimer). See section 15's new subsection for full context.
+27. **NEW (session 16, OPEN, post-launch product decision): `add_metrics`/`add_impact` AI actions can fabricate plausible-sounding numbers.** `ai_service.py`'s `add_metrics` prompt explicitly permits "realistic estimates" (e.g. "~30%," "a team of 5") when no real number is available — in tension with this product's stated "honest, not flattering, no fabricated numbers" scoring philosophy (section 1). Not a bug, not touched this session — flagged for a product decision (rephrase the prompt to require real user-supplied numbers, or surface a visible "estimated" disclaimer). See section 15's new subsection for full context. **Re-confirmed still open, session 18** — `ai_service.py`'s 10-line diff in the session-17 commit was the unrelated bullet-stripping fix (section 18), not a change to this prompt.
+28. **NEW (session 18, OPEN): Cover Letter template fallback for the 6 newer CV templates still silently substitutes Classic with a misleading "success" toast.** Session 17 was assumed to have added an honest "not available yet" message for CVs using Portrait/Milestone/Corporate/Vega/Aurora/Nova (none of which have a Cover Letter equivalent) — direct code audit found this is not the case. `CV_TO_CL_TEMPLATE` (`cover-letter/[id]/page.tsx`) is unchanged and still falls through to `?? "classic"`, with a toast literally reading `"Template auto-matched to classic from your CV"` — worded as a successful match, not a warning. See section 12's correction for full detail. Fix: either add a real conditional message for CV templates not present in the mapping, or at minimum reword the toast to be honest when the fallback path is hit.
+29. **NEW (session 18, OPEN, security/financial risk): local dev `backend/.env` has `PAYABLE_ENV=live` with real credentials, still pointed at ngrok tunnel URLs.** Not sandbox, not reverted as assumed. A checkout run from this local dev environment right now would hit PAYable's real production API — any successful test payment would be a real charge. See section 35.3. Fix: revert `PAYABLE_ENV` to `sandbox` (with sandbox credentials) on this machine before any further local billing-flow testing.
+30. **NEW (session 18, OPEN, low priority): two stray process-ID files committed to git.** `backend/_uvicorn.pid` and `frontend/_next2.pid` were accidentally added in the session-17 commit (`4e27999`). Harmless (unread by any code path) but should be `git rm`'d and `.gitignore`'d.
+31. **NEW (session 18, OPEN, low priority): mobile hamburger menu is duplicated, not shared, between `SiteHeader.tsx` and `Navbar.tsx`.** Both were independently fixed in session 17 with the identical hand-rolled open/close-state/outside-click/route-change pattern, copy-pasted rather than extracted into a shared hook/component. Not a bug — both work correctly as of session 17 — but a future fix to one won't automatically apply to the other. See section 23.5.
+32. **NEW (session 18, OPEN, minor): mobile CV Builder "fit to screen" zoom is computed once on mount, not on resize/rotation.** See section 33 for full detail — not a launch blocker, but worth a `resize`/`ResizeObserver` listener before calling mobile CV editing fully polished.
+
+**Session 18 re-verification of prior items (direct code/DB re-checks, not assumption):**
+- Item 11 (`duplicate_cv` doesn't copy `customization`) — **confirmed still unfixed** (`backend/app/api/routes/cv.py`'s `duplicate_cv`, current `CVDocument(...)` call still only sets `user_id`/`title`/`template_id`/`is_primary`).
+- Item 14 (`models/__init__.py` missing `CoverLetter`/`CareerTip` imports) — **confirmed still unfixed** (current file imports `User`, `CV`, `CVDocument`/`CVSection`, `ATSResult`, `ContactSubmission`, `Review`, `BillingTransaction` — still no `CoverLetter` or `CareerTip`).
+- Item 7 / section 18's `target_role` UI warning — **confirmed still not built** (no warning/banner text found near the ATS Checker's `target_role` input).
+- Item 26 (full 14-template + Cover Letter + ATS regression pass) — **status unchanged, still not executed** (no test-suite artifacts or evidence of a systematic pass found; this can't be verified from code alone, only from its continued absence).
+- Section 22 item 10 (orphaned `cv_sections.data._layout` field from the removed granular per-section spacing/line-height steppers) — **re-confirmed still accurate**: zero references to `_layout` anywhere in `components/cv-builder`, current session. Safe to ignore, still a pre-production cleanup candidate rather than an active bug.
+- Migration drift check (session 18): `alembic current` and `alembic heads` both report `020_add_personal_details` — single head, DB fully up to date, chain confirmed linear through the new cover-letter migration.
 
 ---
 
@@ -1114,6 +1205,16 @@ GET  /api/v1/reviews/    public. Returns ONLY rows where approved=true, newest f
 - **Verification method for these pages**: this project has no dedicated Playwright/E2E test suite for the marketing site — verification each time was ad hoc Playwright scripts (launched via `node <script>.js` from `frontend/`, using the locally-installed `playwright` package already in `node_modules`) that screenshot at 1440px and 390px and check `page.on("console", ...)` for errors, written to the scratchpad and deleted after use. There is no `chromium-cli` tool available in this environment — don't assume it exists.
 - A background dev server hydration warning (`Warning: Prop dangerouslySetInnerHTML did not match...`) appears on `/` and `/templates` during Playwright checks — this traces back to the Home page's embedded `/cv-template-preview/[templateId]` iframes (Aurora/Nova previews in the hero), is **pre-existing and unrelated to any session-9 change**, and should not be mistaken for a new bug when re-verifying these pages in the future.
 - lucide-react coverage check before reaching for a custom SVG: it has `Twitter`, `Linkedin`, `Instagram`, `Facebook`, `Send`, `Star`, `Mail`, `Phone`, `Handshake`, `MessageSquareText` — all used as-is this session. Only TikTok and WhatsApp needed hand-rolled icons (see 23.1).
+
+### 23.5 Home page hero rework + nav/mobile-menu fixes (session 17, 2026-07-22/23)
+
+**Hero, now built on a shared component.** New `frontend/components/templates/TemplatePreviewFrame.tsx` (94 lines) — its own doc comment states the intent directly: *"Used by both the public template gallery and the home page hero mockup so they can never drift into two different (and differently broken) cropping behaviors."* Locks to a real A4 aspect ratio (`aspectRatio: "794 / 1122"`) and scales an iframe via `useLayoutEffect` (not `onLoad`, since React never fires a synthetic `onLoad` for iframes). `app/page.tsx`'s hero (177 lines changed) now renders one CV mockup through this component (`<TemplatePreviewFrame templateId="aurora" accentColor="#111827" photoSize={146} />`) in both its desktop (`hidden xl:block`, absolutely positioned) and mobile (`xl:hidden`, stacked-flow) versions, instead of a one-off hero-specific mockup. Second confirmed usage: `TemplateGalleryCard.tsx` (`<TemplatePreviewFrame templateId={template.id} accentColor={previewColor} />`) — so this is genuinely shared, not just similarly-named.
+
+Within the same hero: **Zeni** (`/zeniai.png`) is now absolutely positioned beside the CV card on desktop, bottom-aligned with the card's own bottom edge "so the two read as one composed pair, not two floating elements" (component's own comment); on mobile it sits next to the ATS score pill instead, in normal flow. The **ATS badge** was repositioned to hang off the card's bottom-left corner, "mostly outside the card... never sits over the middle of the CV content." A new one-line mention of Cover Letters was added under the hero CTAs (*"Matching cover letters generated automatically from your CV"*).
+
+**"Home" nav link** (`fc73644`) — a 3-line addition to `SiteHeader.tsx`, adding a "Home" link as the **first** item in the nav order (before Templates/Pricing/Career Tips/About/Contact).
+
+**Mobile hamburger menu — fixed independently in both places, not via a shared component.** Before: neither `SiteHeader.tsx` (marketing) nor `Navbar.tsx` (dashboard) had *any* mobile nav fallback — both only rendered a `hidden md:flex`/similar desktop-only link row, so nav links were completely unreachable below the `md` breakpoint. `d13256b` fixed both (112 and 85 changed lines respectively) with the **same hand-rolled pattern copy-pasted into each file independently**: a `useState` for open/closed, a `menuRef` + `mousedown` outside-click listener, a `useEffect` that closes the menu on route change, a `Menu`/`X` icon toggle, and a `md:hidden` dropdown panel. There is no shared `useMobileMenu` hook or `MobileMenu` component — worth knowing if either implementation needs a future fix, since it won't automatically apply to the other. See section 22 for this noted as a minor duplication (not a bug) worth consolidating eventually.
 
 ---
 
@@ -1192,7 +1293,7 @@ If re-enabling: (1) flip the flag, (2) decide whether 24.6's Zeni rename should 
 
 ⚠️ **This entire section was rewritten during the session 12 audit.** The commit that shipped this feature (`e7053aa`) turned out to contain a much bigger `/admin/` section than the previous version of this doc described (which only covered 4 read-only sections from an earlier point in that same session). What follows is verified directly against the current code, not the original write-up.
 
-A full multi-page internal admin tool at `/admin/*` (own `layout.tsx` with sidebar nav — not a single page). Six sections: Overview, Users, Reviews, Contact Submissions, Career Tips, Admins. Explicitly still out of scope: revenue tracking (no Stripe yet — section 22 item 3) and any settings/config management page.
+A full multi-page internal admin tool at `/admin/*` (own `layout.tsx` with sidebar nav — not a single page). **Seven sections as of session 18**: Overview, Users, Reviews, Contact Submissions, Career Tips, Admins, **Earnings (NEW, session 18 — see section 36)**. The "still out of scope: revenue tracking" note below is now resolved by the new Earnings section; editing/deleting regular users and any settings/config management page remain out of scope.
 
 ### 25.1 Auth — reused entirely, no parallel system
 
@@ -1229,6 +1330,7 @@ Six items, in this exact order, each with a Lucide icon:
 | Contact Submissions | `/admin/contact` | yes — new-submission flag |
 | Career Tips | `/admin/career-tips` | none |
 | Admins | `/admin/admins` | none |
+| Earnings | `/admin/earnings` | none (NEW, session 18 — see section 36) |
 
 Dots are driven by a single `GET /admin/notifications` call, fired once when the admin layout mounts and again on every route change within `/admin/*`:
 - Reviews dot: `pending_reviews_count > 0` (count of `Review` rows where `approved=false`). Nothing marks this "viewed" — it only clears once every pending review is actually approved (visiting the Reviews page does not dismiss it).
@@ -1498,5 +1600,101 @@ None of the items below were found broken — they simply **have not been checke
 3. **ATS Checker — no systematic test pass this session.** All 7 analysis layers (section 18), the 5-lifetime-check limit enforcement, and the Free-vs-Pro-unlimited behavior have not been touched or re-verified this session.
 
 **Next session should run all three before considering this build launch-ready.**
+
+---
+
+## 33. Mobile CV Builder Zoom (session 17, 2026-07-23)
+
+`git show 0d3319b` — a "fit to screen" zoom calculation for the CV Builder on mobile viewports (`frontend/app/(dashboard)/cv-builder/[id]/page.tsx`). Zoom state type widened from a closed `75 | 100 | 125` union to a plain `number`, and a new mount-only effect added:
+```js
+useEffect(() => {
+  if (window.innerWidth >= 768) return;
+  const availableWidth = window.innerWidth - 48; // matches CentrePanel's 24px flex padding on each side
+  const fitPercent = Math.floor((availableWidth / 794) * 100); // 794 = A4_W
+  setZoom(Math.max(25, Math.min(100, fitPercent)));
+}, []);
+```
+(`794` is `A4_W`, the CV page-width constant already defined in `CentrePanel.tsx`.)
+
+⚠️ **This is a one-time calculation on mount (`[]` dependency array), not a live-recalculated one.** It does not re-run on window resize or device rotation — a user who rotates their phone or resizes a split-screen window keeps whatever zoom was computed at the moment the page first loaded. `CentrePanel.tsx`'s own diff only widened its `Props` types to accept a plain `number` — no zoom-calculation logic lives there, and its toolbar still only exposes 3 fixed preset buttons (`75/100/125`). Since the computed mobile-fit value is an arbitrary integer (clamped 25–100), it generally won't exactly match any of those 3 presets, so none will render as visually "active" until the user manually taps one. Not a launch blocker, but worth fixing properly (a `resize`/`orientationchange` listener, or a `ResizeObserver` on the CV Builder's container) before calling mobile CV editing fully polished.
+
+---
+
+## 34. Small UX Fixes (session 17, 2026-07-22/23)
+
+All from the same `4e27999` commit, verified against current HEAD.
+
+### 34.1 Delete confirmation dialogs
+New `frontend/components/shared/DeleteConfirmDialog.tsx` (55 lines) — a real modal ("Are you sure you want to delete '{itemName}'? This cannot be undone.") replacing raw `window.confirm()` calls. Used in both `cv-builder/page.tsx` and `cover-letter/page.tsx` (confirmed zero remaining `window.confirm` calls in either file).
+
+### 34.2 Subskills removed from the Skills editor UI — non-destructive
+`frontend/components/cv-builder/SectionForms.tsx` lost the `RichTextEditor`-based "Subskills / Details" sub-field block from `SkillsForm`'s UI. The underlying `entry.subskills` data field is untouched: new skill entries are still created with `subskills: ""`, `RightPanel.tsx`'s AI-assist flow still reads/writes it, and `ModernTemplate.tsx` still renders it in the exported CV. This is a UI-only removal — any CV with existing subskills content keeps rendering it in the output, the user simply can't edit that specific field from the Skills form panel anymore.
+
+### 34.3 Download Success popup
+New `frontend/components/shared/DownloadSuccessDialog.tsx` (84 lines) — shown after a successful CV or Cover Letter PDF download (`CentrePanel.tsx` for CVs, `cover-letter/[id]/page.tsx` for cover letters), with a checkmark header, a "Follow us" row (rendering `SOCIAL_LINKS`, hidden entirely if empty), a "Share ZenzHire with a friend" row (`SHARE_LINKS`), and a link to `/reviews`. **Shows on every successful download, not just the first** — no `localStorage`/one-time gating exists at either call site.
+
+### 34.4 Centralized social/share links
+Two new files, previously each page/component defined its own local, partially-placeholder (`href: "#"`) link arrays:
+- `frontend/lib/social-links.ts` — `SOCIAL_LINKS`, built from `NEXT_PUBLIC_FACEBOOK_URL`/`INSTAGRAM_URL`/`LINKEDIN_URL`/`TIKTOK_URL`/`TWITTER_URL`/`WHATSAPP_URL` (all in `frontend/.env.example`, all empty by default) — "any left empty are hidden rather than rendered as dead links." This is the "our own profile pages" set (footer follow-us row, `DownloadSuccessDialog`).
+- `frontend/lib/share-links.ts` — `SHARE_LINKS`, hardcoded pre-filled share-intent URLs (Twitter/Facebook/LinkedIn/WhatsApp) built from a constant `SITE_URL = "https://zenzhire.com"` — needs no env vars since the share target is always ZenzHire itself, not a per-deployment profile URL.
+
+`SiteFooter.tsx` now imports both instead of maintaining its own local arrays (Telegram is the one remaining hardcoded `href="#"` placeholder in the follow-us row, since it has no dedicated env var).
+
+---
+
+## 35. Production Deployment (session 17, 2026-07-22/23 — reported by project owner, partially independently verified session 18)
+
+⚠️ **Verification note:** the facts below about the live production server (Nginx config, PAYable production credentials, the production admin account) were done directly on the remote production server/DB, outside of any coding session in this repo — there is no local trace of them (no `nginx.conf`, deployment script, or `DEPLOY.md` exists anywhere in this repo; confirmed by search). They're recorded here as reported, not independently re-derived from code. The one claim that *is* independently checkable from this machine — the local dev `.env`'s PAYable environment — **was checked directly, and contradicts what was assumed**. See 35.3.
+
+### 35.1 Architecture
+Both backend and frontend are deployed and live on the real production server. Routing is handled by Nginx on a single domain, no separate API subdomain:
+- `zenzhire.com` → proxied to the Next.js frontend on `:3000`
+- `zenzhire.com/api` → proxied to the FastAPI backend on `:8000`
+
+This resolves what was previously listed as entirely undone in section 21 (item 10, "Production Deployment — Vercel + Railway + Supabase") — the actual deployment target ended up being a single Nginx-fronted server, not the Vercel/Railway/Supabase split originally planned. That planning note should be treated as superseded, not as a description of what was actually built.
+
+### 35.2 PAYable — confirmed live in production
+Production's `PAYABLE_ENV=live`, with real (non-sandbox) merchant/business credentials and a real (non-ngrok) webhook URL pointed at the production backend. This is the step section 28.5's production checklist called out as still needed as of session 14 — it's now done, on the production server specifically.
+
+### 35.3 ⚠️ Local dev `.env` was NOT reverted to sandbox — verified session 18, active risk
+Directly checked `backend/.env` on this local dev machine (session 18, 2026-07-24):
+```
+FRONTEND_URL=https://<ngrok-subdomain>.ngrok-free.app
+BACKEND_URL=https://<ngrok-subdomain>.ngrok-free.app
+PAYABLE_ENV=live
+PAYABLE_WEBHOOK_URL=https://<ngrok-subdomain>.ngrok-free.app/api/v1/billing/webhook
+```
+This is **not** sandbox — local dev is currently configured with `PAYABLE_ENV=live` and real-looking merchant/business key/token values, still pointed at temporary ngrok tunnel URLs rather than either the sandbox environment or the real production URLs. **Practical risk**: running a checkout from this local dev environment right now would attempt to hit PAYable's real production API with live credentials, not a sandbox — any successful payment would be a real charge, and any webhook delivery would depend on whichever ngrok tunnel happens to be running at that moment. This should be reverted to `PAYABLE_ENV=sandbox` with sandbox credentials before any further local billing-flow testing. See section 22 for this logged as an open action item.
+
+### 35.4 Production admin account
+A production admin account was created directly on the production database (not via any local script or migration in this repo) — separate from the local dev admin accounts documented in section 25.1 (`admin@zenzhireadminit.com`, plus whichever accounts have since been flipped to `is_admin=true` locally, e.g. `it23565876@my.sliit.lk` as of session 18).
+
+### 35.5 ⚠️ Operational lesson: local dev and production are fully separate — nothing carries over automatically
+Local dev and production run against **separate databases and separate `.env` files** entirely. Any account, `is_admin` flag, Pro/`pro_until` status, or test data set up on the local dev DB has no effect on production, and vice versa — the same setup step (e.g. "make this user an admin," "grant this account permanent Pro") must be performed **twice**, once per environment, if it's needed in both. Worth remembering before assuming a locally-verified account/permission state is also true in production, or reporting a production issue as fixed because the equivalent local-dev fix worked.
+
+### 35.6 Minor cleanup found during the session 18 audit
+Two stray process-ID files were accidentally committed to git in `4e27999`: `backend/_uvicorn.pid` and `frontend/_next2.pid`. Harmless (not read by any code path), but should be deleted and `.gitignore`'d rather than left tracked — see section 22.
+
+---
+
+## 36. Admin Dashboard — Earnings (session 18, 2026-07-24)
+
+New `/admin/earnings` page, added as a 7th sidebar item (`Overview, Users, Reviews, Contact Submissions, Career Tips, Admins, Earnings`) to the existing `admin/layout.tsx` — same `require_admin`-gated pattern (section 25.1) as every other admin route, same dashboard shell/styling, no new design system, no new tables. Reads exclusively from the existing `BillingTransaction`/`User` tables — no new data collection.
+
+### 36.1 Backend — 3 new endpoints (`backend/app/api/routes/admin.py`, `backend/app/schemas/admin.py`)
+- `GET /admin/earnings/stats` → `AdminEarningsStats`: total revenue, revenue this month, revenue today (all `status == "success"` transactions, `amount` cast from its native `String` column to `Numeric` for SQL-side summing), revenue-by-plan breakdown (keyed off `PLAN_CONFIG`'s plan ids from `services/billing.py`, so it can't drift from the real plan list), total Pro/Free counts, conversion rate, and new-signup counts for the last 7 days / current calendar month.
+- `GET /admin/earnings/transactions` → `AdminTransactionRead[]`, joined to `User.email`, with optional `status`/`search` (by email, case-insensitive) query filters — unpaginated, matching every other admin list endpoint's existing convention (section 25's `list_users` etc.).
+- `GET /admin/earnings/pro-members` → `AdminProMemberRead[]`, every currently-active Pro user (`pro_until IS NOT NULL AND pro_until > now()`), sorted `pro_until` ascending, with `plan` derived from each user's most recent **successful** `BillingTransaction` (falls back to `"unknown"` for accounts made Pro via the admin manual-override endpoint rather than a real purchase — e.g. the permanent-Pro test account, which correctly shows `"unknown"` since it has no purchase record).
+
+No Alembic migration needed — purely new read endpoints over existing columns.
+
+### 36.2 Frontend
+`frontend/app/admin/earnings/page.tsx` (new), reusing the exact existing stat-card/table/tab/badge Tailwind classes from `admin/dashboard/page.tsx` and `admin/users/page.tsx` (dark navy `#0d1117`/`#161b22`/`#30363d` palette, same table/badge patterns). New `formatCurrency()` helper added to `lib/utils.ts` (alongside the existing `formatDate()`), new types/methods added to `adminApi` in `lib/api.ts`. Pro Members rows expiring within 7 days get a small orange "Expiring soon" badge.
+
+### 36.3 Verification performed (session 18)
+- Ran the 3 new endpoint functions directly against the real local Postgres DB and independently cross-checked every number against raw SQL (`SELECT status, sum(cast(amount as numeric)) FROM billing_transactions GROUP BY status`, etc.) — all matched exactly (1 success transaction, $2.99 total revenue, 4 active Pro members, all confirmed both ways).
+- `tsc --noEmit` shows no new errors from these files (2 pre-existing unrelated errors in `generate-pdf/route.ts` and `pagination-test-data.ts` were already there before this session).
+- Hit all 3 new endpoints with a non-admin JWT and with no token at all — both returned `403`, same as every other `/admin/*` route.
+- Logged into the real app as an admin (via a temporary test admin account, deleted afterward) and screenshotted all 4 sections — numbers on screen matched the DB exactly, including the "Expiring soon" badge correctly flagging a Pro member expiring within the 7-day window.
 
 ---

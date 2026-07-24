@@ -112,7 +112,8 @@
       "Bash(python \"C:\\\\Users\\\\kavidu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\F--zenzhire-zenzhire\\\\a5a44c2a-81f3-42cd-b6ca-9f40b8f74f3c\\\\scratchpad\\\\payable_auth_retry.py\")",
       "Bash(sort -k9)",
       "Bash(venv/Scripts/python.exe -c \"import requests; print\\('requests OK', requests.__version__\\)\")",
-      "Bash(powershell -Command \"Select-String -Path 'F:/zenzhire/zenzhire/backend/app/services/ai_service.py' -Pattern 'group_skills' -Context 0,15\")"
+      "Bash(powershell -Command \"Select-String -Path 'F:/zenzhire/zenzhire/backend/app/services/ai_service.py' -Pattern 'group_skills' -Context 0,15\")",
+      "Bash(python *)"
     ]
   }
 }

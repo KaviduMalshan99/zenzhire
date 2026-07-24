@@ -11,6 +11,7 @@ import {
   Mail,
   Newspaper,
   ShieldAlert,
+  DollarSign,
   LogOut,
   Loader2,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/admin/contact", label: "Contact Submissions", icon: Mail, dot: "contact" as const },
   { href: "/admin/career-tips", label: "Career Tips", icon: Newspaper, dot: "none" as const },
   { href: "/admin/admins", label: "Admins", icon: ShieldAlert, dot: "none" as const },
+  { href: "/admin/earnings", label: "Earnings", icon: DollarSign, dot: "none" as const },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

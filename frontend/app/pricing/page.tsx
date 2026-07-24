@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { useAuth } from "@/hooks/useAuth";
 import { BillingModal } from "@/components/billing/BillingModal";
+import { SHOW_PASS7_PROMO } from "@/lib/feature-flags";
 
 type Billing = "monthly" | "yearly";
 type PlanId = "monthly" | "yearly" | "pass7";
@@ -186,14 +187,36 @@ export default function PricingPage() {
         </div>
 
         {/* 7-Day Pass callout */}
-        <div className="mt-8 rounded-xl border border-[#30363d] bg-[#161b22]/60 p-6 flex flex-col sm:flex-row items-center justify-between gap-5">
+        <div className="relative overflow-hidden mt-8 rounded-xl border border-[#30363d] bg-[#161b22]/60 p-6 flex flex-col sm:flex-row items-center justify-between gap-5">
+          {SHOW_PASS7_PROMO && (
+            <div className="absolute top-0 right-0 w-32 h-32 overflow-hidden pointer-events-none">
+              <div className="absolute top-[20px] right-[-38px] w-[160px] rotate-45 bg-gradient-to-r from-red-600 to-orange-500 text-white text-[11px] font-bold text-center py-1 shadow-lg tracking-wide">
+                50% OFF
+              </div>
+            </div>
+          )}
           <div className="text-center sm:text-left">
             <p className="text-[#8b949e] text-xs font-medium uppercase tracking-wide mb-1.5">
               Need it just for a week?
             </p>
-            <h3 className="text-white font-semibold mb-1.5">
-              7-Day Pro Pass — $2.99, one-time
-            </h3>
+            <h3 className="text-white font-semibold mb-1.5">7-Day Pro Pass</h3>
+
+            {SHOW_PASS7_PROMO ? (
+              <div className="flex items-baseline gap-2 flex-wrap mb-1">
+                <span className="text-[#8b949e] text-sm line-through">Rs. 2000</span>
+                <span className="text-white font-bold text-lg">Rs. 1000</span>
+                <span className="text-[#8b949e] text-xs">($2.99 USD, one-time)</span>
+              </div>
+            ) : (
+              <p className="text-white font-semibold mb-1">$2.99, one-time</p>
+            )}
+
+            {SHOW_PASS7_PROMO && (
+              <p className="text-orange-400 text-xs font-medium mb-1.5">
+                🎁 Limited time offer — 2 weeks only
+              </p>
+            )}
+
             <p className="text-[#8b949e] text-sm">
               Full Pro access for 7 days. No subscription, no auto-renewal, expires
               automatically.
