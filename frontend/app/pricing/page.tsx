@@ -56,7 +56,7 @@ export default function PricingPage() {
   const planMeta: Record<PlanId, { label: string; price: string }> = {
     monthly: { label: "Pro Monthly", price: "Rs. 3,500/month" },
     yearly: { label: "Pro Yearly", price: "Rs. 30,000/year" },
-    pass7: { label: "7-Day Pro Pass", price: "Rs. 100, one-time" },
+    pass7: { label: "7-Day Pro Pass", price: "Rs. 1000, one-time" },
   };
 
   const handleUpgradeClick = (plan: PlanId) => {
@@ -204,11 +204,11 @@ export default function PricingPage() {
             {SHOW_PASS7_PROMO ? (
               <div className="flex items-baseline gap-2 flex-wrap mb-1">
                 <span className="text-[#8b949e] text-sm line-through">Rs. 2000</span>
-                <span className="text-white font-bold text-lg">Rs. 100</span>
+                <span className="text-white font-bold text-lg">Rs. 1000</span>
                 <span className="text-[#8b949e] text-xs">(one-time)</span>
               </div>
             ) : (
-              <p className="text-white font-semibold mb-1">Rs. 100, one-time</p>
+              <p className="text-white font-semibold mb-1">Rs. 1000, one-time</p>
             )}
 
             {SHOW_PASS7_PROMO && (

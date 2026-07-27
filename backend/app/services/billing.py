@@ -21,7 +21,7 @@ CURRENCY = "LKR"
 PLAN_CONFIG: dict[str, dict] = {
     "monthly": {"amount": "3500.00", "days": 30, "label": "ZenzHire Pro - Monthly"},
     "yearly": {"amount": "30000.00", "days": 365, "label": "ZenzHire Pro - Yearly"},
-    "pass7": {"amount": "100.00", "days": 7, "label": "ZenzHire Pro - 7-Day Pass"},
+    "pass7": {"amount": "1000.00", "days": 7, "label": "ZenzHire Pro - 7-Day Pass"},
 }
 
 
