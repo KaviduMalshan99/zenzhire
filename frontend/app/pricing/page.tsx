@@ -50,13 +50,13 @@ export default function PricingPage() {
   const { user } = useAuth();
   const [checkoutPlan, setCheckoutPlan] = useState<PlanId | null>(null);
 
-  const proPrice = billing === "monthly" ? "$9.99" : "$6.67";
+  const proPrice = billing === "monthly" ? "Rs. 3500" : "Rs. 2,500";
   const proPeriod = billing === "monthly" ? "/month" : "/month";
 
   const planMeta: Record<PlanId, { label: string; price: string }> = {
-    monthly: { label: "Pro Monthly", price: "$9.99/month" },
-    yearly: { label: "Pro Yearly", price: "$79.99/year" },
-    pass7: { label: "7-Day Pro Pass", price: "$2.99, one-time" },
+    monthly: { label: "Pro Monthly", price: "Rs. 3,500/month" },
+    yearly: { label: "Pro Yearly", price: "Rs. 30,000/year" },
+    pass7: { label: "7-Day Pro Pass", price: "Rs. 1000, one-time" },
   };
 
   const handleUpgradeClick = (plan: PlanId) => {
@@ -125,7 +125,7 @@ export default function PricingPage() {
             <h2 className="text-white font-semibold text-lg mb-1">Free</h2>
             <p className="text-[#8b949e] text-sm mb-6">Truly free forever</p>
             <div className="mb-6">
-              <span className="text-4xl font-bold text-white">$0</span>
+              <span className="text-4xl font-bold text-white">Rs. 0</span>
               <span className="text-[#8b949e] text-sm">/month</span>
             </div>
             <Link
@@ -164,7 +164,7 @@ export default function PricingPage() {
               <span className="text-[#8b949e] text-sm">{proPeriod}</span>
             </div>
             <p className="text-[#8b949e] text-xs mb-6 h-4">
-              {billing === "yearly" ? "$79.99/year, billed yearly" : " "}
+              {billing === "yearly" ? "Rs. 30,000/year, billed yearly" : " "}
             </p>
             <button
               onClick={() => handleUpgradeClick(billing)}
@@ -205,10 +205,10 @@ export default function PricingPage() {
               <div className="flex items-baseline gap-2 flex-wrap mb-1">
                 <span className="text-[#8b949e] text-sm line-through">Rs. 2000</span>
                 <span className="text-white font-bold text-lg">Rs. 1000</span>
-                <span className="text-[#8b949e] text-xs">($2.99 USD, one-time)</span>
+                <span className="text-[#8b949e] text-xs">(one-time)</span>
               </div>
             ) : (
-              <p className="text-white font-semibold mb-1">$2.99, one-time</p>
+              <p className="text-white font-semibold mb-1">Rs. 1000, one-time</p>
             )}
 
             {SHOW_PASS7_PROMO && (

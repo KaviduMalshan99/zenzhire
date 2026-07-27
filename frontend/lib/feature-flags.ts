@@ -9,7 +9,7 @@ export const CAREER_MENTOR_ENABLED = false;
 
 // 2-week promotional "50% OFF" display on the Pricing page's 7-Day Pass
 // card (started 2026-07-25). Display-only — the actual PAYable checkout
-// amount is unaffected (still $2.99, see backend/app/services/billing.py's
+// amount is unaffected (still Rs. 1000, see backend/app/services/billing.py's
 // PLAN_CONFIG). Flip to false to remove the promo banner once it ends;
 // no other code changes required.
 export const SHOW_PASS7_PROMO = true;

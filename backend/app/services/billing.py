@@ -16,12 +16,12 @@ from app.schemas.billing import CheckoutRequest
 
 logger = logging.getLogger(__name__)
 
-CURRENCY = "USD"
+CURRENCY = "LKR"
 
 PLAN_CONFIG: dict[str, dict] = {
-    "monthly": {"amount": "9.99", "days": 30, "label": "ZenzHire Pro - Monthly"},
-    "yearly": {"amount": "79.99", "days": 365, "label": "ZenzHire Pro - Yearly"},
-    "pass7": {"amount": "2.99", "days": 7, "label": "ZenzHire Pro - 7-Day Pass"},
+    "monthly": {"amount": "3500.00", "days": 30, "label": "ZenzHire Pro - Monthly"},
+    "yearly": {"amount": "30000.00", "days": 365, "label": "ZenzHire Pro - Yearly"},
+    "pass7": {"amount": "1000.00", "days": 7, "label": "ZenzHire Pro - 7-Day Pass"},
 }
 
 
