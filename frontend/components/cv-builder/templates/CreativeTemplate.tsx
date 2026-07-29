@@ -54,10 +54,13 @@ function getContactIcon(type: string, fill: string): React.ReactNode {
 }
 
 export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing, headingStyle = "fullline", skillStyle = "classic", skillColumns = 2 } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing, headingStyle = "fullline", skillStyle = "classic", skillColumns = 2 } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
-  const mb = Math.round(20 * sp);
+  // Derived from sectionSpacing (real audited default 20), replacing the old
+  // compact/normal/spacious multiplier -- every Math.round(N * sp) formula
+  // below still scales proportionally off the single sectionSpacing scalar.
+  const sp = sectionSpacing / 20;
+  const mb = sectionSpacing;
   const entryMb = Math.round(14 * sp);
   const { onFieldChange } = useCVEdit();
 
@@ -114,10 +117,10 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
               <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", fontFamily: fontCSS }}><EditableText value={e.job_title} onCommit={(v) => setEntry(i, "job_title", v)} /></div>
               <div style={{ fontSize: 12, fontStyle: "italic", color: accentColor, fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} /></a> : <EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} />}</div>
               {e.description && e.description !== "<p></p>" ? (
-                <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
+                <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: "#374151", fontFamily: fontCSS, lineHeight }} />
               ) : e.bullets?.length > 0 ? (
                 <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                  {e.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: "#374151", fontFamily: fontCSS }}>{b.text}</li>)}
+                  {e.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: "#374151", fontFamily: fontCSS, lineHeight }}>{b.text}</li>)}
                 </ul>
               ) : null}
             </div>
@@ -151,7 +154,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
                 </div>
               )}
               {e.description && e.description !== "<p></p>" && (
-                <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
+                <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS, lineHeight }} />
               )}
             </div>
           </div>
@@ -178,7 +181,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
               <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", fontFamily: fontCSS }}>
                 {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}{p.subtitle && <span style={{ fontWeight: 400, color: "#4b5563", fontSize: 12 }}> — <EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></span>}
               </div>
-              {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />}
+              {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS, lineHeight }} />}
               {p.tech?.length > 0 && <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2, fontFamily: fontCSS }}>{p.tech.join(" · ")}</div>}
             </div>
           </div>
@@ -259,7 +262,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
             <div style={{ flex: 1 }}>
               <span style={{ fontWeight: 700, fontSize: 12, color: "#111827", fontFamily: fontCSS }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></span>
               {a.issuer && <span style={{ fontSize: 11, color: "#374151", fontFamily: fontCSS }}> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></span>}
-              {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+              {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS, lineHeight }} />}
             </div>
           </div>
         );
@@ -281,7 +284,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
             <div style={{ ...dateCol, fontSize: 11 }}><EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} /></div>
             <div style={{ flex: 1, fontSize: 12, color: "#111827", fontFamily: fontCSS }}>
               {c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b></a> : <b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b>}{c.institution && <span style={{ color: "#374151" }}> — <EditableText value={c.institution} onCommit={(v) => setEntry(i, "institution", v)} /></span>}
-              {c.description && c.description !== "<p></p>" && <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS }} />}
+              {c.description && c.description !== "<p></p>" && <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS, lineHeight }} />}
             </div>
           </div>
         );
@@ -304,7 +307,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
             <div style={{ flex: 1, fontSize: 12, fontFamily: fontCSS }}>
               <b style={{ color: "#111827" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>
               {p.publisher && <span style={{ color: "#374151" }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}
-              {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+              {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS, lineHeight }} />}
             </div>
           </div>
         );
@@ -329,7 +332,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
             <div style={{ flex: 1 }}>
               <span style={{ fontWeight: 700, fontSize: 12, color: "#111827", fontFamily: fontCSS }}><EditableText value={o.name} onCommit={(v) => setEntry(i, "name", v)} /></span>
               {o.position && <div style={{ fontSize: 11, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></div>}
-              {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+              {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS, lineHeight }} />}
             </div>
           </div>
         );
@@ -382,7 +385,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
         return (
           <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle="underline" fontFamily={fontCSS} />
-            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
+            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS, lineHeight }} />
             {d.signature && (
               <div style={{ fontSize: 22, fontFamily: "'Dancing Script', cursive", color: "#111827", marginTop: 12, borderBottom: "1px solid #d1d5db", paddingBottom: 4, display: "inline-block" }}><EditableText value={d.signature} onCommit={(v) => setField("signature", v)} /></div>
             )}
@@ -400,7 +403,7 @@ export function CreativeTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
   };
 
   return (
-    <div className="creative-outer" style={{ position: "relative", backgroundColor: "#ffffff", boxSizing: "border-box" }}>
+    <div className="creative-outer" style={{ position: "relative", backgroundColor: "#ffffff", boxSizing: "border-box", lineHeight: 1.5 }}>
       {/* Left accent line — sized via absolute inset against this relatively-
           positioned root, spanning the full (auto) height of the continuous
           document. Correct as-is for any non-paginated render (dashboard

@@ -113,7 +113,11 @@
       "Bash(sort -k9)",
       "Bash(venv/Scripts/python.exe -c \"import requests; print\\('requests OK', requests.__version__\\)\")",
       "Bash(powershell -Command \"Select-String -Path 'F:/zenzhire/zenzhire/backend/app/services/ai_service.py' -Pattern 'group_skills' -Context 0,15\")",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(sed -i 's/return { spacing, sidebarGaps/return { sidebarGaps/' /tmp/vega_measure2.js)",
+      "Bash(sed -i 's/const measurements = await page.evaluate\\(\\(\\) => {/const measurements = await page.evaluate\\(\\(spacing\\) => {/' /tmp/vega_measure2.js)",
+      "Bash(sed -i 's/return { sidebarGaps: measure\\(sidebarRoot\\), mainGaps: measure\\(mainRoot\\), bodyToReferencesGap };/return { spacing, sidebarGaps: measure\\(sidebarRoot\\), mainGaps: measure\\(mainRoot\\), bodyToReferencesGap };/' /tmp/vega_measure2.js)",
+      "Bash(sed -i 's/}, \\\\[/}, [/' /tmp/vega_measure2.js)"
     ]
   }
 }

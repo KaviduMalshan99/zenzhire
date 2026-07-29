@@ -30,10 +30,13 @@ function getPhotoStyle(personal: any, defaultSize = 80): React.CSSProperties {
 }
 
 export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing, headingStyle, skillStyle = "classic", skillColumns = 2 } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing, headingStyle, skillStyle = "classic", skillColumns = 2 } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
-  const mb = Math.round(10 * sp);
+  // Derived from sectionSpacing (real audited default 10), replacing the old
+  // compact/normal/spacious multiplier -- every Math.round(N * sp) formula
+  // below still scales proportionally off the single sectionSpacing scalar.
+  const sp = sectionSpacing / 10;
+  const mb = sectionSpacing;
   const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
   const { onFieldChange } = useCVEdit();
 
@@ -57,7 +60,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
         return (
           <div className="cv-section">
             <SectionHeading section={section} title="Career Objective" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, marginBottom: 4, textAlign: "justify", fontFamily: fontCSS }} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, marginBottom: 4, textAlign: "justify", fontFamily: fontCSS, lineHeight }} />
           </div>
         );
 
@@ -71,10 +74,10 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
             </div>
             <div style={{ fontSize: 12, fontWeight: "bold", fontFamily: fontCSS, color: MID }}>{entry.employer_link ? <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} /></a> : <EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} />}{entry.location ? ` · ${entry.location}` : ""}</div>
             {entry.description && entry.description !== "<p></p>" ? (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: MID, fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: MID, fontFamily: fontCSS, lineHeight }} />
             ) : entry.bullets?.length > 0 ? (
               <ul style={{ margin: "3px 0 0 14px", padding: 0, listStyleType: "disc" }}>
-                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS }}>{b.text}</li>)}
+                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS, lineHeight }}>{b.text}</li>)}
               </ul>
             ) : null}
           </div>
@@ -104,7 +107,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
                 {entry.score_type}:{" "}<span style={{ fontWeight: 600, color: MID }}><EditableText value={entry.score_value} onCommit={(v) => setEntry(i, "score_value", v)} /></span>
               </div>
             )}
-            {entry.description && entry.description !== "<p></p>" && <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
+            {entry.description && entry.description !== "<p></p>" && <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -157,7 +160,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
           <div key={i} style={{ marginBottom: Math.round(6 * sp), fontFamily: fontCSS, ...eb }} className="cv-entry">
             <div style={{ fontWeight: "bold", fontSize: 12, color: accentColor, fontFamily: fontCSS }}>{p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}</div>
             {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS, lineHeight }} />}
             {p.tech?.length > 0 && <div style={{ fontSize: 11, color: MID, marginTop: 1, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
           </div>
         );
@@ -199,7 +202,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
               <span><b><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>{a.issuer ? <> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
               <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
             </div>
-            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -240,7 +243,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
               <span><b><EditableText value={o.name} onCommit={(v) => setEntry(i, "name", v)} /></b>{o.position ? <> — <EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></> : ""}</span>
               <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={o.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</span>
             </div>
-            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -268,7 +271,7 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
         const renderEntry = (p: any, i: number) => (
           <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
             <b><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>{p.publisher && <span style={{ color: LIGHT }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}{p.date && <span style={{ color: LIGHT }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (

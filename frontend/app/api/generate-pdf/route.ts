@@ -214,19 +214,69 @@ export async function POST(request: NextRequest) {
       // same top breathing room the on-screen preview's page 2+ cards get
       // via its clip trick — now placed reliably, since we know exactly
       // which element starts each new page rather than guessing.
+      //
+      // Milestone/Corporate-specific exception: skip the CONTINUATION_TOP_GAP
+      // margin injection entirely when either template needs 2+ forced
+      // breaks. Chrome's page.pdf() reliably inserts one genuine extra blank
+      // physical page whenever a forced break lands inside the template's
+      // two-column flex body (e.g. mid-Experience-list) AND a second forced
+      // break exists in a later, separate DOM subtree (the full-width
+      // References block, rendered outside the flex row) -- confirmed by
+      // direct testing for both templates: with the gap injection removed
+      // the page count is correct; with it present alongside the second
+      // forced break, Chrome fabricates a blank page and orphans the
+      // trailing block's own content onto yet another page. Root cause is
+      // specific to Chrome's flex print-fragmentation combined with an
+      // explicit marginTop on a break-before target (the same general
+      // unreliability this file already works around via absolute per-page
+      // overlays elsewhere, e.g. Modern's sidebar band) -- not reproducible
+      // with a single forced break. The cost is these templates' continuation
+      // pages losing the 40px top breathing room every other migrated
+      // template gets; a corrupted PDF (blank page, orphaned content) is far
+      // worse than slightly tighter continuation-page padding for the
+      // content shapes that hit this. Vega shares the same "full-width block
+      // after a two-column flex body" shape as Milestone/Corporate, but was
+      // directly tested with genuine 2- and 3-forced-break scenarios (a
+      // forced break mid-Experience-list in the main column, confirmed via
+      // real instrumented runs to land alongside a second forced break at
+      // References) and confirmed NOT to need this workaround -- both
+      // stress runs produced correct, monotonic page counts with no blank,
+      // duplicated, or orphaned content. Structural similarity to
+      // Milestone/Corporate is evidently not sufficient on its own to
+      // predict this bug; whatever makes Chrome's flex print-fragmentation
+      // miscalculate appears to depend on incidental content-shape/pixel
+      // alignment specific to each template, not just DOM shape, so it must
+      // be verified empirically per template rather than assumed from
+      // source structure. (Portrait was directly tested the same way and
+      // also confirmed safe -- References renders inside its main column
+      // there, never crossing the flex-row boundary a second forced break
+      // would need to trigger this. Aurora shares that exact shape --
+      // References renders inside AuroraTemplate.tsx's main column too, so
+      // there's no later separate DOM subtree for a second forced break to
+      // cross a flex-row boundary into -- and was directly tested the same
+      // way (a genuine 3-forced-break run with References itself split
+      // across pages 2-4) and also confirmed safe: correct monotonic page
+      // count, no blank/duplicated/orphaned content. All 14 templates are
+      // now either fixed (Milestone, Corporate) or empirically confirmed
+      // clean (Portrait, Vega, Aurora, and every other template in the
+      // shared pipeline that never needed a workaround in the first place).)
+      const needsGapWorkaround =
+        (templateId === "milestone" || templateId === "corporate") && breakChunkIndex.length >= 2;
       await page.evaluate(
-        (breakIndices: number[], gap: number) => {
+        (breakIndices: number[], gap: number, skipGap: boolean) => {
           for (const idx of breakIndices) {
             const el = document.querySelector<HTMLElement>(`[data-chunk-index="${idx}"]`);
             if (!el) continue;
             el.style.breakBefore = "page";
             el.style.pageBreakBefore = "always";
+            if (skipGap) continue;
             const current = parseFloat(getComputedStyle(el).marginTop) || 0;
             el.style.marginTop = `${current + gap}px`;
           }
         },
         breakChunkIndex,
-        CONTINUATION_TOP_GAP
+        CONTINUATION_TOP_GAP,
+        needsGapWorkaround
       );
 
       // Let the reflow from the spacing above settle before pagination.

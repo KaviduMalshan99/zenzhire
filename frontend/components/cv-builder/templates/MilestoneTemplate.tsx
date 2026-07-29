@@ -43,9 +43,27 @@ function getContactIcon(type: string, fill: string): React.ReactNode {
 }
 
 export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing, headingStyle, skillStyle = "nameonly" } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing, headingStyle, skillStyle = "nameonly" } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
+  // Derived from sectionSpacing (real audited default 10 -- see note below),
+  // replacing the old compact/normal/spacious multiplier -- every
+  // Math.round(N * sp) formula below still scales proportionally off the
+  // single sectionSpacing scalar.
+  //
+  // Like Portrait, section-to-section spacing was previously NOT actually
+  // controllable: SortableSection's defaultMarginBottom prop (the "summary
+  // 18, sidebar 14, main 16" numbers) is dead code, never read by
+  // SortableSection itself. Live measurement in the real builder preview
+  // showed every real gap floored at 10px via CSS margin collapsing with
+  // SectionHeading's fixed marginTop: 10 (sidebar and main), and the
+  // Summary-to-body gap was a near-zero 3px (no heading to collapse
+  // against there). sectionSpacing now gets a real, explicit marginBottom
+  // on every section wrapper below, becoming a genuine (bigger) candidate
+  // in that same collapse once the slider moves above 10 -- default 10
+  // reproduces today's sidebar/main/references floor with zero visual
+  // change; the Summary gap grows from 3px to 10px at default, a small,
+  // deliberate side effect of giving every section the same real control.
+  const sp = sectionSpacing / 10;
   const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
   const { onFieldChange } = useCVEdit();
 
@@ -109,7 +127,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           </div>
         );
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Education" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -123,7 +141,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "soft_skills":
         if (!entries.length) return null;
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <SectionHeading section={section} title={section.section_type === "skills" ? "Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ display: "flex", flexDirection: "column", gap: Math.round(6 * sp) }}>
               {entries.map((s: any, i: number) => (
@@ -156,7 +174,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           </li>
         );
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Certification" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
@@ -181,7 +199,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           </div>
         );
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Languages" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontFamily: fontCSS }}>
@@ -200,7 +218,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "interests":
         if (!entries.length) return null;
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <SectionHeading section={section} title="Interests" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <div style={{ fontSize: 11.5, color: MID, fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join(" · ")}
@@ -265,10 +283,10 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
                   {entry.location ? ` · ${entry.location}` : ""}
                 </div>
                 {entry.description && entry.description !== "<p></p>" ? (
-                  <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS }} />
+                  <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS, lineHeight }} />
                 ) : entry.bullets?.length > 0 ? (
                   <ul style={{ margin: "4px 0 0 14px", padding: 0, listStyleType: "disc" }}>
-                    {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS }}>{b.text}</li>)}
+                    {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS, lineHeight }}>{b.text}</li>)}
                   </ul>
                 ) : null}
               </div>
@@ -276,7 +294,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           );
         };
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Work Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -294,12 +312,12 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
               {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}
             </div>
             {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS, lineHeight }} />}
             {p.tech?.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 2, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -318,7 +336,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -336,11 +354,11 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
               <span><b style={{ color: DARK }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>{a.issuer ? <> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
               <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
             </div>
-            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Awards & Recognition" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -358,11 +376,11 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
               <span><b style={{ color: DARK }}><EditableText value={o.name} onCommit={(v) => setEntry(i, "name", v)} /></b>{o.position ? <> — <EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></> : ""}</span>
               <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={o.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</span>
             </div>
-            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Memberships & Associations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -377,11 +395,11 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
         const renderEntry = (p: any, i: number) => (
           <div key={i} style={{ marginBottom: 4, fontSize: 12, fontFamily: fontCSS, ...eb }} className="cv-entry">
             <b style={{ color: DARK }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>{p.publisher && <span style={{ color: LIGHT }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}{p.date && <span style={{ color: LIGHT }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -394,7 +412,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: MID, lineHeight: 1.8, marginBottom: 8, fontFamily: fontCSS }} />
             <div style={{ display: "flex", gap: 32, fontSize: 12, fontFamily: fontCSS }}>
@@ -416,7 +434,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
     const setEntry = makeEntrySetter(section, onFieldChange);
     if (!entries.length) return null;
     return (
-      <div className="cv-section">
+      <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
         <SectionHeading section={section} title="Reference" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
           {entries.map((r: any, i: number) => (
@@ -463,15 +481,15 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
 
       <div style={{ padding: `${bodyPad}px 32px 0` }}>
         {summarySection && (
-          <SortableSection section={summarySection} defaultMarginBottom={Math.round(18 * sp)}>
+          <SortableSection section={summarySection} defaultMarginBottom={sectionSpacing}>
             {(() => {
               const d = summarySection.data;
               if (!d.summary || d.summary === "<p></p>") return null;
               const setField = makeFieldSetter(summarySection, onFieldChange);
               return (
-                <div className="cv-section">
+                <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
                   <SectionHeading section={summarySection} title="Career Summary" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-                  <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS }} />
+                  <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS, lineHeight }} />
                 </div>
               );
             })()}
@@ -501,7 +519,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
           </div>
 
           {sidebarSections.map((section) => (
-            <SortableSection key={section.id} section={section} defaultMarginBottom={14}>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
               {renderSidebarSection(section)}
             </SortableSection>
           ))}
@@ -509,7 +527,7 @@ export function MilestoneTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
 
         <div className="milestone-main" style={{ flex: 1, minWidth: 0 }}>
           {mainSections.map((section) => (
-            <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(16 * sp)}>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
               {renderMainSection(section)}
             </SortableSection>
           ))}

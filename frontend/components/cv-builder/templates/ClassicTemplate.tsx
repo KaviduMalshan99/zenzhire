@@ -45,9 +45,8 @@ function getContactIcon(type: string, fill: string): React.ReactNode {
 }
 
 export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing, headerStyle, headingStyle, skillStyle, skillColumns } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing, headerStyle, headingStyle, skillStyle, skillColumns } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.50 : spacing === "spacious" ? 0.72 : 0.60;
   const { onFieldChange } = useCVEdit();
 
   const personal = get(sections, "personal_details");
@@ -78,8 +77,8 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
   const renderSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const mb = Math.round(14 * sp);
-    const entryMb = Math.round(14 * sp);
+    const mb = sectionSpacing;
+    const entryMb = sectionSpacing;
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -89,7 +88,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         return (
           <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Profile Summary" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#333", textAlign: "justify", fontFamily: fontCSS }} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#333", textAlign: "justify", fontFamily: fontCSS, lineHeight }} />
           </div>
         );
 
@@ -111,11 +110,11 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               {entry.employer_link ? <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} /></a> : <EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} />}{entry.location ? ` · ${entry.location}` : ""}
             </div>
             {entry.description && entry.description !== "<p></p>" ? (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, fontFamily: fontCSS, lineHeight }} />
             ) : entry.bullets?.length > 0 ? (
               <ul style={{ margin: "2px 0 2px 14px", padding: 0, listStyleType: "disc" }}>
                 {entry.bullets.map((b: any, j: number) =>
-                  b.text && <li key={j} style={{ fontSize: 12, marginBottom: 1, fontFamily: fontCSS }}>{b.text}</li>
+                  b.text && <li key={j} style={{ fontSize: 12, marginBottom: 1, fontFamily: fontCSS, lineHeight }}>{b.text}</li>
                 )}
               </ul>
             ) : null}
@@ -153,7 +152,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               </div>
             )}
             {entry.description && entry.description !== "<p></p>" && (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#444", fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#444", fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -177,7 +176,10 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         return (
           <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(8 * sp)}px ${Math.round(20 * sp)}px` }}>
+            {/* Row/col gap scale proportionally off sectionSpacing, anchored to
+                the template's real legacy default (8px -> 5px/12px) so the
+                default slider position reproduces today's exact layout. */}
+            <div style={{ display: "grid", gridTemplateColumns: finalCols, gap: `${Math.round(5 * (sectionSpacing / 8))}px ${Math.round(12 * (sectionSpacing / 8))}px` }}>
               {entries.map((s: any, i: number) => (
                 <div key={i} className="cv-entry" style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
                   <SkillEntry skillName={s.skill_name} level={s.level} skillStyle={skillStyle ?? "chips"} accentColor={accentColor} fontFamily={fontCSS} onNameCommit={(v) => setEntry(i, "skill_name", v)} />
@@ -218,7 +220,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             </div>
             {p.subtitle && <div style={{ fontSize: 12, fontStyle: "italic", color: "#374151", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
             {p.description && p.description !== "<p></p>" && (
-              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, fontFamily: fontCSS }} />
+              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, fontFamily: fontCSS, lineHeight }} />
             )}
             {p.tech?.length > 0 && (
               <div style={{ fontSize: 11, color: "#111827", marginTop: 2, fontFamily: fontCSS }}>Tech: {p.tech.join(", ")}</div>
@@ -264,7 +266,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               <span style={{ color: "#374151", whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
             </div>
             {a.description && a.description !== "<p></p>" && (
-              <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: "#444", fontFamily: fontCSS }} />
+              <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: "#444", fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -288,7 +290,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               <span style={{ color: "#374151", whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} /></span>
             </div>
             {c.description && c.description !== "<p></p>" && (
-              <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#444", marginTop: 1, fontFamily: fontCSS }} />
+              <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#444", marginTop: 1, fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -313,7 +315,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               {p.date ? <> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</> : ""}
             </span>
             {p.description && p.description !== "<p></p>" && (
-              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ marginTop: 1, color: "#444", fontSize: 11, fontFamily: fontCSS }} />
+              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ marginTop: 1, color: "#444", fontSize: 11, fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -341,7 +343,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               </span>
             </div>
             {o.description && o.description !== "<p></p>" && (
-              <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: "#444", fontFamily: fontCSS }} />
+              <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: "#444", fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -398,7 +400,7 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         return (
           <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#444", marginBottom: 8, fontFamily: fontCSS }} />
+            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#444", marginBottom: 8, fontFamily: fontCSS, lineHeight }} />
             {d.signature && (
               <div style={{ marginTop: 24, fontFamily: "'Dancing Script', cursive", fontSize: 24, color: "#374151", borderBottom: "1px solid #ccc", paddingBottom: 4, display: "inline-block" }}>
                 <EditableText value={d.signature} onCommit={(v) => setField("signature", v)} />
@@ -477,12 +479,12 @@ export function ClassicTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
           )}
         </div>
       )}
-      <div style={{ borderTop: "2px solid #374151", marginBottom: Math.round(14 * sp) }} />
+      <div style={{ borderTop: "2px solid #374151", marginBottom: sectionSpacing }} />
 
       {/* Sections */}
       {sections.map((section) =>
         section.section_type !== "personal_details" ? (
-          <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(14 * sp)}>
+          <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
             {renderSection(section)}
           </SortableSection>
         ) : null

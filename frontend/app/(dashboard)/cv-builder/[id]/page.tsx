@@ -230,7 +230,7 @@ export default function CVEditorPage() {
       setCV(res.data);
       setSections(res.data.sections.sort((a, b) => a.display_order - b.display_order));
       setActiveSection((prev) => (prev ? res.data.sections.find((s) => s.id === prev.id) ?? null : null));
-      setCustomizationState(mergeCustomization(res.data.customization as Partial<CVCustomization> | null));
+      setCustomizationState(mergeCustomization(res.data.customization as Partial<CVCustomization> | null, res.data.template_id));
     } catch {
       toast.error("Failed to restore that step");
     } finally {
@@ -263,7 +263,7 @@ export default function CVEditorPage() {
         setCV(res.data);
         setSections(res.data.sections.sort((a, b) => a.display_order - b.display_order));
         setActiveSection(res.data.sections[0] ?? null);
-        setCustomizationState(mergeCustomization(res.data.customization as Partial<CVCustomization> | null));
+        setCustomizationState(mergeCustomization(res.data.customization as Partial<CVCustomization> | null, res.data.template_id));
       } catch {
         toast.error("Failed to load CV");
         router.push("/cv-builder");

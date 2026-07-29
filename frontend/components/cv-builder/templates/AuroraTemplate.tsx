@@ -106,9 +106,24 @@ function getContactIcon(type: string, fill: string): React.ReactNode {
 }
 
 export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing, headingStyle } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing, headingStyle } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
+  // Derived from sectionSpacing (real audited default 10 -- confirmed by live
+  // measurement, same floor as Portrait/Milestone). Aurora's main column
+  // uses the SAME shared SectionHeading component those two templates use
+  // (fixed marginTop: 10, never sp-scaled), and its own local SidebarHeading
+  // is likewise a hardcoded marginTop: 10 -- neither was ever driven by the
+  // old compact/normal/spacious multiplier. Real gaps floor at 10px almost
+  // everywhere via margin collapsing; the one exception measured live was
+  // Experience's own entry margin (Math.round(12 * sp)) occasionally
+  // exceeding that floor at normal/spacious, exactly the same minor
+  // real-scaling wrinkle Portrait/Milestone's audits also glossed as "10 is
+  // the true default" for. Every section wrapper below now gets a real,
+  // explicit marginBottom: sectionSpacing (previously SortableSection's dead
+  // defaultMarginBottom prop) -- becoming a genuine control once it exceeds
+  // the heading's own fixed 10px floor, same mechanism and same accepted
+  // limitation below 10px as Portrait/Milestone.
+  const sp = sectionSpacing / 10;
   const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
   const { onFieldChange } = useCVEdit();
 
@@ -174,7 +189,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
           </div>
         );
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SidebarHeading section={section} title="Education" fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -193,7 +208,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         // a plain, light-colored bullet list instead.
         if (!entries.length) return null;
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <SidebarHeading section={section} title={section.section_type === "skills" ? "Skills" : "Soft Skills"} fontFamily={fontCSS} />
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {entries.map((s: any, i: number) => (
@@ -224,7 +239,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
           </li>
         );
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SidebarHeading section={section} title="Certification" fontFamily={fontCSS} />
               <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
@@ -249,7 +264,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
           </li>
         );
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SidebarHeading section={section} title="Languages" fontFamily={fontCSS} />
               <ul style={{ margin: 0, padding: 0, listStyle: "none", fontSize: 11.5, fontFamily: fontCSS }}>
@@ -268,7 +283,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "interests":
         if (!entries.length) return null;
         return (
-          <div>
+          <div style={{ marginBottom: sectionSpacing }}>
             <SidebarHeading section={section} title="Interests" fontFamily={fontCSS} />
             <div style={{ fontSize: 11.5, color: SIDEBAR_TEXT, fontFamily: fontCSS }}>
               {entries.map((item: any) => item.title).join(" · ")}
@@ -291,9 +306,9 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "profile_summary":
         if (!d.summary || d.summary === "<p></p>") return null;
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS }} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS, lineHeight }} />
           </div>
         );
 
@@ -322,16 +337,16 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               {entry.location ? ` · ${entry.location}` : ""}
             </div>
             {entry.description && entry.description !== "<p></p>" ? (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS, lineHeight }} />
             ) : entry.bullets?.length > 0 ? (
               <ul style={{ margin: "4px 0 0 14px", padding: 0, listStyleType: "disc" }}>
-                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS }}>{b.text}</li>)}
+                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS, lineHeight }}>{b.text}</li>)}
               </ul>
             ) : null}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Work Experience" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -349,12 +364,12 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}
             </div>
             {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS, lineHeight }} />}
             {p.tech?.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 2, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Projects" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -376,7 +391,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Courses & Training" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -394,11 +409,11 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               <span><b style={{ color: DARK }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>{a.issuer ? <> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
               <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
             </div>
-            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Awards & Recognition" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -420,11 +435,11 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
                 {o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}
               </span>
             </div>
-            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Memberships & Associations" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -441,11 +456,11 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
             <b style={{ color: DARK }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>
             {p.publisher && <span style={{ color: LIGHT }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}
             {p.date && <span style={{ color: LIGHT }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Publications" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -458,7 +473,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       case "declaration":
         if (!d.text || d.text === "<p></p>") return null;
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
             <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: MID, lineHeight: 1.8, marginBottom: 8, fontFamily: fontCSS }} />
             <div style={{ display: "flex", gap: 32, fontSize: 12, fontFamily: fontCSS }}>
@@ -504,7 +519,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
           </div>
         );
         return (
-          <div className="cv-section">
+          <div className="cv-section" style={{ marginBottom: sectionSpacing }}>
             <div className="cv-heading-group" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
               <SectionHeading section={section} title="Reference" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
               {renderEntry(entries[0], 0)}
@@ -574,7 +589,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
             </div>
 
             {sidebarSections.map((section) => (
-              <SortableSection key={section.id} section={section} defaultMarginBottom={14}>
+              <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
                 {renderSidebarSection(section)}
               </SortableSection>
             ))}
@@ -597,7 +612,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
           <div style={{ padding: `${mainPad}px 28px 0` }}>
             {mainSections.map((section) => (
-              <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(16 * sp)}>
+              <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
                 {renderMainSection(section)}
               </SortableSection>
             ))}

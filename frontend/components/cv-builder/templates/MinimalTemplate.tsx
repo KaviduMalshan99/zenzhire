@@ -68,10 +68,13 @@ function getPhotoStyle(personal: any, defaultSize = 80): React.CSSProperties {
 }
 
 export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing, headingStyle, skillStyle = "classic", skillColumns = 2 } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing, headingStyle, skillStyle = "classic", skillColumns = 2 } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
-  const mb = Math.round(14 * sp);
+  // Derived from sectionSpacing (real audited default 14), replacing the old
+  // compact/normal/spacious multiplier -- every Math.round(N * sp) formula
+  // below still scales proportionally off the single sectionSpacing scalar.
+  const sp = sectionSpacing / 14;
+  const mb = sectionSpacing;
   const entryMb = Math.round(10 * sp);
   const { onFieldChange } = useCVEdit();
 
@@ -113,7 +116,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         return (
           <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS, textAlign: "justify", lineHeight: 1.6 }} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#111827", fontFamily: fontCSS, textAlign: "justify", lineHeight }} />
           </div>
         );
 
@@ -127,10 +130,10 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             </div>
             <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}>{e.employer_link ? <a href={e.employer_link.startsWith("http") ? e.employer_link : `https://${e.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} /></a> : <EditableText value={e.employer} onCommit={(v) => setEntry(i, "employer", v)} />}{e.location ? ` · ${e.location}` : ""}</div>
             {e.description && e.description !== "<p></p>" ? (
-              <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: "#111827", fontFamily: fontCSS }} />
+              <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: "#111827", fontFamily: fontCSS, lineHeight }} />
             ) : e.bullets?.length > 0 ? (
               <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                {e.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: "#111827", fontFamily: fontCSS }}>{b.text}</li>)}
+                {e.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: "#111827", fontFamily: fontCSS, lineHeight }}>{b.text}</li>)}
               </ul>
             ) : null}
           </div>
@@ -161,7 +164,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               </div>
             )}
             {e.description && e.description !== "<p></p>" && (
-              <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />
+              <EditableHtml html={e.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#4b5563", fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -222,7 +225,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               </div>
               {(p.start_date || p.end_date) && <span style={dateStyle}><EditableText value={p.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{p.start_date && p.end_date ? " – " : ""}<EditableText value={p.end_date} onCommit={(v) => setEntry(i, "end_date", v)} /></span>}
             </div>
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, color: "#111827", marginTop: 2, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, color: "#111827", marginTop: 2, fontFamily: fontCSS, lineHeight }} />}
             {p.tech?.length > 0 && <div style={{ fontSize: 11, color: "#4b5563", marginTop: 2, fontFamily: fontCSS }}>{p.tech.join(" · ")}</div>}
           </div>
         );
@@ -263,7 +266,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></span>
             {a.issuer && <span style={{ fontSize: 11, color: "#374151" }}> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></span>}
             {a.date && <span style={{ fontSize: 11, color: "#4b5563" }}> (<EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -285,7 +288,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               <span>{c.link ? <a href={c.link.startsWith("http") ? c.link : `https://${c.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b></a> : <b><EditableText value={c.title} onCommit={(v) => setEntry(i, "title", v)} /></b>}{c.institution ? <> — <EditableText value={c.institution} onCommit={(v) => setEntry(i, "institution", v)} /></> : ""}</span>
               <span style={{ color: "#374151", whiteSpace: "nowrap", flexShrink: 0, fontSize: 11 }}><EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} /></span>
             </div>
-            {c.description && c.description !== "<p></p>" && <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS }} />}
+            {c.description && c.description !== "<p></p>" && <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#4b5563", marginTop: 1, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -306,7 +309,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
             <span style={{ fontSize: 12, color: "#111827" }}><b><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b></span>
             {p.publisher && <span style={{ fontSize: 11, color: "#374151" }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}
             {p.date && <span style={{ fontSize: 11, color: "#4b5563" }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -329,7 +332,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
               <span style={dateStyle}><EditableText value={o.start_date} onCommit={(v) => setEntry(i, "start_date", v)} />{o.start_date && (o.end_date || o.current_flag) ? " – " : ""}{o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}</span>
             </div>
             {o.position && <div style={{ fontSize: 11, color: "#374151", fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={o.position} onCommit={(v) => setEntry(i, "position", v)} /></div>}
-            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS }} />}
+            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 2, color: "#4b5563", fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -388,7 +391,7 @@ export function MinimalTemplate({ sections, customization = DEFAULT_CUSTOMIZATIO
         return (
           <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Declaration" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS }} />
+            <EditableHtml html={d.text} onCommit={(v) => setField("text", v)} style={{ fontSize: 12, color: "#374151", marginBottom: 8, fontFamily: fontCSS, lineHeight }} />
             {d.signature && (
               <div style={{ fontSize: 22, fontFamily: "'Dancing Script', cursive", color: "#111827", marginTop: 12, borderBottom: "1px solid #d1d5db", paddingBottom: 4, display: "inline-block" }}><EditableText value={d.signature} onCommit={(v) => setField("signature", v)} /></div>
             )}

@@ -58,8 +58,8 @@ function DotPattern({ color }: { color: string }) {
 
 // Corporate section heading: ⊙ HEADING TEXT (uppercase, letter-spaced)
 // Does NOT use SectionHeading.tsx — same exception pattern as TechTemplate which also owns its heading renderer.
-interface CHProps { title: string; section?: CVSection; accentColor: string; fontCSS: string; sp: number }
-function CH({ title, section, accentColor, fontCSS, sp }: CHProps) {
+interface CHProps { title: string; section?: CVSection; accentColor: string; fontCSS: string; sectionSpacing: number }
+function CH({ title, section, accentColor, fontCSS, sectionSpacing }: CHProps) {
   const { onFieldChange } = useCVEdit();
   const displayTitle = section?.data?._title || title;
   const titleNode = section ? (
@@ -69,7 +69,7 @@ function CH({ title, section, accentColor, fontCSS, sp }: CHProps) {
     <div
       style={{
         display: "flex", alignItems: "center", gap: 7,
-        marginTop: Math.round(16 * sp), marginBottom: 10,
+        marginTop: sectionSpacing, marginBottom: 10,
         paddingBottom: 5, borderBottom: `1.5px solid #e5e7eb`,
       }}
     >
@@ -82,9 +82,16 @@ function CH({ title, section, accentColor, fontCSS, sp }: CHProps) {
 }
 
 export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
+  // Derived from sectionSpacing (real audited default 16, confirmed by live
+  // measurement -- CH's own marginTop formula, unlike Portrait/Milestone's
+  // shared SectionHeading, was already real and functional, dominating
+  // every entry's own trailing margin via collapsing since 16 exceeds every
+  // entry-level base in this template). Replacing the old compact/normal/
+  // spacious multiplier -- every Math.round(N * sp) formula below still
+  // scales proportionally off the single sectionSpacing scalar.
+  const sp = sectionSpacing / 16;
   const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
   const { onFieldChange } = useCVEdit();
 
@@ -95,7 +102,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
   const showDetails = (r: any) => (r.privacy ? r.privacy === "show" : r.show_on_cv !== false);
 
   const ch = (title: string, section?: CVSection) => (
-    <CH title={title} section={section} accentColor={accentColor} fontCSS={fontCSS} sp={sp} />
+    <CH title={title} section={section} accentColor={accentColor} fontCSS={fontCSS} sectionSpacing={sectionSpacing} />
   );
 
   const dateStyle: React.CSSProperties = { fontSize: 11, color: LIGHT, fontFamily: fontCSS };
@@ -276,7 +283,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
         return (
           <div className="cv-section">
             {ch("Summary", section)}
-            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS }} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS, lineHeight }} />
           </div>
         );
 
@@ -305,10 +312,10 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
               </span>
             </div>
             {entry.description && entry.description !== "<p></p>" ? (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS, lineHeight }} />
             ) : entry.bullets?.length > 0 ? (
               <ul style={{ margin: "4px 0 0 14px", padding: 0, listStyleType: "disc" }}>
-                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS }}>{b.text}</li>)}
+                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS, lineHeight }}>{b.text}</li>)}
               </ul>
             ) : null}
           </div>
@@ -332,7 +339,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
               {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}
             </div>
             {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS, lineHeight }} />}
             {p.tech?.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 2, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
           </div>
         );
@@ -377,7 +384,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
               <span><b style={{ color: DARK }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>{a.issuer ? <> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
               <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
             </div>
-            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -403,7 +410,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
                 {o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}
               </span>
             </div>
-            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -424,7 +431,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
             <b style={{ color: DARK }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>
             {p.publisher && <span style={{ color: LIGHT }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}
             {p.date && <span style={{ color: LIGHT }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -535,7 +542,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       <div style={{ display: "flex", padding: `${bodyPad}px 32px`, gap: 24 }}>
         <div className="corporate-main" style={{ flex: 1, minWidth: 0 }}>
           {mainSections.map((section) => (
-            <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(16 * sp)}>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
               {renderMainSection(section)}
             </SortableSection>
           ))}
@@ -543,7 +550,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
 
         <div className="corporate-sidebar" style={{ width: "35%", flexShrink: 0, paddingLeft: 22, borderLeft: "1px solid #d1d5db" }}>
           {sidebarSections.map((section) => (
-            <SortableSection key={section.id} section={section} defaultMarginBottom={14}>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
               {renderSidebarSection(section)}
             </SortableSection>
           ))}

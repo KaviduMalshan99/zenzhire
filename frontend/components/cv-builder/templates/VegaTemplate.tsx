@@ -41,8 +41,8 @@ function getContactIcon(type: string, fill: string): React.ReactNode {
 
 // Vega section heading: ■ TITLE + full-width accent underline.
 // Does NOT use SectionHeading.tsx — owns its heading renderer same as TechTemplate/CorporateTemplate.
-interface SHProps { title: string; section?: CVSection; accentColor: string; fontCSS: string; sp: number; }
-function SH({ title, section, accentColor, fontCSS, sp }: SHProps) {
+interface SHProps { title: string; section?: CVSection; accentColor: string; fontCSS: string; sectionSpacing: number; }
+function SH({ title, section, accentColor, fontCSS, sectionSpacing }: SHProps) {
   const { onFieldChange } = useCVEdit();
   const displayTitle = section?.data?._title || title;
   const titleNode = section ? (
@@ -51,7 +51,7 @@ function SH({ title, section, accentColor, fontCSS, sp }: SHProps) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 6,
-      marginTop: Math.round(16 * sp), marginBottom: 10,
+      marginTop: sectionSpacing, marginBottom: 10,
       paddingBottom: 6, borderBottom: `2px solid ${accentColor}`,
     }}>
       <span style={{ color: accentColor, fontSize: 9, lineHeight: 1, flexShrink: 0, letterSpacing: 0 }}>■</span>
@@ -63,9 +63,16 @@ function SH({ title, section, accentColor, fontCSS, sp }: SHProps) {
 }
 
 export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
+  // Derived from sectionSpacing (real audited default 16, confirmed by live
+  // measurement -- SH's own marginTop formula, same as Corporate's CH, was
+  // already real and functional, dominating every entry's own trailing
+  // margin via collapsing since 16 exceeds every entry-level base in this
+  // template). Replacing the old compact/normal/spacious multiplier -- every
+  // Math.round(N * sp) formula below still scales proportionally off the
+  // single sectionSpacing scalar.
+  const sp = sectionSpacing / 16;
   const eb: React.CSSProperties = { pageBreakInside: "avoid", breakInside: "avoid" };
   const { onFieldChange } = useCVEdit();
 
@@ -75,7 +82,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
   const links: any[] = personal.links ?? [];
 
   const sh = (title: string, section?: CVSection) => (
-    <SH title={title} section={section} accentColor={accentColor} fontCSS={fontCSS} sp={sp} />
+    <SH title={title} section={section} accentColor={accentColor} fontCSS={fontCSS} sectionSpacing={sectionSpacing} />
   );
 
   const dateStyle: React.CSSProperties = { fontSize: 10.5, color: LIGHT, fontFamily: fontCSS };
@@ -257,7 +264,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
         return (
           <div className="cv-section">
             {sh("Profile", section)}
-            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS }} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: MID, textAlign: "justify", fontFamily: fontCSS, lineHeight }} />
           </div>
         );
 
@@ -290,10 +297,10 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
               <EditableText value={entry.job_title} onCommit={(v) => setEntry(i, "job_title", v)} />
             </div>
             {entry.description && entry.description !== "<p></p>" ? (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 4, color: MID, fontFamily: fontCSS, lineHeight }} />
             ) : entry.bullets?.length > 0 ? (
               <ul style={{ margin: "4px 0 0 14px", padding: 0, listStyleType: "disc" }}>
-                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS }}>{b.text}</li>)}
+                {entry.bullets.map((b: any, j: number) => b.text && <li key={j} style={{ fontSize: 12, marginBottom: 2, color: MID, fontFamily: fontCSS, lineHeight }}>{b.text}</li>)}
               </ul>
             ) : null}
           </div>
@@ -317,7 +324,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
               {p.link ? <a href={p.link.startsWith("http") ? p.link : `https://${p.link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></a> : <EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} />}
             </div>
             {p.subtitle && <div style={{ fontSize: 11, color: LIGHT, fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: MID, fontFamily: fontCSS, lineHeight }} />}
             {p.tech?.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 2, fontFamily: fontCSS }}>Technologies: {p.tech.join(", ")}</div>}
           </div>
         );
@@ -362,7 +369,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
               <span><b style={{ color: DARK }}><EditableText value={a.award_name} onCommit={(v) => setEntry(i, "award_name", v)} /></b>{a.issuer ? <> — <EditableText value={a.issuer} onCommit={(v) => setEntry(i, "issuer", v)} /></> : ""}</span>
               <span style={{ color: LIGHT, whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
             </div>
-            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {a.description && a.description !== "<p></p>" && <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -388,7 +395,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
                 {o.current_flag ? "Present" : <EditableText value={o.end_date} onCommit={(v) => setEntry(i, "end_date", v)} />}
               </span>
             </div>
-            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {o.description && o.description !== "<p></p>" && <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -409,7 +416,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
             <b style={{ color: DARK }}><EditableText value={p.title} onCommit={(v) => setEntry(i, "title", v)} /></b>
             {p.publisher && <span style={{ color: LIGHT }}> · <EditableText value={p.publisher} onCommit={(v) => setEntry(i, "publisher", v)} /></span>}
             {p.date && <span style={{ color: LIGHT }}> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</span>}
-            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS }} />}
+            {p.description && p.description !== "<p></p>" && <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: MID, fontFamily: fontCSS, lineHeight }} />}
           </div>
         );
         return (
@@ -521,7 +528,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       <div style={{ display: "flex", padding: `${bodyPad}px 32px`, gap: 24 }}>
         <div className="vega-main" style={{ flex: 1, minWidth: 0 }}>
           {mainSections.map((section) => (
-            <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(16 * sp)}>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
               {renderMainSection(section)}
             </SortableSection>
           ))}
@@ -529,7 +536,7 @@ export function VegaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
 
         <div className="vega-sidebar" style={{ width: "38%", flexShrink: 0, paddingLeft: 24, borderLeft: `1.5px solid #e5e7eb` }}>
           {sidebarSections.map((section) => (
-            <SortableSection key={section.id} section={section} defaultMarginBottom={14}>
+            <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
               {renderSidebarSection(section)}
             </SortableSection>
           ))}

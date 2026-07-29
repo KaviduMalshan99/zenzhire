@@ -57,7 +57,7 @@ export default function CVPrintPage() {
         const resolvedTemplateId = data.template_id || "classic";
         setTemplateId(resolvedTemplateId);
         setSections((data.sections || []).filter((s: CVSection) => s.is_visible));
-        setCustomization(mergeCustomization(data.customization));
+        setCustomization(mergeCustomization(data.customization, resolvedTemplateId));
         // Exposes the resolved template to generate-pdf/route.ts's Puppeteer
         // script, which can't otherwise know which template loaded until
         // this fetch resolves client-side — lets it branch pagination logic

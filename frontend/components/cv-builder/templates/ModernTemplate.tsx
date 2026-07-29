@@ -43,10 +43,21 @@ function getPhotoStyle(personal: any, defaultSize = 80): React.CSSProperties {
 }
 
 export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
-  const { accentColor, fontFamily, spacing, headingStyle } = customization;
+  const { accentColor, fontFamily, lineHeight, sectionSpacing, headingStyle } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Arial, Helvetica, sans-serif";
-  const sp = spacing === "compact" ? 0.75 : spacing === "spacious" ? 1.35 : 1.0;
+  // Derived from sectionSpacing (real audited default 14), replacing the old
+  // compact/normal/spacious multiplier -- every Math.round(N * sp) formula
+  // below still scales proportionally off the single sectionSpacing scalar.
+  const sp = sectionSpacing / 14;
   const { onFieldChange } = useCVEdit();
+  // Sidebar section headings (Contact + the skills/soft_skills/languages/
+  // interests/declaration exception sections) were always hardcoded to a
+  // flat 12px gap, completely ignoring the old compact/normal/spacious
+  // preset. Rather than making them identical to the main column (which
+  // would collapse Modern's intentionally tighter sidebar rhythm), 12px is
+  // treated as a ratio of the main baseline (12/14 ≈ 0.857) and scaled by
+  // the same `sp` -- Math.round(12 * sp) reproduces exactly 12 at the real
+  // default (sectionSpacing: 14) and scales proportionally from there.
 
   // Sidebar uses a darkened version of accent as background
   const sidebarBg = accentColor;
@@ -60,7 +71,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
     borderBottom: "1px solid rgba(255,255,255,0.15)",
     paddingBottom: 3,
     marginBottom: 6,
-    marginTop: 12,
+    marginTop: Math.round(12 * sp),
     fontFamily: fontCSS,
   };
 
@@ -102,7 +113,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
   const renderMainSection = (section: CVSection) => {
     const d = section.data;
     const entries = d.entries ?? [];
-    const mb = Math.round(14 * sp);
+    const mb = sectionSpacing;
     const setField = makeFieldSetter(section, onFieldChange);
     const setEntry = makeEntrySetter(section, onFieldChange);
 
@@ -112,7 +123,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         return (
           <div className="cv-section" style={{ marginBottom: mb }}>
             <SectionHeading section={section} title="Profile" accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
-            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#374151", textAlign: "justify", marginBottom: 4, fontFamily: fontCSS }} />
+            <EditableHtml html={d.summary} onCommit={(v) => setField("summary", v)} style={{ fontSize: 12, color: "#374151", textAlign: "justify", marginBottom: 4, fontFamily: fontCSS, lineHeight }} />
           </div>
         );
 
@@ -132,11 +143,11 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               {entry.employer_link ? <a href={entry.employer_link.startsWith("http") ? entry.employer_link : `https://${entry.employer_link}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} /></a> : <EditableText value={entry.employer} onCommit={(v) => setEntry(i, "employer", v)} />}{entry.location ? ` · ${entry.location}` : ""}
             </div>
             {entry.description && entry.description !== "<p></p>" ? (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: "#374151", fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 3, color: "#374151", fontFamily: fontCSS, lineHeight }} />
             ) : entry.bullets?.length > 0 ? (
               <ul style={{ margin: "3px 0 0 14px", padding: 0, listStyleType: "disc" }}>
                 {entry.bullets.map((b: any, j: number) =>
-                  b.text && <li key={j} style={{ fontSize: 12, marginBottom: 1.5, color: "#374151", fontFamily: fontCSS }}>{b.text}</li>
+                  b.text && <li key={j} style={{ fontSize: 12, marginBottom: 1.5, color: "#374151", fontFamily: fontCSS, lineHeight }}>{b.text}</li>
                 )}
               </ul>
             ) : null}
@@ -170,7 +181,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               </div>
             )}
             {entry.description && entry.description !== "<p></p>" && (
-              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
+              <EditableHtml html={entry.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -199,7 +210,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
             </div>
             {p.subtitle && <div style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic", fontFamily: fontCSS }}><EditableText value={p.subtitle} onCommit={(v) => setEntry(i, "subtitle", v)} /></div>}
             {p.description && p.description !== "<p></p>" && (
-              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS }} />
+              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 12, marginTop: 2, color: "#374151", fontFamily: fontCSS, lineHeight }} />
             )}
             {p.tech?.length > 0 && (
               <div style={{ fontSize: 11, color: accentColor, marginTop: 2, fontFamily: fontCSS }}>Tech: {p.tech.join(", ")}</div>
@@ -245,7 +256,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               <span style={{ color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={a.date} onCommit={(v) => setEntry(i, "date", v)} /></span>
             </div>
             {a.description && a.description !== "<p></p>" && (
-              <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: "#6b7280", fontFamily: fontCSS }} />
+              <EditableHtml html={a.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: "#6b7280", fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -269,7 +280,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               <span style={{ color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0 }}><EditableText value={c.end_date || c.start_date} onCommit={(v) => setEntry(i, c.end_date ? "end_date" : "start_date", v)} /></span>
             </div>
             {c.description && c.description !== "<p></p>" && (
-              <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#6b7280", marginTop: 1, fontFamily: fontCSS }} />
+              <EditableHtml html={c.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, color: "#6b7280", marginTop: 1, fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -294,7 +305,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               {p.date ? <> (<EditableText value={p.date} onCommit={(v) => setEntry(i, "date", v)} />)</> : ""}
             </span>
             {p.description && p.description !== "<p></p>" && (
-              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ marginTop: 1, color: "#6b7280", fontSize: 11, fontFamily: fontCSS }} />
+              <EditableHtml html={p.description} onCommit={(v) => setEntry(i, "description", v)} style={{ marginTop: 1, color: "#6b7280", fontSize: 11, fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -322,7 +333,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
               </span>
             </div>
             {o.description && o.description !== "<p></p>" && (
-              <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: "#6b7280", fontFamily: fontCSS }} />
+              <EditableHtml html={o.description} onCommit={(v) => setEntry(i, "description", v)} style={{ fontSize: 11, marginTop: 1, color: "#6b7280", fontFamily: fontCSS, lineHeight }} />
             )}
           </div>
         );
@@ -455,7 +466,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
   ) : null;
 
   return (
-    <div className="modern-outer" style={{ display: "flex", fontFamily: fontCSS, fontSize: 12, minHeight: "297mm", alignItems: "stretch" }}>
+    <div className="modern-outer" style={{ display: "flex", fontFamily: fontCSS, fontSize: 12, minHeight: "297mm", alignItems: "stretch", lineHeight: 1.5 }}>
       {/* Sidebar */}
       <div className="modern-sidebar" style={{ width: "35%", backgroundColor: sidebarBg, padding: `${sidePad}px 14px`, color: "#e2e8f0", alignSelf: "stretch", position: "relative", zIndex: 1 }}>
         {(personal.photo_base64 || personal.photo_url) && (
@@ -521,31 +532,31 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
         </div>
 
         {skillsContent && (
-          <SortableSection section={skillsSection!} defaultMarginBottom={12} defaultLineHeight={1.8}>
+          <SortableSection section={skillsSection!} defaultMarginBottom={Math.round(12 * sp)} defaultLineHeight={1.8}>
             {skillsContent}
           </SortableSection>
         )}
 
         {softSkillsContent && (
-          <SortableSection section={softSkillsSection!} defaultMarginBottom={12} defaultLineHeight={1.8}>
+          <SortableSection section={softSkillsSection!} defaultMarginBottom={Math.round(12 * sp)} defaultLineHeight={1.8}>
             {softSkillsContent}
           </SortableSection>
         )}
 
         {langContent && (
-          <SortableSection section={langSection!} defaultMarginBottom={12} defaultLineHeight={1.8}>
+          <SortableSection section={langSection!} defaultMarginBottom={Math.round(12 * sp)} defaultLineHeight={1.8}>
             {langContent}
           </SortableSection>
         )}
 
         {interestsContent && (
-          <SortableSection section={interestsSection!} defaultMarginBottom={12} defaultLineHeight={1.7}>
+          <SortableSection section={interestsSection!} defaultMarginBottom={Math.round(12 * sp)} defaultLineHeight={1.7}>
             {interestsContent}
           </SortableSection>
         )}
 
         {declarationContent && (
-          <SortableSection section={declarationSection!} defaultMarginBottom={12} defaultLineHeight={1.6}>
+          <SortableSection section={declarationSection!} defaultMarginBottom={Math.round(12 * sp)} defaultLineHeight={1.6}>
             {declarationContent}
           </SortableSection>
         )}
@@ -554,7 +565,7 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       {/* Main content */}
       <div style={{ flex: 1, padding: `${mainPad}px 18px`, backgroundColor: "#fff" }}>
         {mainSections.map((section) => (
-          <SortableSection key={section.id} section={section} defaultMarginBottom={Math.round(14 * sp)}>
+          <SortableSection key={section.id} section={section} defaultMarginBottom={sectionSpacing}>
             {renderMainSection(section)}
           </SortableSection>
         ))}

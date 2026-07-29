@@ -31,7 +31,7 @@ def main():
         affected = []
         for cv in cvs:
             before = cv.customization if isinstance(cv.customization, dict) else {}
-            after = _merge_customization(before, None)
+            after = _merge_customization(before, None, template_id=cv.template_id.value)
             if after != (cv.customization or {}):
                 missing = sorted(set(DEFAULT_CUSTOMIZATION) - set(before.keys()))
                 affected.append((cv, cv.customization, after, missing))

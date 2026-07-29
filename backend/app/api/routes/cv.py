@@ -34,6 +34,8 @@ DEFAULT_CUSTOMIZATION: dict = {
     "accentColor": "#111827",
     "fontFamily": "Arial",
     "spacing": "normal",
+    "lineHeight": 1.3,
+    "sectionSpacing": 20,
     "headerStyle": "centered",
     "headingStyle": "fullline",
     "skillStyle": "chips",
@@ -41,9 +43,142 @@ DEFAULT_CUSTOMIZATION: dict = {
 }
 
 
-def _merge_customization(existing: dict | None, patch: dict | None = None) -> dict:
-    """Fills gaps with defaults, keeps existing saved values, applies patch on top."""
-    return {**DEFAULT_CUSTOMIZATION, **(existing or {}), **(patch or {})}
+# Mirrors frontend/types/index.ts's LEGACY_SPACING_MAP (generic fallback) and
+# TEMPLATE_LEGACY_SPACING (per-template ground truth, audited from each
+# template's actual old marginBottom/line-height formulas). Only "classic" is
+# populated so far -- add an entry as each template gets wired to
+# lineHeight/sectionSpacing in a later phase.
+LEGACY_SPACING_MAP: dict = {
+    "compact": {"lineHeight": 1.1, "sectionSpacing": 12},
+    "normal": {"lineHeight": 1.3, "sectionSpacing": 20},
+    "spacious": {"lineHeight": 1.5, "sectionSpacing": 28},
+}
+
+TEMPLATE_LEGACY_SPACING: dict = {
+    "classic": {
+        "compact": {"lineHeight": 1.5, "sectionSpacing": 7},
+        "normal": {"lineHeight": 1.5, "sectionSpacing": 8},
+        "spacious": {"lineHeight": 1.5, "sectionSpacing": 10},
+    },
+    "creative": {
+        "compact": {"lineHeight": 1.5, "sectionSpacing": 15},
+        "normal": {"lineHeight": 1.5, "sectionSpacing": 20},
+        "spacious": {"lineHeight": 1.5, "sectionSpacing": 27},
+    },
+    "minimal": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 11},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 14},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 19},
+    },
+    "executive": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 11},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 14},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 19},
+    },
+    "tech": {
+        "compact": {"lineHeight": 1.5, "sectionSpacing": 11},
+        "normal": {"lineHeight": 1.5, "sectionSpacing": 14},
+        "spacious": {"lineHeight": 1.5, "sectionSpacing": 19},
+    },
+    "gcc": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 8},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 10},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 14},
+    },
+    "nova": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 8},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 10},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 14},
+    },
+    # Academic's old preset gave its Profile Summary a distinct line-height
+    # (compact 1.4 / normal 1.65 / spacious 1.8) separate from the container's
+    # own 1.6 -- per an explicit product decision, the new lineHeight stepper
+    # now governs the whole template uniformly, so that distinct summary
+    # behavior is intentionally dropped in favor of the container's value.
+    "academic": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 5},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 7},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 12},
+    },
+    "modern": {
+        "compact": {"lineHeight": 1.5, "sectionSpacing": 11},
+        "normal": {"lineHeight": 1.5, "sectionSpacing": 14},
+        "spacious": {"lineHeight": 1.5, "sectionSpacing": 19},
+    },
+    # NOTE: the original audit claimed "first section fixed 14, rest 16" for
+    # Portrait, but live measurement showed that premise was stale/inaccurate
+    # -- those numbers only ever fed SortableSection's dead defaultMarginBottom
+    # prop. The real default floors at 10px via CSS margin collapsing with
+    # SectionHeading's fixed marginTop: 10. Per an explicit product decision,
+    # Portrait's sections now get a real, working sectionSpacing-driven
+    # marginBottom for the first time -- 10 is the true audited default.
+    "portrait": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 8},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 10},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 14},
+    },
+    # NOTE: the original audit claimed "summary 18, sidebar fixed 14, main
+    # 16" for Milestone, but -- exactly like Portrait -- live measurement
+    # showed that premise was stale/inaccurate; those numbers only ever fed
+    # SortableSection's dead defaultMarginBottom prop. The real default
+    # floors at 10px via CSS margin collapsing with SectionHeading's fixed
+    # marginTop: 10. Milestone's sections now get a real, working
+    # sectionSpacing-driven marginBottom for the first time.
+    "milestone": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 8},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 10},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 14},
+    },
+    # Unlike Portrait/Milestone, Corporate's spacing was already real and
+    # functional -- CH (Corporate's own heading component) sets a real
+    # marginTop: Math.round(16 * sp), which dominates every section's
+    # trailing gap via margin collapsing. Live measurement confirmed a
+    # uniform 16px gap everywhere, matching the original audit for once.
+    "corporate": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 12},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 16},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 22},
+    },
+    # Structurally identical to Corporate: Vega's own SH heading component
+    # sets a real marginTop: Math.round(16 * sp), which dominates every
+    # section's trailing gap via margin collapsing. Live measurement at all
+    # three presets confirmed the exact same 12/16/22 progression as
+    # Corporate.
+    "vega": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 12},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 16},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 22},
+    },
+    # Same floored-at-10 mechanism as Portrait/Milestone: Aurora's main
+    # column uses the shared SectionHeading (fixed marginTop: 10), and its
+    # own local SidebarHeading is likewise a hardcoded marginTop: 10 --
+    # neither was ever driven by the old compact/normal/spacious multiplier.
+    # Live measurement confirmed the real gap floors at 10px almost
+    # everywhere via margin collapsing.
+    "aurora": {
+        "compact": {"lineHeight": 1.6, "sectionSpacing": 8},
+        "normal": {"lineHeight": 1.6, "sectionSpacing": 10},
+        "spacious": {"lineHeight": 1.6, "sectionSpacing": 14},
+    },
+}
+
+
+def _merge_customization(existing: dict | None, patch: dict | None = None, template_id: str | None = None) -> dict:
+    """Fills gaps with defaults, keeps existing saved values, applies patch on top.
+
+    `template_id`, when known, resolves a legacy (pre-lineHeight/sectionSpacing)
+    saved CV to that specific template's real old appearance instead of the
+    generic fallback -- see TEMPLATE_LEGACY_SPACING.
+    """
+    combined = {**(existing or {}), **(patch or {})}
+    merged = {**DEFAULT_CUSTOMIZATION, **combined}
+    if "lineHeight" not in combined and "sectionSpacing" not in combined:
+        preset = combined.get("spacing", DEFAULT_CUSTOMIZATION["spacing"])
+        legacy = TEMPLATE_LEGACY_SPACING.get(template_id, {}).get(preset) or LEGACY_SPACING_MAP.get(preset)
+        if legacy:
+            merged["lineHeight"] = legacy["lineHeight"]
+            merged["sectionSpacing"] = legacy["sectionSpacing"]
+    return merged
 
 
 # ── Default section data ───────────────────────────────────────────────────────
@@ -254,7 +389,7 @@ def create_cv(
         user_id=current_user.id,
         title=payload.title,
         template_id=payload.template_id,
-        customization=_merge_customization(None, payload.customization),
+        customization=_merge_customization(None, payload.customization, template_id=payload.template_id.value),
         is_primary=False,
     )
     db.add(cv)
@@ -332,7 +467,7 @@ def update_cv(
             )
         cv.template_id = payload.template_id
     if payload.customization is not None:
-        cv.customization = _merge_customization(cv.customization, payload.customization)
+        cv.customization = _merge_customization(cv.customization, payload.customization, template_id=cv.template_id.value)
     db.commit()
     db.refresh(cv)
     return cv

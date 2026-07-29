@@ -30,11 +30,8 @@ const FONT_OPTIONS = [
   { value: "Lato", description: "Friendly, creative", pro: true },
 ];
 
-const SPACING_OPTIONS = [
-  { value: "compact" as const, label: "Compact" },
-  { value: "normal" as const, label: "Normal" },
-  { value: "spacious" as const, label: "Spacious" },
-];
+const LINE_HEIGHT_BOUNDS = { min: 1.0, max: 1.8, step: 0.1 };
+const SECTION_SPACING_BOUNDS = { min: 8, max: 32, step: 4 };
 
 const HEADER_STYLE_OPTIONS = [
   { value: "left" as const, label: "Left", desc: "Name left aligned" },
@@ -79,6 +76,53 @@ function SectionLabel({ label, pro }: { label: string; pro?: boolean }) {
           PRO
         </span>
       )}
+    </div>
+  );
+}
+
+function Stepper({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  format,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+  format?: (value: number) => string;
+}) {
+  const round = (n: number) => Math.round(n * 100) / 100;
+  const atMin = value <= min;
+  const atMax = value >= max;
+
+  return (
+    <div>
+      <SectionLabel label={label} />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onChange(round(Math.max(min, value - step)))}
+          disabled={atMin}
+          className="w-7 h-7 flex items-center justify-center rounded-md border border-[#30363d] text-[#8b949e] hover:border-[#8b949e] hover:text-[#e6edf3] disabled:opacity-30 disabled:pointer-events-none transition-all"
+        >
+          −
+        </button>
+        <span className="flex-1 text-center text-xs font-medium text-[#e6edf3] tabular-nums">
+          {format ? format(value) : value}
+        </span>
+        <button
+          onClick={() => onChange(round(Math.min(max, value + step)))}
+          disabled={atMax}
+          className="w-7 h-7 flex items-center justify-center rounded-md border border-[#30363d] text-[#8b949e] hover:border-[#8b949e] hover:text-[#e6edf3] disabled:opacity-30 disabled:pointer-events-none transition-all"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
@@ -196,26 +240,26 @@ export function CustomizationPanel({ customization, onChange, isPro }: Props) {
         </div>
       </div>
 
-      {/* ── Spacing ─────────────────────────────────────────────────── */}
-      <div>
-        <SectionLabel label="Content Spacing" />
-        <div className="flex gap-1">
-          {SPACING_OPTIONS.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => upd("spacing", s.value)}
-              className={cn(
-                "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-all",
-                customization.spacing === s.value
-                  ? "border-blue-500 bg-blue-600/10 text-blue-400"
-                  : "border-[#30363d] text-[#8b949e] hover:border-[#8b949e] hover:text-[#e6edf3]"
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* ── Line Spacing ────────────────────────────────────────────── */}
+      <Stepper
+        label="Line Spacing"
+        value={customization.lineHeight}
+        min={LINE_HEIGHT_BOUNDS.min}
+        max={LINE_HEIGHT_BOUNDS.max}
+        step={LINE_HEIGHT_BOUNDS.step}
+        onChange={(v) => upd("lineHeight", v)}
+      />
+
+      {/* ── Section Spacing ─────────────────────────────────────────── */}
+      <Stepper
+        label="Section Spacing"
+        value={customization.sectionSpacing}
+        min={SECTION_SPACING_BOUNDS.min}
+        max={SECTION_SPACING_BOUNDS.max}
+        step={SECTION_SPACING_BOUNDS.step}
+        onChange={(v) => upd("sectionSpacing", v)}
+        format={(v) => `${v}px`}
+      />
 
       {/* ── Header Style (PRO) ──────────────────────────────────────── */}
       <div>
