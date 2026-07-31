@@ -83,12 +83,14 @@ class CVDocumentCreate(BaseModel):
     title: str = "My CV"
     template_id: TemplateId = TemplateId.classic
     customization: Any | None = None
+    target_role: str | None = None
 
 
 class CVDocumentUpdate(BaseModel):
     title: str | None = None
     template_id: TemplateId | None = None
     customization: Any | None = None
+    target_role: str | None = None
 
 
 class CVDocumentRead(BaseModel):
@@ -98,6 +100,7 @@ class CVDocumentRead(BaseModel):
     template_id: TemplateId
     is_primary: bool
     customization: Any | None = None
+    target_role: str | None = None
     created_at: datetime
     updated_at: datetime | None
     sections: list[CVSectionRead] = []

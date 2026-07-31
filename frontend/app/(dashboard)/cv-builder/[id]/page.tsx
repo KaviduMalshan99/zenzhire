@@ -122,6 +122,8 @@ export default function CVEditorPage() {
   const [leftPanelMode, setLeftPanelMode] = useState<"list" | "form">("list");
   const [mobileSheet, setMobileSheet] = useState<"closed" | "sections">("closed");
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [zeniFocusSignal, setZeniFocusSignal] = useState(0);
+  const [showZeniIntro, setShowZeniIntro] = useState(false);
   const [past, setPast] = useState<HistorySnapshot[]>([]);
   const [future, setFuture] = useState<HistorySnapshot[]>([]);
   const [isRestoringHistory, setIsRestoringHistory] = useState(false);
@@ -264,6 +266,36 @@ export default function CVEditorPage() {
         setSections(res.data.sections.sort((a, b) => a.display_order - b.display_order));
         setActiveSection(res.data.sections[0] ?? null);
         setCustomizationState(mergeCustomization(res.data.customization as Partial<CVCustomization> | null, res.data.template_id));
+
+        if (res.data.target_role) {
+          setTargetRole(res.data.target_role);
+        } else {
+          // One-time migration for target roles saved under the old localStorage-only
+          // scheme before this field moved server-side — push it up, then drop the
+          // local copy so it isn't a stale fallback if the server value changes later.
+          let legacyRole = "";
+          try {
+            legacyRole = localStorage.getItem(`zh_target_role_${res.data.id}`) ?? "";
+          } catch {}
+          if (legacyRole) {
+            setTargetRole(legacyRole);
+            try {
+              await api.put(`/cv/${res.data.id}`, { target_role: legacyRole });
+              localStorage.removeItem(`zh_target_role_${res.data.id}`);
+            } catch {}
+          }
+        }
+
+        // One-time-per-CV intro tooltip. This is throwaway UI-dismissal state
+        // (not real CV data, unlike target_role), so a client-side flag is
+        // enough — no need for it to survive a device switch.
+        try {
+          const introKey = `zh_zeni_intro_seen_${res.data.id}`;
+          if (!localStorage.getItem(introKey)) {
+            localStorage.setItem(introKey, "1");
+            setShowZeniIntro(true);
+          }
+        } catch {}
       } catch {
         toast.error("Failed to load CV");
         router.push("/cv-builder");
@@ -273,6 +305,18 @@ export default function CVEditorPage() {
     };
     init();
   }, [id]);
+
+  // Set once via Zeni's conversational target-role question (RightPanel) instead
+  // of the old always-visible static field — persisted server-side on the
+  // CVDocument so it survives across devices/sessions, same as other CV data.
+  const handleTargetRoleChange = useCallback((role: string) => {
+    setTargetRole(role);
+    if (cv) {
+      api.put(`/cv/${cv.id}`, { target_role: role }).catch(() => {
+        toast.error("Failed to save target role");
+      });
+    }
+  }, [cv]);
 
   const saveSectionData = useCallback(async (section: CVSection, newData: Record<string, any>) => {
     if (!cv) return;
@@ -395,6 +439,29 @@ export default function CVEditorPage() {
     }
   }, [sections]);
 
+  // Single entry point for "open Zeni" — used by the floating button and by
+  // the inline per-section hints, so both land on the ai tab focused on
+  // whatever section is currently active, even if the widget is already open
+  // on a different tab.
+  const handleOpenZeni = useCallback(() => {
+    setAiPanelOpen(true);
+    setZeniFocusSignal((n) => n + 1);
+    setMobileSheet("closed");
+  }, []);
+
+  // One-time intro tooltip: auto-dismiss after a few seconds, or on the
+  // user's next click anywhere (including the Zeni button itself).
+  useEffect(() => {
+    if (!showZeniIntro) return;
+    const timer = setTimeout(() => setShowZeniIntro(false), 6000);
+    const dismiss = () => setShowZeniIntro(false);
+    document.addEventListener("click", dismiss);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", dismiss);
+    };
+  }, [showZeniIntro]);
+
   const handleSendToATS = useCallback(() => {
     if (!cv) return;
     const text = extractCVText(sections);
@@ -430,6 +497,7 @@ export default function CVEditorPage() {
     onUpdateCV: updateCV,
     onSectionDataChange: saveSectionData,
     onCustomizationChange: handleCustomizationChange,
+    onOpenZeni: handleOpenZeni,
     controlledTab: leftPanelTab,
     onControlledTabChange: setLeftPanelTab,
     controlledMode: leftPanelMode,
@@ -509,49 +577,59 @@ export default function CVEditorPage() {
       </div>
 
       {/* Floating Zeni AI entry point — visible on every viewport and section */}
-      <button
-        onClick={() => setAiPanelOpen(true)}
-        className="fixed z-40 bottom-24 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
-        style={{ backgroundColor: "#2563eb" }}
-        title="Zeni"
-        aria-label="Open Zeni AI assistant"
-      >
-        <Sparkles className="w-6 h-6" />
-      </button>
+      {!aiPanelOpen && (
+        <button
+          onClick={handleOpenZeni}
+          className="fixed z-40 bottom-24 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
+          style={{ backgroundColor: "#2563eb" }}
+          title="Zeni"
+          aria-label="Open Zeni AI assistant"
+        >
+          <Sparkles className="w-6 h-6" />
+        </button>
+      )}
 
+      {/* One-time-per-CV intro tooltip pointing at the floating button above. */}
+      {showZeniIntro && !aiPanelOpen && (
+        <div
+          className="fixed z-40 bottom-[152px] right-4 md:bottom-[88px] md:right-6 max-w-[210px] bg-[#161b22] border border-blue-500/40 rounded-lg px-3 py-2.5 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
+          <p className="text-white text-xs font-semibold mb-0.5">This is Zeni ✨</p>
+          <p className="text-[#8b949e] text-[11px] leading-snug">Click anytime you want help writing your CV.</p>
+        </div>
+      )}
+
+      {/* Compact chat-widget-style Zeni window — small and fixed-size, not a full-height drawer.
+          No full-screen backdrop: the rest of the CV builder stays interactive (e.g. switching
+          active section) while this floats above it, same as a WhatsApp/Claude-style widget. */}
       {aiPanelOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div
-            className="absolute inset-0 bg-black/60"
-            onClick={() => setAiPanelOpen(false)}
-          />
-          <div
-            className="relative bg-[#161b22] border-l border-[#30363d] h-full w-full sm:w-[400px] flex flex-col shadow-2xl animate-in slide-in-from-right duration-200"
-          >
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[#30363d] flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-400" />
-                <span className="text-white text-sm font-semibold">Zeni</span>
-              </div>
-              <button
-                onClick={() => setAiPanelOpen(false)}
-                className="text-[#8b949e] hover:text-white p-1 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        <div
+          className="fixed z-50 bottom-24 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:w-[380px] md:w-[400px] max-h-[min(600px,calc(100vh-140px))] bg-[#161b22] border border-[#30363d] rounded-xl flex flex-col shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-200 overflow-hidden"
+        >
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-400" />
+              <span className="text-white text-sm font-semibold">Zeni</span>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <RightPanel
-                cv={cv}
-                sections={sections}
-                activeSection={activeSection}
-                isPro={isPro}
-                targetRole={targetRole}
-                onTargetRoleChange={setTargetRole}
-                onJumpToSection={handleJumpToSection}
-                onSectionDataChange={saveSectionData}
-              />
-            </div>
+            <button
+              onClick={() => setAiPanelOpen(false)}
+              className="text-[#8b949e] hover:text-white p-1 rounded"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col">
+            <RightPanel
+              cv={cv}
+              sections={sections}
+              activeSection={activeSection}
+              isPro={isPro}
+              targetRole={targetRole}
+              onTargetRoleChange={handleTargetRoleChange}
+              onJumpToSection={handleJumpToSection}
+              onSectionDataChange={saveSectionData}
+              focusSignal={zeniFocusSignal}
+            />
           </div>
         </div>
       )}

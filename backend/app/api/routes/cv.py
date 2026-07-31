@@ -218,6 +218,7 @@ _DEFAULT_SECTIONS = [
     SectionType.personal_details,
     SectionType.profile_summary,
     SectionType.experience,
+    SectionType.projects,
     SectionType.education,
     SectionType.skills,
     SectionType.languages,
@@ -390,6 +391,7 @@ def create_cv(
         title=payload.title,
         template_id=payload.template_id,
         customization=_merge_customization(None, payload.customization, template_id=payload.template_id.value),
+        target_role=payload.target_role,
         is_primary=False,
     )
     db.add(cv)
@@ -422,13 +424,14 @@ def get_cv(
 @router.get("/{cv_id}/score", response_model=CVScoreResponse)
 def get_cv_score(
     cv_id: int,
-    target_role: str = "",
+    target_role: str | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     cv = _get_cv_or_404(cv_id, current_user.id, db)
+    effective_target_role = target_role if target_role is not None else (cv.target_role or "")
     score, missing = compute_ats_score(cv.sections)
-    sub_scores = compute_sub_scores(cv.sections, target_role) if current_user.is_pro else None
+    sub_scores = compute_sub_scores(cv.sections, effective_target_role) if current_user.is_pro else None
     return CVScoreResponse(score=score, missing=missing, sub_scores=sub_scores)
 
 
@@ -468,6 +471,8 @@ def update_cv(
         cv.template_id = payload.template_id
     if payload.customization is not None:
         cv.customization = _merge_customization(cv.customization, payload.customization, template_id=cv.template_id.value)
+    if payload.target_role is not None:
+        cv.target_role = payload.target_role
     db.commit()
     db.refresh(cv)
     return cv
@@ -504,6 +509,7 @@ def duplicate_cv(
         user_id=current_user.id,
         title=f"{source.title} (Copy)",
         template_id=source.template_id,
+        target_role=source.target_role,
         is_primary=False,
     )
     db.add(new_cv)

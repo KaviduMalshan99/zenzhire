@@ -21,6 +21,9 @@ interface Props {
   onTargetRoleChange: (role: string) => void;
   onJumpToSection: (sectionType: SectionType) => void;
   onSectionDataChange: (section: CVSection, newData: Record<string, any>) => void;
+  /** Bumped by the parent (floating button or an inline section hint) to force
+   *  this panel onto the "ai" tab even if it's already open on another tab. */
+  focusSignal?: number;
 }
 
 interface Issue {
@@ -377,6 +380,106 @@ function computeIssues(sections: CVSection[], targetRole: string): Issue[] {
   return issues;
 }
 
+// ─── Zeni conversational follow-ups ────────────────────────────────────────────
+// Reuses the exact questions/heuristic already proven in the (currently disabled)
+// Career Mentor onboarding flow — backend/app/services/career_mentor.py's FLOW
+// and is_vague(). Mirrored here by hand (same pattern as ROLE_KEYWORDS/
+// score_service.py already being a manually-kept-in-sync mirror) since Zeni's
+// per-section chat lives entirely client-side, with no dedicated backend route.
+
+const TARGET_ROLE_QUESTION =
+  "What job or role are you aiming for? Be as specific as you can " +
+  '(e.g. "Frontend Developer" or "Registered Nurse").';
+
+const SUMMARY_QUESTIONS = [
+  "If you had 10 seconds to introduce yourself professionally, what would you say?",
+  "What kind of work or projects do you enjoy most?",
+  "About how many years of experience do you have in this field?",
+];
+
+const EXPERIENCE_FOLLOWUP_QUESTION =
+  "Can you tell me a bit more? What tools did you use, or was there a specific result you're proud of?";
+
+const PROJECT_FOLLOWUP_QUESTION =
+  "What was this project about? What did you build, and was there any measurable outcome?";
+
+// Same "too thin to generate a good bullet from" rule as career_mentor.py's is_vague().
+function isVague(answer: string): boolean {
+  const words = answer.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 15) return true;
+  return !/\d/.test(answer);
+}
+
+function hasSubstantiveExperience(sections: CVSection[]): boolean {
+  const entries: any[] = sections.find((s) => s.section_type === "experience")?.data?.entries ?? [];
+  return entries.some((e: any) =>
+    (e.bullets ?? []).some((b: any) => (b.text ?? "").trim().length > 0) ||
+    (e.description ?? "").replace(/<[^>]+>/g, "").trim().length > 0
+  );
+}
+
+type PendingFlow =
+  | { kind: "target_role" }
+  | { kind: "summary"; step: 0 | 1 | 2; answers: string[] }
+  | { kind: "exp_followup"; original: string }
+  | { kind: "project_followup"; original: string };
+
+function pendingFlowQuestion(flow: PendingFlow): string {
+  if (flow.kind === "target_role") return TARGET_ROLE_QUESTION;
+  if (flow.kind === "summary") return SUMMARY_QUESTIONS[flow.step];
+  if (flow.kind === "exp_followup") return EXPERIENCE_FOLLOWUP_QUESTION;
+  return PROJECT_FOLLOWUP_QUESTION;
+}
+
+function ChatQuestionCard({ question, onAnswer, onSkip, loading }: {
+  question: string;
+  onAnswer: (answer: string) => void;
+  onSkip?: () => void;
+  loading?: boolean;
+}) {
+  const [value, setValue] = useState("");
+  const submit = () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setValue("");
+    onAnswer(trimmed);
+  };
+  return (
+    <div className="bg-[#0d1117] border border-blue-600/30 rounded-lg p-3">
+      <div className="flex items-start gap-2 mb-2.5">
+        <div className="w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+        </div>
+        <p className="text-[#e6edf3] text-xs leading-relaxed pt-0.5">{question}</p>
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          autoFocus
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+          placeholder="Type your answer..."
+          disabled={loading}
+          className="flex-1 bg-[#161b22] border border-[#30363d] rounded px-2.5 py-1.5 text-xs text-[#e6edf3] placeholder:text-[#484f58] focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
+        />
+        <button
+          onClick={submit}
+          disabled={!value.trim() || loading}
+          className="text-[11px] px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 transition-colors flex-shrink-0"
+        >
+          Send
+        </button>
+      </div>
+      {onSkip && (
+        <button onClick={onSkip} className="mt-1.5 text-[10px] text-[#8b949e] hover:text-[#e6edf3] transition-colors">
+          Skip for now
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Grouped skills (AI response parsing) ──────────────────────────────────────
 
 interface SkillGroup { category: string; skills: string[]; }
@@ -620,8 +723,15 @@ function IssueCard({ issue, isPro, autoFixing, onFix, onAutoFix }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onTargetRoleChange, onJumpToSection, onSectionDataChange }: Props) {
+export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onTargetRoleChange, onJumpToSection, onSectionDataChange, focusSignal }: Props) {
   const [activeTab, setActiveTab] = useState<"ai" | "score" | "fixes">("ai");
+
+  // Jump back to the "ai" tab whenever the parent explicitly asks for Zeni's
+  // attention (floating button or an inline "get help" hint on a section
+  // form) even if this panel was already open on the score/fixes tab.
+  useEffect(() => {
+    if (focusSignal) setActiveTab("ai");
+  }, [focusSignal]);
   const [aiInput, setAiInput] = useState("");
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [lastAiAction, setLastAiAction] = useState<string | null>(null);
@@ -651,6 +761,19 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
   const [polishing, setPolishing] = useState(false);
   const [polishProgress, setPolishProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [polishResult, setPolishResult] = useState<{ succeeded: string[]; failed: string[] } | null>(null);
+  const [pendingFlow, setPendingFlow] = useState<PendingFlow | null>(null);
+
+  // First time Zeni is opened on a CV with no target role set, ask for it before
+  // any other help — replaces the old always-visible static input. Skipping (or
+  // answering once) is remembered per-CV so this never re-asks afterward.
+  useEffect(() => {
+    if (activeTab !== "ai" || pendingFlow || targetRole) return;
+    try {
+      if (localStorage.getItem(`zh_target_role_skipped_${cv.id}`) === "1") return;
+    } catch {}
+    setPendingFlow({ kind: "target_role" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, targetRole, cv.id]);
 
   const saveScoreHistory = useCallback((score: number) => {
     const now = new Date();
@@ -703,9 +826,9 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
     return "";
   }, [activeSection, sectionType]);
 
-  const runAI = async (actionId: string) => {
+  const runAI = async (actionId: string, overrideText?: string) => {
     if (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT)) return;
-    const text = aiInput.trim() || getSampleText();
+    const text = overrideText ?? (aiInput.trim() || getSampleText());
     if (!text) return;
     setAiLoading(true);
     setAiResponse(null);
@@ -734,6 +857,75 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
     } finally {
       setAiLoading(false);
     }
+  };
+
+  // Trigger points for the three contextual mini-flows — each mirrors the
+  // matching career_mentor.py branch (summary_intro/enjoy/years combine, or
+  // the vague-answer -> one follow-up -> combine-and-generate pattern for
+  // exp_work/project_work) rather than calling the AI action immediately.
+  const handleGenerateSummaryClick = () => {
+    if (aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))) return;
+    if (!hasSubstantiveExperience(sections)) {
+      setAiResponse(null);
+      setPendingFlow({ kind: "summary", step: 0, answers: [] });
+      return;
+    }
+    runAI("generate_summary");
+  };
+
+  const handleImproveBulletClick = () => {
+    if (aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))) return;
+    const text = aiInput.trim() || getSampleText();
+    if (!text) return;
+    if (isVague(text)) {
+      setAiResponse(null);
+      setPendingFlow({ kind: "exp_followup", original: text });
+      return;
+    }
+    runAI("improve_bullet");
+  };
+
+  const handleImproveDescriptionClick = () => {
+    if (aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))) return;
+    const text = aiInput.trim() || getSampleText();
+    if (!text) return;
+    if (isVague(text)) {
+      setAiResponse(null);
+      setPendingFlow({ kind: "project_followup", original: text });
+      return;
+    }
+    runAI("improve_description");
+  };
+
+  const handleSkipTargetRole = () => {
+    try { localStorage.setItem(`zh_target_role_skipped_${cv.id}`, "1"); } catch {}
+    setPendingFlow(null);
+  };
+
+  const handlePendingAnswer = (flow: PendingFlow, answer: string) => {
+    if (flow.kind === "target_role") {
+      onTargetRoleChange(answer);
+      setPendingFlow(null);
+      return;
+    }
+    if (flow.kind === "summary") {
+      const answers = [...flow.answers, answer];
+      if (flow.step < 2) {
+        setPendingFlow({ kind: "summary", step: (flow.step + 1) as 0 | 1 | 2, answers });
+        return;
+      }
+      const combined = `${answers[0]}. ${answers[1]}. ${answers[2]} years of experience.`;
+      setPendingFlow(null);
+      runAI("generate_summary", combined);
+      return;
+    }
+    if (flow.kind === "exp_followup") {
+      setPendingFlow(null);
+      runAI("improve_bullet", `${flow.original} ${answer}`.trim());
+      return;
+    }
+    setPendingFlow(null);
+    runAI("improve_description", `${flow.original} ${answer}`.trim());
   };
 
   const handleScan = () => {
@@ -838,8 +1030,8 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
   const renderAIButtons = () => {
     const btnClass = "text-[11px] px-2.5 py-1.5 bg-blue-600/10 border border-blue-600/20 text-blue-400 rounded hover:bg-blue-600/20 transition-colors disabled:opacity-40 flex-shrink-0";
 
-    const Btn = ({ id, label }: { id: string; label: string }) => (
-      <button key={id} onClick={() => runAI(id)} disabled={aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))} className={btnClass}>{label}</button>
+    const Btn = ({ id, label, onClick }: { id: string; label: string; onClick?: () => void }) => (
+      <button key={id} onClick={onClick ?? (() => runAI(id))} disabled={aiLoading || !!pendingFlow || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))} className={btnClass}>{label}</button>
     );
 
     switch (sectionType) {
@@ -847,7 +1039,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
         return (
           <div className="space-y-1.5">
             <div className="flex gap-1.5 flex-wrap">
-              <Btn id="improve_bullet" label="Improve bullet" />
+              <Btn id="improve_bullet" label="Improve bullet" onClick={handleImproveBulletClick} />
               <Btn id="add_metrics" label="Add metrics" />
             </div>
             <div className="flex gap-1.5 flex-wrap">
@@ -881,12 +1073,12 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
             </div>
             <div className="flex gap-1.5 flex-wrap">
               <Btn id="add_keywords" label="Add keywords" />
-              <Btn id="generate_summary" label="Generate from scratch" />
+              <Btn id="generate_summary" label="Generate from scratch" onClick={handleGenerateSummaryClick} />
             </div>
             <div className="flex gap-1.5 items-center relative">
               <button
                 onClick={() => setShowToneMenu((p) => !p)}
-                disabled={aiLoading}
+                disabled={aiLoading || !!pendingFlow}
                 className={cn(btnClass, "flex items-center gap-1")}
               >
                 Change tone <ChevronDown className="w-3 h-3" />
@@ -906,14 +1098,14 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
             <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => runAI("tailor_for_role")}
-                disabled={aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT)) || !targetRole}
+                disabled={aiLoading || !!pendingFlow || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT)) || !targetRole}
                 className={cn(btnClass, !targetRole && "opacity-40 cursor-not-allowed")}
-                title={!targetRole ? "Set a target role above" : ""}>
+                title={!targetRole ? "Set a target role first" : ""}>
                 {targetRole ? `Tailor for ${targetRole}` : "Tailor for role"}
               </button>
               <button
                 onClick={() => setShowTranslateInput((p) => !p)}
-                disabled={aiLoading}
+                disabled={aiLoading || !!pendingFlow}
                 className={cn(btnClass, "flex items-center gap-1")}>
                 Translate
               </button>
@@ -967,7 +1159,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
         return (
           <div className="space-y-1.5">
             <div className="flex gap-1.5 flex-wrap">
-              <Btn id="improve_description" label="Improve description" />
+              <Btn id="improve_description" label="Improve description" onClick={handleImproveDescriptionClick} />
               <Btn id="add_impact" label="Add impact" />
             </div>
             <div className="flex gap-1.5 flex-wrap">
@@ -1018,21 +1210,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
   );
 
   return (
-    <div className="w-full h-full bg-[#161b22] flex flex-col overflow-hidden">
-
-      {/* Target Role */}
-      <div className="px-4 pt-3 pb-2 border-b border-[#30363d] flex-shrink-0">
-        <label className="flex items-center gap-1.5 text-[#8b949e] text-[11px] font-medium mb-1.5">
-          <Target className="w-3.5 h-3.5" /> Target Role
-        </label>
-        <input
-          type="text"
-          value={targetRole}
-          onChange={(e) => onTargetRoleChange(e.target.value)}
-          placeholder="e.g. Backend Engineer"
-          className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2.5 py-1.5 text-xs text-[#e6edf3] placeholder:text-[#484f58] focus:outline-none focus:border-blue-500 transition-colors"
-        />
-      </div>
+    <div className="w-full flex-1 min-h-0 bg-[#161b22] flex flex-col overflow-hidden">
 
       {/* Tabs */}
       <div className="flex items-center gap-1 px-3 py-2 border-b border-[#30363d] flex-shrink-0">
@@ -1042,33 +1220,62 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
 
         {/* ── AI ASSISTANT ─────────────────────────────────────────────────── */}
         {activeTab === "ai" && (
           <div className="px-4 py-3">
-
-            {/* Polish Whole CV — bulk action, separate from per-section buttons */}
-            <div className="mb-4 bg-gradient-to-br from-purple-600/10 to-blue-600/10 border border-purple-500/20 rounded-lg p-3">
+          {pendingFlow?.kind === "target_role" ? (
+            /* First time Zeni opens on a CV with no target role — ask before any
+               other help, replacing the old always-visible static input. */
+            <ChatQuestionCard
+              question={TARGET_ROLE_QUESTION}
+              onAnswer={(answer) => handlePendingAnswer(pendingFlow, answer)}
+              onSkip={handleSkipTargetRole}
+            />
+          ) : (
+          <>
+            {/* Target role — compact, reachable, not a permanent form field */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-1.5 text-[11px] text-[#8b949e] min-w-0">
+                <Target className="w-3.5 h-3.5 flex-shrink-0" />
+                {targetRole ? (
+                  <span className="text-[#e6edf3] font-medium truncate">{targetRole}</span>
+                ) : (
+                  <span className="truncate">No target role set</span>
+                )}
+              </div>
               <button
-                onClick={handlePolishWholeCV}
-                disabled={polishing || aiLoading || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-md bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 transition-colors text-xs font-semibold disabled:opacity-40"
+                onClick={() => setPendingFlow({ kind: "target_role" })}
+                className="text-[10px] text-blue-400 hover:underline flex-shrink-0"
               >
-                {polishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                ✨ Polish Whole CV
+                {targetRole ? "Change" : "Set target role"}
               </button>
-              <p className="text-[10px] text-[#8b949e] mt-1.5 text-center">
-                Proofreads grammar &amp; wording across every filled section at once · counts as 1 use
-              </p>
+            </div>
+
+            {/* Polish Whole CV — bulk action, separate from per-section buttons.
+                Small always-visible chip, not a large card — same logic underneath. */}
+            <div className="mb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handlePolishWholeCV}
+                  disabled={polishing || aiLoading || !!pendingFlow || (!isPro && aiUsageToday >= (aiUsageLimit ?? AI_FREE_LIMIT))}
+                  title="Proofreads grammar & wording across every filled section at once · counts as 1 use"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/15 border border-purple-500/30 text-purple-300 hover:bg-purple-600/25 transition-colors text-[11px] font-semibold disabled:opacity-40 flex-shrink-0"
+                >
+                  {polishing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                  ✨ Polish Whole CV
+                </button>
+                <span className="text-[9px] text-[#8b949e]">1 use · every section</span>
+              </div>
 
               {polishing && polishProgress && (
-                <div className="mt-2.5">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] text-purple-300">Polishing {polishProgress.label}…</span>
-                    <span className="text-[10px] text-[#8b949e]">{polishProgress.done}/{polishProgress.total}</span>
+                <div className="mt-2">
+                  <div className="flex justify-between items-center mb-1 gap-2">
+                    <span className="text-[10px] text-purple-300 truncate">Polishing {polishProgress.label}…</span>
+                    <span className="text-[10px] text-[#8b949e] flex-shrink-0">{polishProgress.done}/{polishProgress.total}</span>
                   </div>
-                  <div className="h-1.5 bg-[#30363d] rounded-full overflow-hidden">
+                  <div className="h-1 bg-[#30363d] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-purple-500 rounded-full transition-all duration-300"
                       style={{ width: `${(polishProgress.done / polishProgress.total) * 100}%` }}
@@ -1078,7 +1285,7 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
               )}
 
               {!polishing && polishResult && (
-                <div className="mt-2.5 bg-[#0d1117] border border-[#30363d] rounded p-2.5">
+                <div className="mt-2 bg-[#0d1117] border border-[#30363d] rounded p-2">
                   {polishResult.succeeded.length === 0 && polishResult.failed.length === 0 ? (
                     <p className="text-[11px] text-[#8b949e]">Nothing to polish — add some content to your CV first.</p>
                   ) : (
@@ -1154,8 +1361,17 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
               </div>
             )}
 
-            {/* AI response */}
-            {aiResponse && !aiLoading && (() => {
+            {/* Contextual follow-up question (Summary/Experience/Projects mini-flows)
+                takes the AI response's slot — the two never show at once. */}
+            {pendingFlow ? (
+              <div className="mt-3">
+                <ChatQuestionCard
+                  question={pendingFlowQuestion(pendingFlow)}
+                  onAnswer={(answer) => handlePendingAnswer(pendingFlow, answer)}
+                  loading={aiLoading}
+                />
+              </div>
+            ) : aiResponse && !aiLoading && (() => {
               const groupedSkills = lastAiAction === "group_skills" ? parseGroupedSkills(aiResponse) : null;
               return (
                 <div className="mt-3 bg-[#0d1117] border border-[#30363d] rounded p-3">
@@ -1195,6 +1411,8 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
                 </div>
               );
             })()}
+          </>
+          )}
           </div>
         )}
 

@@ -27,6 +27,29 @@ function getPhotoStyle(personal: any, defaultSize = 80): React.CSSProperties {
   return { width: size, height: size, borderRadius, clipPath, objectFit: "cover" as const, flexShrink: 0 };
 }
 
+function getContactIcon(type: string, fill: string): React.ReactNode {
+  const s: React.CSSProperties = { display: "inline-block", verticalAlign: "middle", marginRight: 4 };
+  switch (type) {
+    case "email":
+      return <svg style={s} width="11" height="11" viewBox="0 0 24 24" fill={fill}><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>;
+    case "phone":
+      return <svg style={s} width="11" height="11" viewBox="0 0 24 24" fill={fill}><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>;
+    case "location":
+      return <svg style={s} width="11" height="11" viewBox="0 0 24 24" fill={fill}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>;
+    case "linkedin":
+      return <svg style={s} width="11" height="11" viewBox="0 0 24 24" fill={fill}><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>;
+    case "github":
+      return <svg style={s} width="11" height="11" viewBox="0 0 24 24" fill={fill}><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>;
+    default:
+      return <svg style={s} width="11" height="11" viewBox="0 0 24 24" fill={fill}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>;
+  }
+}
+
+function linkIconType(l: any): string {
+  const lp = (l.platform ?? "").toLowerCase();
+  return lp.includes("linkedin") ? "linkedin" : lp.includes("github") ? "github" : "website";
+}
+
 export function ExecutiveTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }: Props) {
   const { accentColor, fontFamily, lineHeight, sectionSpacing, headerStyle, headingStyle, skillStyle = "classic", skillColumns = 2 } = customization;
   const fontCSS = FONT_CSS_MAP[fontFamily] ?? "Georgia, 'Times New Roman', serif";
@@ -327,13 +350,13 @@ export function ExecutiveTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       {headerStyle === "centered" ? (
         <div style={{ textAlign: "center", marginBottom: 6 }}>
           {(personal.photo_base64 || personal.photo_url) && (
-            <img src={personal.photo_base64 || personal.photo_url} alt="" style={{ ...getPhotoStyle(personal, 70), marginBottom: 8, border: `2px solid ${accentColor}` }} />
+            <img src={personal.photo_base64 || personal.photo_url} alt="" style={{ ...getPhotoStyle(personal, 70), display: "block", margin: "0 auto 8px", border: `2px solid ${accentColor}` }} />
           )}
           <div style={{ fontSize: 28, fontWeight: "bold", color: DARK, letterSpacing: "0.02em", lineHeight: 1.1, fontFamily: fontCSS }}><EditableText value={personal.full_name} onCommit={(v) => setPersonal("full_name", v)} placeholder="Your Name" /></div>
           {personal.title && <div style={{ fontSize: 14, color: accentColor, marginTop: 3, fontWeight: "normal", letterSpacing: "0.05em", fontFamily: fontCSS }}><EditableText value={personal.title} onCommit={(v) => setPersonal("title", v)} /></div>}
           <div style={{ fontSize: 11, color: "#555", marginTop: 6, display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "0 16px", fontFamily: fontCSS }}>
-            {personal.email && <span><a href={`mailto:${personal.email}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.email} onCommit={(v) => setPersonal("email", v)} /></a></span>}{personal.phone && <span><a href={`tel:${personal.phone}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.phone} onCommit={(v) => setPersonal("phone", v)} /></a></span>}{personal.location && <span><EditableText value={personal.location} onCommit={(v) => setPersonal("location", v)} /></span>}
-            {links.map((l: any, i: number) => l.url && <span key={i}><a href={l.url.startsWith("http") ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={l.url} onCommit={(v) => setPersonal("links", links.map((x: any, xi: number) => (xi === i ? { ...x, url: v } : x)))} /></a></span>)}
+            {personal.email && <span style={{ display: "inline-flex", alignItems: "center" }}>{getContactIcon("email", "#555")}<a href={`mailto:${personal.email}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.email} onCommit={(v) => setPersonal("email", v)} /></a></span>}{personal.phone && <span style={{ display: "inline-flex", alignItems: "center" }}>{getContactIcon("phone", "#555")}<a href={`tel:${personal.phone}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.phone} onCommit={(v) => setPersonal("phone", v)} /></a></span>}{personal.location && <span style={{ display: "inline-flex", alignItems: "center" }}>{getContactIcon("location", "#555")}<EditableText value={personal.location} onCommit={(v) => setPersonal("location", v)} /></span>}
+            {links.map((l: any, i: number) => l.url && <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>{getContactIcon(linkIconType(l), "#555")}<a href={l.url.startsWith("http") ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={l.url} onCommit={(v) => setPersonal("links", links.map((x: any, xi: number) => (xi === i ? { ...x, url: v } : x)))} /></a></span>)}
           </div>
         </div>
       ) : (
@@ -346,9 +369,9 @@ export function ExecutiveTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
             {personal.title && <div style={{ fontSize: 14, color: accentColor, marginTop: 3, fontWeight: "normal", letterSpacing: "0.05em", fontFamily: fontCSS }}><EditableText value={personal.title} onCommit={(v) => setPersonal("title", v)} /></div>}
           </div>
           <div style={{ textAlign: "right", fontSize: 11, color: "#555", lineHeight: 2, flexShrink: 0, maxWidth: 220, fontFamily: fontCSS }}>
-            {personal.email && <div><a href={`mailto:${personal.email}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.email} onCommit={(v) => setPersonal("email", v)} /></a></div>}{personal.phone && <div><a href={`tel:${personal.phone}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.phone} onCommit={(v) => setPersonal("phone", v)} /></a></div>}{personal.location && <div><EditableText value={personal.location} onCommit={(v) => setPersonal("location", v)} /></div>}
+            {personal.email && <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>{getContactIcon("email", "#555")}<a href={`mailto:${personal.email}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.email} onCommit={(v) => setPersonal("email", v)} /></a></div>}{personal.phone && <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>{getContactIcon("phone", "#555")}<a href={`tel:${personal.phone}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={personal.phone} onCommit={(v) => setPersonal("phone", v)} /></a></div>}{personal.location && <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>{getContactIcon("location", "#555")}<EditableText value={personal.location} onCommit={(v) => setPersonal("location", v)} /></div>}
             {personal.nationality && <div><EditableText value={personal.nationality} onCommit={(v) => setPersonal("nationality", v)} /></div>}{personal.visa_status && <div>Visa: <EditableText value={personal.visa_status} onCommit={(v) => setPersonal("visa_status", v)} /></div>}
-            {links.map((l: any, i: number) => l.url && <div key={i}><a href={l.url.startsWith("http") ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={l.url} onCommit={(v) => setPersonal("links", links.map((x: any, xi: number) => (xi === i ? { ...x, url: v } : x)))} /></a></div>)}
+            {links.map((l: any, i: number) => l.url && <div key={i} style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>{getContactIcon(linkIconType(l), "#555")}<a href={l.url.startsWith("http") ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}><EditableText value={l.url} onCommit={(v) => setPersonal("links", links.map((x: any, xi: number) => (xi === i ? { ...x, url: v } : x)))} /></a></div>)}
           </div>
         </div>
       )}

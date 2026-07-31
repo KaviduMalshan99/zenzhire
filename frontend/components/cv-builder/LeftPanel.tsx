@@ -63,6 +63,8 @@ interface Props {
   onUpdateCV: (updates: { title?: string; template_id?: TemplateId }) => void;
   onSectionDataChange: (section: CVSection, data: Record<string, any>) => void;
   onCustomizationChange: (c: CVCustomization) => void;
+  /** Opens the compact Zeni widget, focused on whatever section form is active. */
+  onOpenZeni?: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -179,7 +181,7 @@ function SortableSectionItem({
 export function LeftPanel({
   cv, sections, activeSection, saveStatus, customization, isPro,
   onSelectSection, onToggleVisibility, onReorder, onAddSection,
-  onDeleteSection, onUpdateCV, onSectionDataChange, onCustomizationChange, mobile,
+  onDeleteSection, onUpdateCV, onSectionDataChange, onCustomizationChange, onOpenZeni, mobile,
   onUndo, onRedo, canUndo, canRedo,
   controlledTab, onControlledTabChange, controlledMode, onControlledModeChange,
 }: Props) {
@@ -256,6 +258,8 @@ export function LeftPanel({
               key={activeSection.id}
               section={activeSection}
               onChange={(data) => onSectionDataChange(activeSection, data)}
+              templateId={cv.template_id}
+              onOpenZeni={onOpenZeni}
             />
           </div>
         </>

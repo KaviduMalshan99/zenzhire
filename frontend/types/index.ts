@@ -190,7 +190,7 @@ export const TEMPLATE_DEFAULT_CUSTOMIZATION: Record<string, Partial<CVCustomizat
   classic:   { accentColor: "#111827", fontFamily: "Arial",   headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips", lineHeight: 1.5, sectionSpacing: 8 },
   modern:    { accentColor: "#2563eb", fontFamily: "Roboto",  headerStyle: "left",       headingStyle: "underline", lineHeight: 1.5, sectionSpacing: 14 },
   minimal:   { accentColor: "#111827", fontFamily: "Lato",    headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips", lineHeight: 1.6, sectionSpacing: 14 },
-  executive: { accentColor: "#111827", fontFamily: "Georgia", headerStyle: "twocolumn",  headingStyle: "fullline",  skillStyle: "chips", lineHeight: 1.6, sectionSpacing: 14 },
+  executive: { accentColor: "#111827", fontFamily: "Georgia", headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips", lineHeight: 1.6, sectionSpacing: 14 },
   tech:      { accentColor: "#2563eb", fontFamily: "Arial",   headerStyle: "left",       headingStyle: "fullline",  skillStyle: "chips", lineHeight: 1.5, sectionSpacing: 14 },
   creative:  { accentColor: "#7c3aed", fontFamily: "Lato",    headerStyle: "left",       headingStyle: "underline", skillStyle: "chips", lineHeight: 1.5, sectionSpacing: 20 },
   academic:  { accentColor: "#2563eb", fontFamily: "Georgia", headerStyle: "centered",   headingStyle: "fullline",  skillStyle: "chips", lineHeight: 1.6, sectionSpacing: 7 },
@@ -216,6 +216,11 @@ export const FONT_CSS_MAP: Record<string, string> = {
 export type TemplateId =
   | "classic" | "modern" | "minimal" | "executive"
   | "tech" | "creative" | "academic" | "gcc" | "portrait" | "milestone" | "corporate" | "vega" | "aurora" | "nova";
+
+// Templates whose JSX genuinely never reads personal_details.photo_url/photo_base64 —
+// confirmed by direct source audit, not assumed. Keep in sync if a template's photo
+// support changes.
+export const NO_PHOTO_TEMPLATE_IDS = new Set<TemplateId>(["classic", "creative", "vega", "corporate", "milestone"]);
 
 export type SectionType =
   | "personal_details" | "profile_summary" | "experience" | "education"
@@ -278,6 +283,7 @@ export interface CVDocument {
   template_id: TemplateId;
   is_primary: boolean;
   customization: CVCustomization | null;
+  target_role: string | null;
   created_at: string;
   updated_at: string | null;
   sections: CVSection[];

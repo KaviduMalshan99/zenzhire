@@ -80,7 +80,7 @@ const VALUES = [
 const COMPANY_SOCIAL_LABELS = ["LinkedIn", "Facebook", "WhatsApp"];
 
 const COMPANY_LINKS = [
-  { icon: Globe, label: "Website", href: "https://zenzhire.com" },
+  { icon: Globe, label: "Website", href: "https://centival.com" },
   ...SOCIAL_LINKS.filter((l) => COMPANY_SOCIAL_LABELS.includes(l.label)),
 ];
 

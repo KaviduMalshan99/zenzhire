@@ -21,8 +21,8 @@ import { SiteFooter } from "@/components/marketing/SiteFooter";
 const VALUE_PROPS = [
   {
     icon: LayoutTemplate,
-    title: "13 Professional Templates",
-    description: "Free and Pro designs for every industry.",
+    title: "14 Professional Templates",
+    description: "5 free and 9 Pro designs for every industry.",
   },
   {
     icon: Target,
@@ -45,7 +45,7 @@ const STEPS = [
   {
     icon: LayoutTemplate,
     title: "Choose a Template",
-    description: "Pick from 13 professional designs, free or Pro.",
+    description: "Pick from 14 professional designs, free or Pro.",
   },
   {
     icon: Sparkles,
@@ -77,9 +77,42 @@ const ATS_INDICATORS = [
   { label: "Grammar", status: "warn" as const },
 ];
 
+const HOME_FAQS = [
+  {
+    q: "Is ZenzHire free?",
+    a: "Yes. You can sign up free, build 1 CV with 5 free templates, get 3 free Zeni AI assists a day, and run 5 free ATS checks — no credit card required.",
+  },
+  {
+    q: "Are the CVs ATS-friendly?",
+    a: "Every template is built with clean, parseable formatting. Run your finished CV through our free ATS Checker to see a real, computed score and specific fixes.",
+  },
+  {
+    q: "What is the 7-Day Pass?",
+    a: "A one-time Rs. 1000 purchase that unlocks full Pro access — all 14 templates, unlimited CVs, and unlimited AI help — for 7 days. It expires automatically with no auto-renewal.",
+  },
+];
+
+const homeFaqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: HOME_FAQS.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: f.a,
+    },
+  })),
+};
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0d1117]">
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeFaqJsonLd) }}
+      />
       <SiteHeader />
 
       {/* Hero */}
@@ -102,9 +135,10 @@ export default function LandingPage() {
               <span className="text-blue-500">hired</span> — not just downloaded.
             </h1>
             <p className="text-lg text-[#8b949e] max-w-xl mx-auto lg:mx-0 mb-9 leading-relaxed">
-              ZenzHire combines AI-powered CV building, honest ATS scoring, and smart
-              cover letters — all in one platform built to get real results, not
-              empty promises.
+              Build a CV that actually gets you hired — not just downloaded. ZenzHire
+              combines AI-powered CV building, honest ATS scoring, and smart cover
+              letters — all in one platform built to get real results, not empty
+              promises.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link
@@ -248,6 +282,36 @@ export default function LandingPage() {
               />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Explore our features — descriptive-anchor links into the two SEO feature pages */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Link
+            href="/features/cv-builder"
+            className="group flex items-center justify-between gap-4 bg-[#161b22] border border-[#30363d] hover:border-blue-600/40 rounded-xl px-6 py-5 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-lg bg-blue-600/10 flex items-center justify-center flex-shrink-0">
+                <LayoutTemplate className="w-5 h-5 text-blue-500" />
+              </div>
+              <span className="text-[#e6edf3] font-medium">Explore the AI CV builder</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-[#8b949e] group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+          </Link>
+          <Link
+            href="/features/ats-checker"
+            className="group flex items-center justify-between gap-4 bg-[#161b22] border border-[#30363d] hover:border-blue-600/40 rounded-xl px-6 py-5 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-lg bg-blue-600/10 flex items-center justify-center flex-shrink-0">
+                <Target className="w-5 h-5 text-blue-500" />
+              </div>
+              <span className="text-[#e6edf3] font-medium">Try the free ATS resume checker</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-[#8b949e] group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+          </Link>
         </div>
       </section>
 
@@ -452,6 +516,31 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="border-t border-[#30363d] bg-[#0a0e14]">
+        <div className="max-w-3xl mx-auto px-6 py-20">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">
+            Frequently asked questions
+          </h2>
+          <div className="space-y-3">
+            {HOME_FAQS.map((faq) => (
+              <details
+                key={faq.q}
+                className="group border border-[#30363d] rounded-lg bg-[#161b22] px-5 py-4 open:pb-4"
+              >
+                <summary className="flex items-center justify-between gap-4 cursor-pointer list-none text-white font-semibold text-sm sm:text-base">
+                  {faq.q}
+                  <span className="text-[#8b949e] text-lg leading-none group-open:rotate-45 transition-transform flex-shrink-0">
+                    +
+                  </span>
+                </summary>
+                <p className="text-[#8b949e] text-sm leading-relaxed mt-3">{faq.a}</p>
+              </details>
+            ))}
           </div>
         </div>
       </section>

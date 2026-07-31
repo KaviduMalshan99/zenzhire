@@ -184,13 +184,13 @@ export default function ContactPage() {
             <div>
               <h3 className="text-white font-semibold mb-4">Email us directly</h3>
               <a
-                href="mailto:support@zenzhire.com"
+                href="mailto:info@zenzhire.com"
                 className="inline-flex items-center gap-3 text-[#c9d1d9] hover:text-blue-400 transition-colors text-sm"
               >
                 <span className="w-9 h-9 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center flex-shrink-0">
                   <Mail className="w-4 h-4 text-blue-400" />
                 </span>
-                support@zenzhire.com
+                info@zenzhire.com
               </a>
               <a
                 href="tel:+94787820078"

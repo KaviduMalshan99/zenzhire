@@ -9,10 +9,10 @@ import { Menu, X } from "lucide-react";
 const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Templates", href: "/templates" },
+  { label: "CV Builder", href: "/features/cv-builder" },
+  { label: "ATS Checker", href: "/features/ats-checker" },
   { label: "Pricing", href: "/pricing" },
   { label: "Career Tips", href: "/career-tips" },
-  { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
 ];
 
 export function SiteHeader() {

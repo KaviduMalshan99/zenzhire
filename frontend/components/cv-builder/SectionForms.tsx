@@ -1,14 +1,38 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Plus, Trash2, GripVertical, X, Camera } from "lucide-react";
-import type { CVSection } from "@/types";
+import { Plus, Trash2, GripVertical, X, Camera, ImageOff, Sparkles } from "lucide-react";
+import type { CVSection, TemplateId } from "@/types";
+import { NO_PHOTO_TEMPLATE_IDS } from "@/types";
+import { TEMPLATES } from "@/lib/templates-data";
 import { cn } from "@/lib/utils";
 import { RichTextEditor } from "./RichTextEditor";
 
 interface FormProps {
   section: CVSection;
   onChange: (data: Record<string, any>) => void;
+  /** Only read by PersonalDetailsForm, to show the no-photo-template notice. */
+  templateId?: TemplateId;
+  /** Opens the compact Zeni widget focused on this section. Only read by the
+   *  form components that show an inline "get help" hint on an empty section. */
+  onOpenZeni?: () => void;
+}
+
+/** Small, easy-to-ignore-once-you-don't-need-it prompt shown only while a
+ *  section has no real content yet — recomputed on every render from the
+ *  section's own data, so it disappears the moment something is typed. */
+function ZeniHint({ onOpenZeni }: { onOpenZeni?: () => void }) {
+  if (!onOpenZeni) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpenZeni}
+      className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
+    >
+      <Sparkles className="w-3 h-3" />
+      Get help writing this with Zeni
+    </button>
+  );
 }
 
 // ── Shared field helpers ───────────────────────────────────────────────────────
@@ -386,7 +410,7 @@ function PhotoUpload({
 
 // ── 1. Personal Details ────────────────────────────────────────────────────────
 
-function PersonalDetailsForm({ section, onChange }: FormProps) {
+function PersonalDetailsForm({ section, onChange, templateId }: FormProps) {
   const d = section.data;
   const update = (key: string, val: any) => onChange({ ...d, [key]: val });
 
@@ -400,8 +424,31 @@ function PersonalDetailsForm({ section, onChange }: FormProps) {
   const removeLink = (idx: number) =>
     update("links", (d.links ?? []).filter((_: any, i: number) => i !== idx));
 
+  const hasPhoto = !!(d.photo_base64 || d.photo_url);
+  const templateHasNoPhoto = !!templateId && NO_PHOTO_TEMPLATE_IDS.has(templateId);
+  const templateLabel = TEMPLATES.find((t) => t.id === templateId)?.name ?? "This template";
+
   return (
     <div className="space-y-4">
+      <div>
+        <span className={labelCls}>Profile Photo</span>
+        <PhotoUpload
+          value={d.photo_base64 ?? ""}
+          onChange={(b64) => update("photo_base64", b64)}
+          shape={d.photo_shape ?? "circle"}
+          onShapeChange={(s) => update("photo_shape", s)}
+          size={d.photo_size ?? 80}
+          onSizeChange={(s) => update("photo_size", s)}
+        />
+        <p className="text-[9px] text-[#8b949e] mt-1.5">Max 5 MB · JPG, PNG or WebP.</p>
+        {hasPhoto && templateHasNoPhoto && (
+          <p className="mt-1.5 flex items-start gap-1 text-[10px] text-amber-400">
+            <ImageOff className="w-3 h-3 flex-shrink-0 mt-0.5" />
+            <span>{templateLabel} is a photo-free design — your profile photo won't be shown.</span>
+          </p>
+        )}
+      </div>
+      <div className="border-t border-[#30363d] pt-1" />
       <Row>
         <Field label="Full Name" required><Input value={d.full_name ?? ""} onChange={(v) => update("full_name", v)} /></Field>
         <Field label="Title / Headline"><Input value={d.title ?? ""} onChange={(v) => update("title", v)} placeholder="e.g. Software Engineer" /></Field>
@@ -449,19 +496,6 @@ function PersonalDetailsForm({ section, onChange }: FormProps) {
         </Field>
       </Row>
       <div className="border-t border-[#30363d] pt-1" />
-      <div>
-        <span className={labelCls}>Profile Photo</span>
-        <PhotoUpload
-          value={d.photo_base64 ?? ""}
-          onChange={(b64) => update("photo_base64", b64)}
-          shape={d.photo_shape ?? "circle"}
-          onShapeChange={(s) => update("photo_shape", s)}
-          size={d.photo_size ?? 80}
-          onSizeChange={(s) => update("photo_size", s)}
-        />
-        <p className="text-[9px] text-[#8b949e] mt-1.5">Hidden in Classic template (ATS-friendly). Max 5 MB · JPG, PNG or WebP.</p>
-      </div>
-      <div className="border-t border-[#30363d] pt-1" />
 
       {/* Links — 2-row layout per entry */}
       <div>
@@ -500,8 +534,9 @@ function PersonalDetailsForm({ section, onChange }: FormProps) {
 
 // ── 2. Profile Summary ─────────────────────────────────────────────────────────
 
-function ProfileSummaryForm({ section, onChange }: FormProps) {
+function ProfileSummaryForm({ section, onChange, onOpenZeni }: FormProps) {
   const d = section.data;
+  const isEmpty = (d.summary ?? "").replace(/<[^>]+>/g, "").trim().length === 0;
   return (
     <div className="space-y-2">
       <RichTextEditor
@@ -509,13 +544,14 @@ function ProfileSummaryForm({ section, onChange }: FormProps) {
         onChange={(html) => onChange({ ...d, summary: html })}
       />
       <p className="text-[10px] text-[#8b949e]">Write a compelling professional summary. Use bullet points or paragraphs.</p>
+      {isEmpty && <ZeniHint onOpenZeni={onOpenZeni} />}
     </div>
   );
 }
 
 // ── 3. Experience ──────────────────────────────────────────────────────────────
 
-function ExperienceForm({ section, onChange }: FormProps) {
+function ExperienceForm({ section, onChange, onOpenZeni }: FormProps) {
   const d = section.data;
   const entries: any[] = d.entries ?? [];
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -536,6 +572,7 @@ function ExperienceForm({ section, onChange }: FormProps) {
       <button onClick={addEntry} className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-[#30363d] rounded-md text-blue-400 hover:border-blue-500/50 text-xs transition-colors">
         <Plus className="w-3.5 h-3.5" /> Add Experience
       </button>
+      {entries.length === 0 && <ZeniHint onOpenZeni={onOpenZeni} />}
       {entries.map((entry) => {
         const isCollapsed = collapsed.has(entry.id);
         return (
@@ -687,7 +724,7 @@ function EducationForm({ section, onChange }: FormProps) {
 const SKILL_LEVELS_TEXT = ["", "Beginner", "Intermediate", "Advanced"];
 const SKILL_LEVELS_NUM = ["", "1", "2", "3", "4", "5"];
 
-function SkillsForm({ section, onChange }: FormProps) {
+function SkillsForm({ section, onChange, onOpenZeni }: FormProps) {
   const d = section.data;
   const entries: any[] = d.entries ?? [];
   const style: "text" | "numbers" = d.display_style ?? "text";
@@ -713,6 +750,7 @@ function SkillsForm({ section, onChange }: FormProps) {
       <button onClick={addEntry} className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-[#30363d] rounded-md text-blue-400 hover:border-blue-500/50 text-xs transition-colors">
         <Plus className="w-3.5 h-3.5" /> Add Skill
       </button>
+      {entries.length === 0 && <ZeniHint onOpenZeni={onOpenZeni} />}
 
       <div className="space-y-2.5">
         {entries.map((entry) => (
@@ -792,7 +830,7 @@ function LanguagesForm({ section, onChange }: FormProps) {
 
 // ── 7. Projects ────────────────────────────────────────────────────────────────
 
-function ProjectsForm({ section, onChange }: FormProps) {
+function ProjectsForm({ section, onChange, onOpenZeni }: FormProps) {
   const d = section.data;
   const entries: any[] = d.entries ?? [];
   const [tagInput, setTagInput] = useState<Record<string, string>>({});
@@ -818,6 +856,7 @@ function ProjectsForm({ section, onChange }: FormProps) {
       <button onClick={addEntry} className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-[#30363d] rounded-md text-blue-400 hover:border-blue-500/50 text-xs transition-colors">
         <Plus className="w-3.5 h-3.5" /> Add Project
       </button>
+      {entries.length === 0 && <ZeniHint onOpenZeni={onOpenZeni} />}
       {entries.map((entry) => (
         <div key={entry.id} className="border border-[#30363d] rounded-md p-3 space-y-2 relative cv-entry">
           <button onClick={() => removeEntry(entry.id)} className="absolute top-2 right-2 text-[#8b949e] hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1217,8 +1256,8 @@ const FORM_MAP: Record<string, React.ComponentType<FormProps>> = {
   declaration: DeclarationForm,
 };
 
-export function SectionForm({ section, onChange }: FormProps) {
+export function SectionForm({ section, onChange, templateId, onOpenZeni }: FormProps) {
   const FormComponent = FORM_MAP[section.section_type];
   if (!FormComponent) return <p className="text-[#8b949e] text-sm">Unknown section type</p>;
-  return <FormComponent section={section} onChange={onChange} />;
+  return <FormComponent section={section} onChange={onChange} templateId={templateId} onOpenZeni={onOpenZeni} />;
 }

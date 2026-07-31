@@ -10,9 +10,9 @@ const FOLLOW_LINKS = [...SOCIAL_LINKS, { icon: Send, label: "Telegram", href: "#
 
 const PRODUCT_LINKS = [
   { label: "Templates", href: "/templates" },
-  { label: "Pricing", href: "/pricing" },
+  { label: "CV Builder", href: "/features/cv-builder" },
   { label: "ATS Checker", href: "/features/ats-checker" },
-  { label: "Cover Letters", href: "/signup" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Career Tips", href: "/career-tips" },
 ];
 
