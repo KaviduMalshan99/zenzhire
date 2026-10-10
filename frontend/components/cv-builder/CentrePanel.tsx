@@ -95,8 +95,9 @@ interface PageLayout {
   sectionPage: Map<number, number>;
 }
 
-// Portrait/Milestone/Corporate's sidebar sections don't carry .cv-section (see
-// PortraitTemplate.tsx / MilestoneTemplate.tsx / CorporateTemplate.tsx — they're
+// Portrait/Milestone/Corporate/Vega/Aurora's sidebar sections don't carry
+// .cv-section (see PortraitTemplate.tsx / MilestoneTemplate.tsx /
+// CorporateTemplate.tsx / VegaTemplate.tsx / AuroraTemplate.tsx — they're
 // deliberately excluded from the main computePageBreaks() decision so a tall
 // sidebar can't corrupt the DOM-order chunk list main's page breaks are
 // computed from). But their own .cv-heading-group/.cv-entry atomic units
