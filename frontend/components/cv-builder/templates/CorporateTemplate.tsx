@@ -6,6 +6,7 @@ import { EditableHtml } from "./edit/EditableHtml";
 import { SortableSection } from "./edit/SortableSection";
 import { useCVEdit } from "./edit/CVEditContext";
 import { makeFieldSetter, makeEntrySetter } from "./edit/sectionHelpers";
+import { getSkillsParagraph, SkillsParagraph } from "./SkillsParagraph";
 
 interface Props {
   sections: CVSection[];
@@ -134,6 +135,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
     const d = section.data;
     const entries = d.entries ?? [];
     const setEntry = makeEntrySetter(section, onFieldChange);
+    const setField = makeFieldSetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "education": {
@@ -173,7 +175,19 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
       // This template intentionally ignores the skillStyle customization option — the sidebar's
       // narrow width and clean corporate aesthetic call for simple bullets regardless of user preference.
       case "skills":
-      case "soft_skills":
+      case "soft_skills": {
+        // Paragraph mode also applies here, even though this sidebar
+        // deliberately ignores skillStyle: which data the section holds is a
+        // separate question from how individual entries get styled.
+        const paragraph = getSkillsParagraph(d);
+        if (paragraph) {
+          return (
+            <div>
+              {ch(section.section_type === "skills" ? "Skills" : "Soft Skills", section)}
+              <SkillsParagraph html={paragraph} onCommit={(v) => setField("skills_paragraph", v)} style={{ fontSize: 11.5, color: MID, fontFamily: fontCSS, ...eb }} />
+            </div>
+          );
+        }
         if (!entries.length) return null;
         return (
           <div>
@@ -188,6 +202,7 @@ export function CorporateTemplate({ sections, customization = DEFAULT_CUSTOMIZAT
             </ul>
           </div>
         );
+      }
 
       case "certificates": {
         if (!entries.length) return null;

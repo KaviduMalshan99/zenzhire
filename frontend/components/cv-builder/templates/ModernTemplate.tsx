@@ -2,6 +2,7 @@ import React from "react";
 import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { HtmlContent } from "./HtmlContent";
+import { getSkillsParagraph, SkillsParagraph } from "./SkillsParagraph";
 import { SectionHeading } from "../SectionHeading";
 import { EditableText } from "./edit/EditableText";
 import { EditableHtml } from "./edit/EditableHtml";
@@ -29,6 +30,19 @@ function getContactIcon(type: string, fill: string): React.ReactNode {
 
 function get(sections: CVSection[], type: string) {
   return sections.find((s) => s.section_type === type)?.data ?? {};
+}
+
+/** Relative-luminance test (WCAG formula) for a #rgb/#rrggbb colour, used to
+ *  decide whether text drawn on it should be light or dark. Unparseable input
+ *  is treated as dark, preserving the light-text behaviour this template has
+ *  always had. */
+function isLightColor(hex: string): boolean {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec((hex ?? "").trim());
+  if (!m) return false;
+  const h = m[1].length === 3 ? m[1].split("").map((c) => c + c).join("") : m[1];
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.45;
 }
 
 // Sections that live in the sidebar regardless of order
@@ -61,6 +75,17 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
 
   // Sidebar uses a darkened version of accent as background
   const sidebarBg = accentColor;
+
+  // Sidebar body/meta text used to be the fixed light values "#e2e8f0" and
+  // rgba(255,255,255,0.6/0.5). Those assume the sidebar behind them is dark,
+  // which is only true while accentColor happens to be dark — the colour is
+  // user-chosen, and a light accent left skill names near-invisible on their
+  // own background. Picking the tone from the real background's luminance
+  // keeps the default (#2563eb) pixel-identical while making light accents
+  // readable. Same problem Aurora documents for its own coloured sidebar.
+  const sidebarIsLight = isLightColor(sidebarBg);
+  const sidebarBodyText = sidebarIsLight ? "#1f2937" : "#e2e8f0";
+  const sidebarMutedText = sidebarIsLight ? "rgba(17,24,39,0.66)" : "rgba(255,255,255,0.6)";
 
   const sideHeading = {
     fontSize: 10,
@@ -380,45 +405,63 @@ export function ModernTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
   const sidePad = Math.round(30 * sp);
   const mainPad = Math.round(30 * sp);
 
-  const skillsContent = skillsSection && skillEntries.length > 0 ? (
+  const skillsParagraph = skillsSection ? getSkillsParagraph(skillsSection.data) : null;
+  const skillsContent = skillsSection && (skillsParagraph || skillEntries.length > 0) ? (
     <>
       <div style={{ ...sideHeading }}>
         <EditableText value={skillsSection?.data?._title || "Technical Skills"} onCommit={(v) => skillsSection && onFieldChange(skillsSection, { ...skillsSection.data, _title: v })} placeholder="Technical Skills" />
       </div>
+      {skillsParagraph ? (
+        <SkillsParagraph
+          html={skillsParagraph}
+          onCommit={(v) => onFieldChange(skillsSection, { ...skillsSection.data, skills_paragraph: v })}
+          style={{ fontSize: 11, lineHeight: 1.8, fontFamily: fontCSS, color: sidebarBodyText }}
+        />
+      ) : (
       <div style={{ fontSize: 11, lineHeight: 1.8, fontFamily: fontCSS }}>
         {skillEntries.map((s: any, i: number) => (
           <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#e2e8f0" }}><EditableText value={s.skill_name} onCommit={(v) => setSkillEntry(i, "skill_name", v)} /></span>
-              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.level}</span>
+              <span style={{ color: sidebarBodyText }}><EditableText value={s.skill_name} onCommit={(v) => setSkillEntry(i, "skill_name", v)} /></span>
+              <span style={{ color: sidebarMutedText, fontSize: 10 }}>{s.level}</span>
             </div>
             {s.subskills && s.subskills !== "<p></p>" && (
-              <HtmlContent html={s.subskills} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontFamily: fontCSS }} />
+              <HtmlContent html={s.subskills} style={{ fontSize: 10, color: sidebarMutedText, marginTop: 1, fontFamily: fontCSS }} />
             )}
           </div>
         ))}
       </div>
+      )}
     </>
   ) : null;
 
-  const softSkillsContent = softSkillsSection && softSkillEntries.length > 0 ? (
+  const softSkillsParagraph = softSkillsSection ? getSkillsParagraph(softSkillsSection.data) : null;
+  const softSkillsContent = softSkillsSection && (softSkillsParagraph || softSkillEntries.length > 0) ? (
     <>
       <div style={{ ...sideHeading }}>
         <EditableText value={softSkillsSection?.data?._title || "Soft Skills"} onCommit={(v) => softSkillsSection && onFieldChange(softSkillsSection, { ...softSkillsSection.data, _title: v })} placeholder="Soft Skills" />
       </div>
+      {softSkillsParagraph ? (
+        <SkillsParagraph
+          html={softSkillsParagraph}
+          onCommit={(v) => onFieldChange(softSkillsSection, { ...softSkillsSection.data, skills_paragraph: v })}
+          style={{ fontSize: 11, lineHeight: 1.8, fontFamily: fontCSS, color: sidebarBodyText }}
+        />
+      ) : (
       <div style={{ fontSize: 11, lineHeight: 1.8, fontFamily: fontCSS }}>
         {softSkillEntries.map((s: any, i: number) => (
           <div key={i} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.15)", paddingBottom: 2, marginBottom: 3 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#e2e8f0" }}><EditableText value={s.skill_name} onCommit={(v) => setSoftSkillEntry(i, "skill_name", v)} /></span>
-              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.level}</span>
+              <span style={{ color: sidebarBodyText }}><EditableText value={s.skill_name} onCommit={(v) => setSoftSkillEntry(i, "skill_name", v)} /></span>
+              <span style={{ color: sidebarMutedText, fontSize: 10 }}>{s.level}</span>
             </div>
             {s.subskills && s.subskills !== "<p></p>" && (
-              <HtmlContent html={s.subskills} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontFamily: fontCSS }} />
+              <HtmlContent html={s.subskills} style={{ fontSize: 10, color: sidebarMutedText, marginTop: 1, fontFamily: fontCSS }} />
             )}
           </div>
         ))}
       </div>
+      )}
     </>
   ) : null;
 

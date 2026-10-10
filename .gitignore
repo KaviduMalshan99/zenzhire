@@ -38,3 +38,7 @@ Thumbs.db
 backend/app/core/config.py
 
 
+
+# Generated runtime files
+*.pid
+frontend/test-results/

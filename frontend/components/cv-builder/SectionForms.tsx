@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Plus, Trash2, GripVertical, X, Camera, ImageOff, Sparkles } from "lucide-react";
+import { Plus, Trash2, GripVertical, X, Camera, ImageOff, Sparkles, AlertCircle } from "lucide-react";
 import type { CVSection, TemplateId } from "@/types";
 import { NO_PHOTO_TEMPLATE_IDS } from "@/types";
 import { TEMPLATES } from "@/lib/templates-data";
@@ -729,14 +729,66 @@ function SkillsForm({ section, onChange, onOpenZeni }: FormProps) {
   const entries: any[] = d.entries ?? [];
   const style: "text" | "numbers" = d.display_style ?? "text";
   const levels = style === "numbers" ? SKILL_LEVELS_NUM : SKILL_LEVELS_TEXT;
+  const mode: "entries" | "paragraph" = d.skills_mode === "paragraph" ? "paragraph" : "entries";
 
   const addEntry = () => onChange({ ...d, entries: [...entries, { id: newId(), skill_name: "", level: "", subskills: "" }] });
   const removeEntry = (id: string) => onChange({ ...d, entries: entries.filter((e) => e.id !== id) });
   const updateEntry = (id: string, key: string, val: any) =>
     onChange({ ...d, entries: entries.map((e) => e.id === id ? { ...e, [key]: val } : e) });
 
+  // Switching mode writes ONLY skills_mode — entries and skills_paragraph are
+  // both left in the data exactly as they were, so flipping back and forth
+  // never costs the user anything they typed in the other mode.
+  const setMode = (next: "entries" | "paragraph") => onChange({ ...d, skills_mode: next });
+
   return (
     <div className="space-y-3">
+      {/* ── Mode toggle ─────────────────────────────────────────────────── */}
+      <div className="flex gap-1 p-0.5 bg-[#0d1117] border border-[#30363d] rounded-md">
+        {([
+          { id: "entries" as const, label: "Individual Skills" },
+          { id: "paragraph" as const, label: "Paragraph" },
+        ]).map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setMode(m.id)}
+            className={cn(
+              "flex-1 py-1.5 rounded text-[11px] font-medium transition-colors",
+              mode === m.id
+                ? "bg-blue-600/15 text-blue-400 border border-blue-500/40"
+                : "text-[#8b949e] hover:text-[#e6edf3] border border-transparent"
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "paragraph" ? (
+        <div className="space-y-2">
+          <RichTextEditor
+            value={d.skills_paragraph ?? ""}
+            onChange={(html) => onChange({ ...d, skills_paragraph: html })}
+          />
+          {/* Honest, non-blocking: state the real trade-off and let the user
+              decide. Individual entries are what the ATS keyword matcher
+              actually reads (it maps over entries[].skill_name), so free text
+              genuinely does match less reliably — saying so is not a warning
+              against using it. */}
+          <p className="text-[10px] text-[#8b949e] leading-relaxed flex gap-1.5">
+            <AlertCircle className="w-3 h-3 flex-shrink-0 mt-px text-[#8b949e]" />
+            <span>Free-text skills may reduce ATS keyword-matching accuracy compared to individual skill entries.</span>
+          </p>
+          {entries.length > 0 && (
+            <p className="text-[10px] text-[#8b949e]">
+              Your {entries.length} individual skill{entries.length === 1 ? "" : "s"} {entries.length === 1 ? "is" : "are"} kept and will come back if you switch modes again.
+            </p>
+          )}
+          {(d.skills_paragraph ?? "").replace(/<[^>]+>/g, "").trim().length === 0 && <ZeniHint onOpenZeni={onOpenZeni} />}
+        </div>
+      ) : (
+      <>
       <div className="flex items-center gap-2">
         <span className={labelCls}>Level display:</span>
         <button
@@ -777,6 +829,8 @@ function SkillsForm({ section, onChange, onOpenZeni }: FormProps) {
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 }

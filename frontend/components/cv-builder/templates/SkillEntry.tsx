@@ -8,7 +8,21 @@ interface Props {
   accentColor: string;
   fontFamily: string;
   onNameCommit?: (value: string) => void;
+  /** Skill-name colour. Defaults to the near-black this component used to
+   *  hardcode, so every template on a white background is unchanged. Templates
+   *  drawing skills on a coloured background (Modern's accent sidebar) pass a
+   *  light value instead of bypassing this component entirely. */
+  textColor?: string;
+  /** Secondary colour: the level text, and the unfilled dots/stars. Same
+   *  deal — defaults reproduce the previous hardcoded greys exactly. */
+  mutedColor?: string;
+  /** Unfilled track/dot colour for the rating styles. */
+  trackColor?: string;
 }
+
+const DEFAULT_TEXT_COLOR = "#111827";
+const DEFAULT_MUTED_COLOR = "#6b7280";
+const DEFAULT_TRACK_COLOR = "#e5e7eb";
 
 function levelToPercent(level: string): number {
   const l = (level ?? "").toLowerCase();
@@ -36,8 +50,13 @@ function levelToStars(level: string): number {
   return levelToDots(level);
 }
 
-export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFamily, onNameCommit }: Props) {
-  const baseStyle: React.CSSProperties = { fontFamily, fontSize: 12, color: "#111827" };
+export function SkillEntry({
+  skillName, level, skillStyle, accentColor, fontFamily, onNameCommit,
+  textColor = DEFAULT_TEXT_COLOR,
+  mutedColor = DEFAULT_MUTED_COLOR,
+  trackColor = DEFAULT_TRACK_COLOR,
+}: Props) {
+  const baseStyle: React.CSSProperties = { fontFamily, fontSize: 12, color: textColor };
   const Name = ({ style }: { style?: React.CSSProperties }) =>
     onNameCommit ? (
       <EditableText value={skillName} onCommit={onNameCommit} as="span" style={style} />
@@ -60,7 +79,7 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
           maxWidth: "100%",
         }}
       >
-        <Name style={{ fontWeight: 600, fontSize: 11, color: "#111827" }} />
+        <Name style={{ fontWeight: 600, fontSize: 11, color: textColor }} />
         {level && (
           <span style={{ fontSize: 10, color: accentColor, fontWeight: 500, whiteSpace: "nowrap" }}>
             · {level}
@@ -83,9 +102,9 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
       <div style={baseStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
           <Name style={{ fontWeight: 600, fontSize: 11 }} />
-          <span style={{ fontSize: 10, color: "#6b7280" }}>{level}</span>
+          <span style={{ fontSize: 10, color: mutedColor }}>{level}</span>
         </div>
-        <div style={{ height: 4, backgroundColor: "#e5e7eb", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: 4, backgroundColor: trackColor, borderRadius: 2, overflow: "hidden" }}>
           <div style={{ height: 4, width: `${pct}%`, backgroundColor: accentColor, borderRadius: 2, WebkitPrintColorAdjust: "exact" } as React.CSSProperties} />
         </div>
       </div>
@@ -103,14 +122,14 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
   }
 
   if (skillStyle === "dotrating") {
-    if (!level) return <Name style={{ fontSize: 11, color: "#111827", fontWeight: 600, fontFamily }} />;
+    if (!level) return <Name style={{ fontSize: 11, color: textColor, fontWeight: 600, fontFamily }} />;
     const dots = levelToDots(level);
     return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily, width: "100%" }}>
-        <Name style={{ fontSize: 11, color: "#111827", fontWeight: 600, marginRight: 4 }} />
+        <Name style={{ fontSize: 11, color: textColor, fontWeight: 600, marginRight: 4 }} />
         <span style={{ flexShrink: 0 }}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <span key={i} style={{ color: i <= dots ? accentColor : "#e5e7eb", fontSize: 11, marginLeft: 1 }}>●</span>
+            <span key={i} style={{ color: i <= dots ? accentColor : trackColor, fontSize: 11, marginLeft: 1 }}>●</span>
           ))}
         </span>
       </div>
@@ -118,14 +137,14 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
   }
 
   if (skillStyle === "starrating") {
-    if (!level) return <Name style={{ fontSize: 11, color: "#111827", fontWeight: 600, fontFamily }} />;
+    if (!level) return <Name style={{ fontSize: 11, color: textColor, fontWeight: 600, fontFamily }} />;
     const stars = levelToStars(level);
     return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily, width: "100%" }}>
-        <Name style={{ fontSize: 11, color: "#111827", fontWeight: 600, marginRight: 4 }} />
+        <Name style={{ fontSize: 11, color: textColor, fontWeight: 600, marginRight: 4 }} />
         <span style={{ flexShrink: 0 }}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <span key={i} style={{ color: i <= stars ? accentColor : "#e5e7eb", fontSize: 12 }}>★</span>
+            <span key={i} style={{ color: i <= stars ? accentColor : trackColor, fontSize: 12 }}>★</span>
           ))}
         </span>
       </div>
@@ -136,7 +155,7 @@ export function SkillEntry({ skillName, level, skillStyle, accentColor, fontFami
   return (
     <div style={{ ...baseStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <Name style={{ fontWeight: 600, fontSize: 11 }} />
-      {level && <span style={{ fontSize: 10, color: "#6b7280" }}>{level}</span>}
+      {level && <span style={{ fontSize: 10, color: mutedColor }}>{level}</span>}
     </div>
   );
 }

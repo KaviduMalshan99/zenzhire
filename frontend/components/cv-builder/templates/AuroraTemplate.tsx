@@ -7,6 +7,7 @@ import { EditableHtml } from "./edit/EditableHtml";
 import { SortableSection } from "./edit/SortableSection";
 import { useCVEdit } from "./edit/CVEditContext";
 import { makeFieldSetter, makeEntrySetter } from "./edit/sectionHelpers";
+import { getSkillsParagraph, SkillsParagraph } from "./SkillsParagraph";
 
 interface Props {
   sections: CVSection[];
@@ -164,6 +165,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
     const d = section.data;
     const entries = d.entries ?? [];
     const setEntry = makeEntrySetter(section, onFieldChange);
+    const setField = makeFieldSetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "education": {
@@ -200,12 +202,25 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
       }
 
       case "skills":
-      case "soft_skills":
-        // Ignores skillStyle intentionally — SkillEntry.tsx hardcodes a dark
-        // "#111827" text color internally with no override prop, which is
-        // unreadable against the sidebar's solid accentColor fill. Same
-        // rationale Corporate/Vega already document for their own sidebars:
-        // a plain, light-colored bullet list instead.
+      case "soft_skills": {
+        // Paragraph mode, rendered in the sidebar's light-on-accent scheme
+        // (SIDEBAR_TEXT), same as the bullet list below — the colored band
+        // still needs light text whichever data shape the section holds.
+        const paragraph = getSkillsParagraph(d);
+        if (paragraph) {
+          return (
+            <div style={{ marginBottom: sectionSpacing }}>
+              <SidebarHeading section={section} title={section.section_type === "skills" ? "Skills" : "Soft Skills"} fontFamily={fontCSS} />
+              <SkillsParagraph html={paragraph} onCommit={(v) => setField("skills_paragraph", v)} style={{ fontSize: 11.5, color: SIDEBAR_TEXT, fontFamily: fontCSS, ...eb }} />
+            </div>
+          );
+        }
+        // Ignores skillStyle intentionally. SkillEntry.tsx now DOES take a
+        // textColor override (added alongside the paragraph mode), so the old
+        // "it would render unreadable near-black" reason no longer applies —
+        // but the design reason still does: this narrow, accent-filled sidebar
+        // wants a plain light bullet list, not progress bars or chips sized
+        // for a white main column. Same rationale Corporate/Vega document.
         if (!entries.length) return null;
         return (
           <div style={{ marginBottom: sectionSpacing }}>
@@ -220,6 +235,7 @@ export function AuroraTemplate({ sections, customization = DEFAULT_CUSTOMIZATION
             </ul>
           </div>
         );
+      }
 
       case "certificates": {
         if (!entries.length) return null;

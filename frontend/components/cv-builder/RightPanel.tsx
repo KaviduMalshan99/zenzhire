@@ -502,6 +502,18 @@ function parseGroupedSkills(text: string): SkillGroup[] | null {
   }
 }
 
+/** Turns the parsed groups into the same rich HTML the Skills section's
+ *  paragraph field stores — one <p> per category, bold label, comma-separated
+ *  skills. Deliberately limited to <p>/<strong>: that's a subset of what the
+ *  Tiptap editor round-trips cleanly, so the user can keep editing the result
+ *  by hand afterwards instead of getting markup the editor would rewrite. */
+function groupsToParagraphHtml(groups: SkillGroup[]): string {
+  return groups
+    .filter((g) => g.skills.length > 0)
+    .map((g) => `<p><strong>${escapeHtml(g.category)}:</strong> ${escapeHtml(g.skills.join(", "))}</p>`)
+    .join("");
+}
+
 // ─── Polish Whole CV ────────────────────────────────────────────────────────────
 // Runs the same fix_grammar behavior as the per-section "Fix grammar" button
 // across every filled section/entry, then writes the result straight into the
@@ -814,7 +826,15 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
       const first = d.entries?.[0];
       return first?.bullets?.[0]?.text ?? `${first?.job_title ?? ""} at ${first?.employer ?? ""}`;
     }
-    if (sectionType === "skills") return d.entries?.map((e: any) => e.skill_name).join(", ") ?? "";
+    if (sectionType === "skills") {
+      // In Paragraph mode the entries list may be empty (or stale), so the
+      // free text is what the AI actions should actually read — otherwise
+      // "Group by category" has nothing to work from and silently no-ops.
+      const fromEntries = d.entries?.map((e: any) => e.skill_name).filter(Boolean).join(", ") ?? "";
+      const fromParagraph = (d.skills_paragraph ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      if (d.skills_mode === "paragraph") return fromParagraph || fromEntries;
+      return fromEntries || fromParagraph;
+    }
     if (sectionType === "education") {
       const first = d.entries?.[0];
       return first?.description ?? `${first?.degree ?? ""} at ${first?.institution ?? ""}`;
@@ -1373,6 +1393,27 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
               </div>
             ) : aiResponse && !aiLoading && (() => {
               const groupedSkills = lastAiAction === "group_skills" ? parseGroupedSkills(aiResponse) : null;
+              // "Apply" is only a real, honest offer when there's somewhere to
+              // put the result: the paragraph field of the section this action
+              // was run on. In Individual Skills mode there's no such target —
+              // the groups don't map onto skill_name/level rows — so the button
+              // stays hidden and the panel says why instead of pretending.
+              const paragraphTarget =
+                groupedSkills && activeSection && activeSection.data?.skills_mode === "paragraph"
+                  ? activeSection
+                  : null;
+              const existingParagraph: string = paragraphTarget?.data?.skills_paragraph ?? "";
+              const hasExistingParagraph = existingParagraph.replace(/<[^>]*>/g, "").trim().length > 0;
+              const applyGroupedSkills = () => {
+                if (!paragraphTarget || !groupedSkills) return;
+                const generated = groupsToParagraphHtml(groupedSkills);
+                onSectionDataChange(paragraphTarget, {
+                  ...paragraphTarget.data,
+                  skills_paragraph: hasExistingParagraph ? existingParagraph + generated : generated,
+                });
+                setAiResponse(null);
+                setAiInput("");
+              };
               return (
                 <div className="mt-3 bg-[#0d1117] border border-[#30363d] rounded p-3">
                   {groupedSkills ? (
@@ -1393,7 +1434,15 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
                   ) : (
                     <p className="text-[#e6edf3] text-xs leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
                   )}
-                  <div className="flex gap-2 mt-2.5">
+                  <div className="flex gap-2 mt-2.5 flex-wrap">
+                    {paragraphTarget && (
+                      <button
+                        onClick={applyGroupedSkills}
+                        className="flex items-center gap-1 text-[11px] px-2.5 py-1 bg-blue-600/15 border border-blue-500/40 text-blue-400 rounded hover:bg-blue-600/25 transition-colors"
+                      >
+                        <Wand2 className="w-3 h-3" /> {hasExistingParagraph ? "Add to Paragraph" : "Apply to Paragraph"}
+                      </button>
+                    )}
                     <button
                       onClick={() => { navigator.clipboard?.writeText(aiResponse); setAiResponse(null); setAiInput(""); }}
                       className="flex items-center gap-1 text-[11px] px-2.5 py-1 bg-green-600/10 border border-green-600/20 text-green-400 rounded hover:bg-green-600/20 transition-colors"
@@ -1407,7 +1456,15 @@ export function RightPanel({ cv, sections, activeSection, isPro, targetRole, onT
                       <X className="w-3 h-3" /> Reject
                     </button>
                   </div>
-                  <p className="text-[10px] text-[#8b949e] mt-1.5">Paste it into the section field.</p>
+                  <p className="text-[10px] text-[#8b949e] mt-1.5">
+                    {paragraphTarget
+                      ? hasExistingParagraph
+                        ? "Adds these groups to the end of your Skills paragraph."
+                        : "Writes these groups straight into your Skills paragraph."
+                      : groupedSkills
+                        ? "Switch Skills to Paragraph mode to apply this directly."
+                        : "Paste it into the section field."}
+                  </p>
                 </div>
               );
             })()}

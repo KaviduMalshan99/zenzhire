@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Forward browser console to server terminal
     page.on("console", (msg) => console.log("[Browser]", msg.type(), msg.text()));
-    page.on("pageerror", (err) => console.error("[Browser error]", err.message));
+    page.on("pageerror", (err: unknown) => console.error("[Browser error]", err instanceof Error ? err.message : String(err)));
 
     await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 2 });
 

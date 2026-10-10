@@ -2,6 +2,7 @@ import React from "react";
 import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { SectionHeading } from "../SectionHeading";
+import { getSkillsParagraph, SkillsParagraph } from "./SkillsParagraph";
 import { EditableText } from "./edit/EditableText";
 import { EditableHtml } from "./edit/EditableHtml";
 import { SortableSection } from "./edit/SortableSection";
@@ -201,6 +202,20 @@ export function NovaTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }
       // its sidebar bullets).
       case "skills":
       case "soft_skills": {
+        // Paragraph mode replaces the pipe-separated line below with the
+        // user's own free text. Applied here even though this template
+        // deliberately ignores skillStyle — the paragraph is a data choice,
+        // not a style choice, so honouring it everywhere is what keeps the
+        // toggle meaning the same thing on all 14 templates.
+        const paragraph = getSkillsParagraph(d);
+        if (paragraph) {
+          return (
+            <div className="cv-section">
+              <SectionHeading section={section} title={section.section_type === "skills" ? "Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              <SkillsParagraph html={paragraph} onCommit={(v) => setField("skills_paragraph", v)} style={{ fontSize: 12, color: MID, fontFamily: fontCSS, ...eb }} />
+            </div>
+          );
+        }
         if (!entries.length) return null;
         return (
           <div className="cv-section">

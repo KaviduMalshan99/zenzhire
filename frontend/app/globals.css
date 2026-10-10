@@ -138,6 +138,14 @@
 .cl-html-body a { color: inherit; text-decoration: underline; }
 .cl-html-body p, .cl-html-body li { page-break-inside: avoid; break-inside: avoid; }
 
+/* ── CV free-text Skills paragraph ─────────────────────────────────────── */
+/* Mirrors .cl-html-body's rule directly above: the block itself is allowed to
+   flow across a page boundary, only its own paragraphs/list items are atomic.
+   A long free-text skills body therefore splits between paragraphs instead of
+   being forced onto a single page (which is what would happen if this were
+   marked .cv-entry — the PDF pipeline treats those as unbreakable chunks). */
+.cv-skills-paragraph p, .cv-skills-paragraph li { page-break-inside: avoid; break-inside: avoid; }
+
 /* ── CV page-break helpers ─────────────────────────────────────────────── */
 .cv-section {
   page-break-inside: avoid !important;

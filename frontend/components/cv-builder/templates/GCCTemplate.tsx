@@ -3,6 +3,7 @@ import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { SectionHeading } from "../SectionHeading";
 import { SkillEntry } from "./SkillEntry";
+import { getSkillsParagraph, SkillsParagraph } from "./SkillsParagraph";
 import { EditableText } from "./edit/EditableText";
 import { EditableHtml } from "./edit/EditableHtml";
 import { SortableSection } from "./edit/SortableSection";
@@ -141,6 +142,15 @@ export function GCCTemplate({ sections, customization = DEFAULT_CUSTOMIZATION }:
 
       case "skills":
       case "soft_skills": {
+        const paragraph = getSkillsParagraph(d);
+        if (paragraph) {
+          return (
+            <div className="cv-section">
+              <SectionHeading section={section} title={section.section_type === "skills" ? "Technical Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              <SkillsParagraph html={paragraph} onCommit={(v) => setField("skills_paragraph", v)} style={{ fontSize: 12, color: "#333", fontFamily: fontCSS, lineHeight }} />
+            </div>
+          );
+        }
         if (!entries.length) return null;
         const cols = skillColumns ?? 2;
         const gridCols = cols === 1 ? "1fr" : cols === 3 ? "1fr 1fr 1fr" : "1fr 1fr";

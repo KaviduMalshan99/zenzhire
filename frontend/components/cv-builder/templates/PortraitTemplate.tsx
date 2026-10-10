@@ -3,6 +3,7 @@ import type { CVSection, CVCustomization } from "@/types";
 import { DEFAULT_CUSTOMIZATION, FONT_CSS_MAP } from "@/types";
 import { SectionHeading } from "../SectionHeading";
 import { SkillEntry } from "./SkillEntry";
+import { getSkillsParagraph, SkillsParagraph } from "./SkillsParagraph";
 import { EditableText } from "./edit/EditableText";
 import { EditableHtml } from "./edit/EditableHtml";
 import { SortableSection } from "./edit/SortableSection";
@@ -105,6 +106,7 @@ export function PortraitTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
     const d = section.data;
     const entries = d.entries ?? [];
     const setEntry = makeEntrySetter(section, onFieldChange);
+    const setField = makeFieldSetter(section, onFieldChange);
 
     switch (section.section_type) {
       case "education": {
@@ -141,7 +143,16 @@ export function PortraitTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
       }
 
       case "skills":
-      case "soft_skills":
+      case "soft_skills": {
+        const paragraph = getSkillsParagraph(d);
+        if (paragraph) {
+          return (
+            <div style={{ marginBottom: sectionSpacing }}>
+              <SectionHeading section={section} title={section.section_type === "skills" ? "Skills" : "Soft Skills"} accentColor={accentColor} headingStyle={headingStyle} fontFamily={fontCSS} />
+              <SkillsParagraph html={paragraph} onCommit={(v) => setField("skills_paragraph", v)} style={{ fontSize: 11.5, color: "#333", fontFamily: fontCSS, lineHeight }} />
+            </div>
+          );
+        }
         if (!entries.length) return null;
         return (
           <div style={{ marginBottom: sectionSpacing }}>
@@ -155,6 +166,7 @@ export function PortraitTemplate({ sections, customization = DEFAULT_CUSTOMIZATI
             </div>
           </div>
         );
+      }
 
       case "certificates": {
         if (!entries.length) return null;
