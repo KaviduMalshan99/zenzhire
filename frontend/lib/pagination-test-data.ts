@@ -1,4 +1,4 @@
-import type { CVSection } from "@/types";
+import type { CVSection, SectionType } from "@/types";
 
 // Reusable Classic-template pagination test fixtures (short/1-page,
 // medium/mid-section-split, long/multi-page) — engine-agnostic, for testing
@@ -7,7 +7,7 @@ import type { CVSection } from "@/types";
 // lib/sample-cv-data.ts so it can't leak into the gallery or a real CV.
 
 let nextId = 1;
-function section(section_type: string, data: Record<string, any>): CVSection {
+function section(section_type: SectionType, data: Record<string, any>): CVSection {
   return {
     id: nextId++,
     cv_id: 0,
