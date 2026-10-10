@@ -5,3 +5,5 @@ from app.models.ats_result import ATSResult
 from app.models.contact_submission import ContactSubmission
 from app.models.review import Review
 from app.models.billing_transaction import BillingTransaction
+from app.models.cover_letter import CoverLetter
+from app.models.career_tip import CareerTip
