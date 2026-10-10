@@ -8,7 +8,7 @@ from app.core.database import Base
 class CoverLetter(Base):
     __tablename__ = "cover_letters"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     cv_id = Column(Integer, ForeignKey("cv_documents.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False, default="My Cover Letter")

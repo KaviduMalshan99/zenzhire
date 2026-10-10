@@ -6,7 +6,7 @@ from app.core.database import Base
 class Review(Base):
     __tablename__ = "reviews"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     rating = Column(Integer, nullable=False)
     text = Column(Text, nullable=False)
