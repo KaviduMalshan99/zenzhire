@@ -1,18 +1,25 @@
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
+DEFAULT_SECRET_KEY = "change-this-secret-key-in-production"
+PLACEHOLDER_SECRET_KEYS = {DEFAULT_SECRET_KEY, "your-super-secret-key-change-this"}
+MIN_SECRET_KEY_LENGTH = 32
+
+
 class Settings(BaseSettings):
     app_name: str = "ZenzHire API"
     debug: bool = False
+    environment: str = "development"
 
     database_url: str = "postgresql://postgres:password@localhost:5432/zenzhire"
 
-    secret_key: str = "change-this-secret-key-in-production"
+    secret_key: str = DEFAULT_SECRET_KEY
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
 
@@ -41,6 +48,19 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     contact_notify_email: str = ""
+
+    @model_validator(mode="after")
+    def check_secret_key_in_production(self):
+        if self.environment.lower() == "production" and (
+            self.secret_key in PLACEHOLDER_SECRET_KEYS
+            or len(self.secret_key) < MIN_SECRET_KEY_LENGTH
+        ):
+            raise RuntimeError(
+                "Refusing to start: ENVIRONMENT=production but SECRET_KEY is a placeholder "
+                f"or shorter than {MIN_SECRET_KEY_LENGTH} characters. Set a strong random SECRET_KEY in .env "
+                "(e.g. python -c \"import secrets; print(secrets.token_urlsafe(64))\")."
+            )
+        return self
 
     class Config:
         env_file = str(ENV_FILE)
