@@ -1,12 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.core.database import Base, engine
 from app.api.routes import auth, cv, ats, cover_letter, contact, reviews, career_mentor, admin, career_tips, billing, events
 
-# Create tables on startup (use Alembic for production migrations)
-Base.metadata.create_all(bind=engine)
-
+# Database schema is managed by Alembic only: run `alembic upgrade head` before starting.
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
