@@ -24,6 +24,20 @@ function getChromePath(): string | undefined {
   });
 }
 
+function recordPdfDownloaded(token: string, cvId: number): void {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  fetch(`${apiUrl}/api/v1/events/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ event_name: "pdf_downloaded", cv_id: cvId }),
+    signal: AbortSignal.timeout(5000),
+  })
+    .then((res) => {
+      if (!res.ok) console.error("Failed to record pdf_downloaded event: HTTP", res.status);
+    })
+    .catch((err) => console.error("Failed to record pdf_downloaded event:", err));
+}
+
 export async function POST(request: NextRequest) {
   let browser: Awaited<ReturnType<typeof puppeteerCore.launch>> | null = null;
 
@@ -896,6 +910,9 @@ export async function POST(request: NextRequest) {
     console.log("PDF generated, size:", (pdf as Buffer).length, "bytes");
 
     const safeFileName = (fileName || "cv-zenzhire").replace(/[^\w\s-]/g, "").trim();
+
+    // Not awaited: tracking must never delay or fail the download.
+    recordPdfDownloaded(token, Number(cvId));
 
     return new NextResponse(new Uint8Array(pdf as Buffer), {
       headers: {

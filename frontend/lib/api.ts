@@ -30,6 +30,27 @@ api.interceptors.response.use(
 
 export default api;
 
+// ── Events (analytics) ─────────────────────────────────────────────────────────
+// Fire-and-forget: never awaited by callers, never throws. Uses plain fetch
+// rather than `api` so a 401 here can't trigger the interceptor's /login redirect.
+export function trackEvent(
+  eventName: "pdf_downloaded" | "cl_pdf_downloaded",
+  extra: { cv_id?: number; metadata?: Record<string, unknown> } = {},
+): void {
+  const token = Cookies.get("token");
+  if (!token) return;
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/events/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ event_name: eventName, ...extra }),
+    keepalive: true,
+  })
+    .then((res) => {
+      if (!res.ok) console.error(`Failed to record ${eventName} event: HTTP ${res.status}`);
+    })
+    .catch((err) => console.error(`Failed to record ${eventName} event:`, err));
+}
+
 // ── Billing API ────────────────────────────────────────────────────────────────
 
 export interface CheckoutRequest {

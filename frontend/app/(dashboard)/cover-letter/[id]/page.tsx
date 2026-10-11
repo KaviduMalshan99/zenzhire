@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import api, { coverLetterApi } from "@/lib/api";
+import api, { coverLetterApi, trackEvent } from "@/lib/api";
 import type { CoverLetter, CoverLetterCustomization, CVDocument, CLPersonalDetails } from "@/types";
 import { DEFAULT_CL_CUSTOMIZATION } from "@/types";
 import { Loader2, Download, Sparkles, ChevronLeft, Save, Check } from "lucide-react";
@@ -227,6 +227,7 @@ export default function CoverLetterEditor() {
         body: JSON.stringify({ letterId: id, content, templateId, customization, jobTitle, company, letter, personal: personalDetails }),
       });
       if (!res.ok) throw new Error(await res.text());
+      trackEvent("cl_pdf_downloaded", { metadata: { cover_letter_id: Number(id) } });
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

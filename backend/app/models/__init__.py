@@ -7,3 +7,4 @@ from app.models.review import Review
 from app.models.billing_transaction import BillingTransaction
 from app.models.cover_letter import CoverLetter
 from app.models.career_tip import CareerTip
+from app.models.event import Event
