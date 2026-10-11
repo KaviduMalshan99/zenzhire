@@ -11,4 +11,3 @@ build/
 *.db
 *.sqlite3
 alembic/versions/*.pyc
-backend/app/core/config.py
