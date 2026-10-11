@@ -47,22 +47,12 @@ def start_conversation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # create_cv already prefills personal_details with the account's name and email.
     cv = cv_routes.create_cv(
         CVDocumentCreate(title="My CV", template_id=payload.template_id),
         current_user,
         db,
     )
-
-    personal_section = next(
-        (s for s in cv.sections if s.section_type == SectionType.personal_details), None
-    )
-    if personal_section:
-        personal_section.data = {
-            **personal_section.data,
-            "full_name": current_user.full_name,
-            "email": current_user.email,
-        }
-        db.commit()
 
     return career_mentor.build_step_payload(cv.id, career_mentor.FIRST_STEP, context={})
 

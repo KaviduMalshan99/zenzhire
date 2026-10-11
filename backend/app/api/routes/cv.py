@@ -398,12 +398,18 @@ def create_cv(
     db.flush()
 
     for order, section_type in enumerate(_DEFAULT_SECTIONS):
+        data = copy.deepcopy(_DEFAULT_DATA[section_type])
+        # Every new CV starts with the account's name and email filled in, so
+        # users never retype what we already know (single place for this).
+        if section_type == SectionType.personal_details:
+            data["full_name"] = current_user.full_name
+            data["email"] = current_user.email
         section = CVSection(
             cv_id=cv.id,
             section_type=section_type,
             display_order=order,
             is_visible=True,
-            data=copy.deepcopy(_DEFAULT_DATA[section_type]),
+            data=data,
         )
         db.add(section)
 
