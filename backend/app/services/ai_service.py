@@ -5,7 +5,7 @@ from app.core.config import settings
 
 _LEADING_BULLET_RE = re.compile(r"^[•\-\*►▸▪◦‣⋅]\s*", re.MULTILINE)
 
-client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 _ACTION_PROMPTS: dict[str, str] = {
     "improve_bullet": (
@@ -124,8 +124,8 @@ async def improve_cv_text(text: str, action: str, context: str = "") -> str:
 Text to improve:
 {text}"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    message = await client.messages.create(
+        model=settings.anthropic_model,
         max_tokens=600,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -165,8 +165,8 @@ CV TEXT:
 
 Return ONLY the JSON object, no markdown fences, no extra text."""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    message = await client.messages.create(
+        model=settings.anthropic_model,
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -240,8 +240,8 @@ Write a complete cover letter with:
 Format as plain text with paragraph breaks. Do not include subject line or date. Start directly with "Dear Hiring Manager," or similar. Keep it under 400 words.
 Return only the cover letter text."""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    message = await client.messages.create(
+        model=settings.anthropic_model,
         max_tokens=1000,
         messages=[{"role": "user", "content": prompt}],
     )

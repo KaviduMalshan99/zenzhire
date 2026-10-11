@@ -19,7 +19,7 @@ import fitz
 import anthropic
 from app.core.config import settings
 
-_ai_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+_ai_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 # ── lazy model handles ─────────────────────────────────────────────────────────
 
@@ -356,8 +356,8 @@ Return ONLY a JSON array of strings, no markdown, no commentary:
 ["keyword1", "keyword2", ...]"""
 
     try:
-        msg = _ai_client.messages.create(
-            model="claude-sonnet-4-6",
+        msg = await _ai_client.messages.create(
+            model=settings.anthropic_model,
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -567,8 +567,8 @@ If there are no genuine errors, return an empty array: []
 CV TEXT:
 {cv_text[:4000]}"""
 
-        msg = _ai_client.messages.create(
-            model="claude-sonnet-4-6",
+        msg = await _ai_client.messages.create(
+            model=settings.anthropic_model,
             max_tokens=900,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -749,8 +749,8 @@ CV:
 {cv_text[:4000]}"""
 
     try:
-        msg = _ai_client.messages.create(
-            model="claude-sonnet-4-6",
+        msg = await _ai_client.messages.create(
+            model=settings.anthropic_model,
             max_tokens=700,
             messages=[{"role": "user", "content": prompt}],
         )
