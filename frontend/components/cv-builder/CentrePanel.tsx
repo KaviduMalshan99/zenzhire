@@ -40,6 +40,8 @@ interface Props {
   onReorder?: (sections: CVSection[]) => void;
   /** false = preview only (quick-start Ready screen): no zoom/ATS/download toolbar. */
   showToolbar?: boolean;
+  /** Extra toolbar item shown before the actions (the mobile builder's progress chip). */
+  toolbarExtra?: React.ReactNode;
 }
 
 const A4_W = 794;
@@ -210,7 +212,7 @@ function calcPageLayout(el: HTMLElement): PageLayout {
   return { starts, sidebarStarts, bodyTop, sidebarBottom, sectionPage };
 }
 
-export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS, onSectionDataChange, onReorder, showToolbar = true }: Props) {
+export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS, onSectionDataChange, onReorder, showToolbar = true, toolbarExtra }: Props) {
   const hiddenRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [showDownloadSuccess, setShowDownloadSuccess] = useState(false);
@@ -446,6 +448,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
         </div>
 
         <div className="flex items-center gap-2">
+          {toolbarExtra}
           {onSendToATS && (
             <button
               onClick={onSendToATS}

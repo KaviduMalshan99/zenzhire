@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Plus, Trash2, GripVertical, X, Camera, ImageOff, Sparkles, AlertCircle } from "lucide-react";
+import { Plus, Trash2, GripVertical, X, Camera, ImageOff, Sparkles, AlertCircle, ChevronDown } from "lucide-react";
 import type { CVSection, TemplateId } from "@/types";
 import { NO_PHOTO_TEMPLATE_IDS } from "@/types";
 import { TEMPLATES } from "@/lib/templates-data";
@@ -16,6 +16,9 @@ interface FormProps {
   /** Opens the compact Zeni widget focused on this section. Only read by the
    *  form components that show an inline "get help" hint on an empty section. */
   onOpenZeni?: () => void;
+  /** Phone layout (the builder's bottom sheet, under 768px). Only read by
+   *  PersonalDetailsForm, which switches to one column with the extras folded away. */
+  mobile?: boolean;
 }
 
 /** Small, easy-to-ignore-once-you-don't-need-it prompt shown only while a
@@ -410,7 +413,14 @@ function PhotoUpload({
 
 // ── 1. Personal Details ────────────────────────────────────────────────────────
 
-function PersonalDetailsForm({ section, onChange, templateId }: FormProps) {
+// Optional extras folded under "More details" on phones. If any already has a
+// value the group starts open, so nothing the user typed looks lost.
+const PERSONAL_EXTRA_KEYS = [
+  "photo_base64", "photo_url", "date_of_birth", "nationality", "visa_status", "gender",
+  "marital_status", "religion", "nic", "driving_license",
+];
+
+function PersonalDetailsForm({ section, onChange, templateId, mobile }: FormProps) {
   const d = section.data;
   const update = (key: string, val: any) => onChange({ ...d, [key]: val });
 
@@ -428,106 +438,181 @@ function PersonalDetailsForm({ section, onChange, templateId }: FormProps) {
   const templateHasNoPhoto = !!templateId && NO_PHOTO_TEMPLATE_IDS.has(templateId);
   const templateLabel = TEMPLATES.find((t) => t.id === templateId)?.name ?? "This template";
 
+  // Each field is built once, then laid out two ways: the desktop grid (unchanged)
+  // or the phone's single column.
+  const photo = (
+    <div>
+      <span className={labelCls}>Profile Photo</span>
+      <PhotoUpload
+        value={d.photo_base64 ?? ""}
+        onChange={(b64) => update("photo_base64", b64)}
+        shape={d.photo_shape ?? "circle"}
+        onShapeChange={(s) => update("photo_shape", s)}
+        size={d.photo_size ?? 80}
+        onSizeChange={(s) => update("photo_size", s)}
+      />
+      <p className="text-[9px] text-[#8b949e] mt-1.5">Max 5 MB · JPG, PNG or WebP.</p>
+      {hasPhoto && templateHasNoPhoto && (
+        <p className="mt-1.5 flex items-start gap-1 text-[10px] text-amber-400">
+          <ImageOff className="w-3 h-3 flex-shrink-0 mt-0.5" />
+          <span>{templateLabel} is a photo-free design — your profile photo won't be shown.</span>
+        </p>
+      )}
+    </div>
+  );
+  const fullName = <Field label="Full Name" required><Input value={d.full_name ?? ""} onChange={(v) => update("full_name", v)} /></Field>;
+  const title = <Field label="Title / Headline"><Input value={d.title ?? ""} onChange={(v) => update("title", v)} placeholder="e.g. Software Engineer" /></Field>;
+  const email = <Field label="Email" required><Input value={d.email ?? ""} onChange={(v) => update("email", v)} type="email" /></Field>;
+  const phone = <Field label="Phone"><Input value={d.phone ?? ""} onChange={(v) => update("phone", v)} /></Field>;
+  const location = <Field label="Location"><Input value={d.location ?? ""} onChange={(v) => update("location", v)} placeholder="City, Country" /></Field>;
+  const dateOfBirth = <Field label="Date of Birth"><Input value={d.date_of_birth ?? ""} onChange={(v) => update("date_of_birth", v)} placeholder="YYYY-MM-DD" /></Field>;
+  const nationality = <Field label="Nationality"><Input value={d.nationality ?? ""} onChange={(v) => update("nationality", v)} /></Field>;
+  const visaStatus = <Field label="Visa Status"><Input value={d.visa_status ?? ""} onChange={(v) => update("visa_status", v)} /></Field>;
+  const gender = <Field label="Gender"><Input value={d.gender ?? ""} onChange={(v) => update("gender", v)} /></Field>;
+  const maritalStatus = (
+    <Field label="Marital Status">
+      <select
+        value={d.marital_status ?? ""}
+        onChange={(e) => update("marital_status", e.target.value)}
+        className={inputCls}
+      >
+        <option value="">Select status</option>
+        <option value="Single">Single</option>
+        <option value="Married">Married</option>
+        <option value="Divorced">Divorced</option>
+        <option value="Widowed">Widowed</option>
+        <option value="Separated">Separated</option>
+      </select>
+    </Field>
+  );
+  const religion = (
+    <Field label="Religion">
+      <Input value={d.religion ?? ""} onChange={(v) => update("religion", v)} placeholder="e.g. Buddhist" />
+    </Field>
+  );
+  const nic = (
+    <Field label="NIC / ID Number">
+      <Input value={d.nic ?? ""} onChange={(v) => update("nic", v)} placeholder="National ID number" />
+    </Field>
+  );
+  const drivingLicense = (
+    <Field label="Driving License">
+      <Input value={d.driving_license ?? ""} onChange={(v) => update("driving_license", v)} placeholder="License number" />
+    </Field>
+  );
+  /* Links — 2-row layout per entry */
+  const links = (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className={labelCls}>Links</span>
+        <button onClick={addLink} className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
+          <Plus className="w-3 h-3" /> Add link
+        </button>
+      </div>
+      <div className="space-y-3">
+        {(d.links ?? []).map((link: any, i: number) => (
+          <div key={link.id ?? i} className="border border-[#30363d] rounded-md p-2.5 space-y-1.5 relative">
+            <button
+              onClick={() => removeLink(i)}
+              className="absolute top-2 right-2 text-[#8b949e] hover:text-red-400 transition-colors"
+              title="Remove link"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            {/* Row 1: platform full width */}
+            <Select
+              value={link.platform}
+              onChange={(v) => updateLink(i, "platform", v)}
+              options={["LinkedIn", "GitHub", "Portfolio", "Twitter", "Instagram", "YouTube", "Website", "Other"]}
+              className="pr-6"
+            />
+            {/* Row 2: URL full width */}
+            <Input value={link.url} onChange={(v) => updateLink(i, "url", v)} placeholder="https://..." />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (mobile) {
+    const hasExtras =
+      PERSONAL_EXTRA_KEYS.some((k) => typeof d[k] === "string" && d[k].trim() !== "") ||
+      (d.links ?? []).some((l: any) => (l?.url ?? "").trim() !== "");
+    return (
+      <div className="space-y-4">
+        {fullName}
+        {title}
+        {email}
+        {phone}
+        {location}
+        <MoreDetails defaultOpen={hasExtras}>
+          {photo}
+          {dateOfBirth}
+          {nationality}
+          {visaStatus}
+          {gender}
+          {maritalStatus}
+          {religion}
+          {nic}
+          {drivingLicense}
+          {links}
+        </MoreDetails>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div>
-        <span className={labelCls}>Profile Photo</span>
-        <PhotoUpload
-          value={d.photo_base64 ?? ""}
-          onChange={(b64) => update("photo_base64", b64)}
-          shape={d.photo_shape ?? "circle"}
-          onShapeChange={(s) => update("photo_shape", s)}
-          size={d.photo_size ?? 80}
-          onSizeChange={(s) => update("photo_size", s)}
-        />
-        <p className="text-[9px] text-[#8b949e] mt-1.5">Max 5 MB · JPG, PNG or WebP.</p>
-        {hasPhoto && templateHasNoPhoto && (
-          <p className="mt-1.5 flex items-start gap-1 text-[10px] text-amber-400">
-            <ImageOff className="w-3 h-3 flex-shrink-0 mt-0.5" />
-            <span>{templateLabel} is a photo-free design — your profile photo won't be shown.</span>
-          </p>
-        )}
-      </div>
+      {photo}
       <div className="border-t border-[#30363d] pt-1" />
       <Row>
-        <Field label="Full Name" required><Input value={d.full_name ?? ""} onChange={(v) => update("full_name", v)} /></Field>
-        <Field label="Title / Headline"><Input value={d.title ?? ""} onChange={(v) => update("title", v)} placeholder="e.g. Software Engineer" /></Field>
+        {fullName}
+        {title}
       </Row>
       <Row>
-        <Field label="Email" required><Input value={d.email ?? ""} onChange={(v) => update("email", v)} type="email" /></Field>
-        <Field label="Phone"><Input value={d.phone ?? ""} onChange={(v) => update("phone", v)} /></Field>
+        {email}
+        {phone}
       </Row>
       <Row>
-        <Field label="Location"><Input value={d.location ?? ""} onChange={(v) => update("location", v)} placeholder="City, Country" /></Field>
-        <Field label="Date of Birth"><Input value={d.date_of_birth ?? ""} onChange={(v) => update("date_of_birth", v)} placeholder="YYYY-MM-DD" /></Field>
+        {location}
+        {dateOfBirth}
       </Row>
       <Row>
-        <Field label="Nationality"><Input value={d.nationality ?? ""} onChange={(v) => update("nationality", v)} /></Field>
-        <Field label="Visa Status"><Input value={d.visa_status ?? ""} onChange={(v) => update("visa_status", v)} /></Field>
+        {nationality}
+        {visaStatus}
       </Row>
       <Row>
-        <Field label="Gender"><Input value={d.gender ?? ""} onChange={(v) => update("gender", v)} /></Field>
-        <Field label="Marital Status">
-          <select
-            value={d.marital_status ?? ""}
-            onChange={(e) => update("marital_status", e.target.value)}
-            className={inputCls}
-          >
-            <option value="">Select status</option>
-            <option value="Single">Single</option>
-            <option value="Married">Married</option>
-            <option value="Divorced">Divorced</option>
-            <option value="Widowed">Widowed</option>
-            <option value="Separated">Separated</option>
-          </select>
-        </Field>
+        {gender}
+        {maritalStatus}
       </Row>
       <Row>
-        <Field label="Religion">
-          <Input value={d.religion ?? ""} onChange={(v) => update("religion", v)} placeholder="e.g. Buddhist" />
-        </Field>
-        <Field label="NIC / ID Number">
-          <Input value={d.nic ?? ""} onChange={(v) => update("nic", v)} placeholder="National ID number" />
-        </Field>
+        {religion}
+        {nic}
       </Row>
       <Row>
-        <Field label="Driving License">
-          <Input value={d.driving_license ?? ""} onChange={(v) => update("driving_license", v)} placeholder="License number" />
-        </Field>
+        {drivingLicense}
       </Row>
       <div className="border-t border-[#30363d] pt-1" />
 
-      {/* Links — 2-row layout per entry */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className={labelCls}>Links</span>
-          <button onClick={addLink} className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Add link
-          </button>
-        </div>
-        <div className="space-y-3">
-          {(d.links ?? []).map((link: any, i: number) => (
-            <div key={link.id ?? i} className="border border-[#30363d] rounded-md p-2.5 space-y-1.5 relative">
-              <button
-                onClick={() => removeLink(i)}
-                className="absolute top-2 right-2 text-[#8b949e] hover:text-red-400 transition-colors"
-                title="Remove link"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-              {/* Row 1: platform full width */}
-              <Select
-                value={link.platform}
-                onChange={(v) => updateLink(i, "platform", v)}
-                options={["LinkedIn", "GitHub", "Portfolio", "Twitter", "Instagram", "YouTube", "Website", "Other"]}
-                className="pr-6"
-              />
-              {/* Row 2: URL full width */}
-              <Input value={link.url} onChange={(v) => updateLink(i, "url", v)} placeholder="https://..." />
-            </div>
-          ))}
-        </div>
-      </div>
+      {links}
+    </div>
+  );
+}
+
+function MoreDetails({ defaultOpen, children }: { defaultOpen: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-[#30363d] pt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full min-h-[44px] flex items-center justify-between text-sm font-medium text-[#e6edf3]"
+      >
+        More details (optional)
+        <ChevronDown className={cn("w-4 h-4 text-[#8b949e] transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <div className="space-y-4 pt-2">{children}</div>}
     </div>
   );
 }
@@ -1310,8 +1395,8 @@ const FORM_MAP: Record<string, React.ComponentType<FormProps>> = {
   declaration: DeclarationForm,
 };
 
-export function SectionForm({ section, onChange, templateId, onOpenZeni }: FormProps) {
+export function SectionForm({ section, onChange, templateId, onOpenZeni, mobile }: FormProps) {
   const FormComponent = FORM_MAP[section.section_type];
   if (!FormComponent) return <p className="text-[#8b949e] text-sm">Unknown section type</p>;
-  return <FormComponent section={section} onChange={onChange} templateId={templateId} onOpenZeni={onOpenZeni} />;
+  return <FormComponent section={section} onChange={onChange} templateId={templateId} onOpenZeni={onOpenZeni} mobile={mobile} />;
 }

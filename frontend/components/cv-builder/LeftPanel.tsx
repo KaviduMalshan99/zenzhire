@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   GripVertical, Eye, EyeOff, ChevronLeft, Plus, Trash2, Check,
-  FileText, Layers, Palette, Undo2, Redo2, Lock,
+  FileText, Layers, Palette, Undo2, Redo2, Lock, X,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -22,6 +22,7 @@ import { CustomizationPanel } from "./CustomizationPanel";
 import { cn } from "@/lib/utils";
 import { TEMPLATES } from "@/lib/templates-data";
 import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
+import { useIsTouch } from "@/hooks/useIsTouch";
 
 // Free templates first, then Pro — so a Free user sees everything usable
 // to them before the locked/dimmed ones.
@@ -47,6 +48,63 @@ const TEMPLATE_OPTIONS: { id: TemplateId; label: string }[] = [
 const PRO_TEMPLATE_IDS = new Set<string>(
   TEMPLATES.filter((t) => t.plan === "pro").map((t) => t.id)
 );
+
+/** Phone-only template chooser: one row per template, the 5 Free ones first. */
+function MobileTemplatePicker({
+  current, isPro, onPick, onClose,
+}: {
+  current: TemplateId;
+  isPro: boolean;
+  onPick: (id: TemplateId) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Choose a template">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative bg-[#161b22] rounded-t-2xl border-t border-[#30363d] flex flex-col" style={{ maxHeight: "80dvh" }}>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#30363d] flex-shrink-0">
+          <span className="text-white text-sm font-semibold">Choose a template</span>
+          <button onClick={onClose} aria-label="Close" className="w-11 h-11 -mr-3 flex items-center justify-center text-[#8b949e] hover:text-white rounded">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <ul className="flex-1 overflow-y-auto py-2 pb-[max(8px,env(safe-area-inset-bottom))]">
+          {TEMPLATE_OPTIONS.map((t) => {
+            const pro = PRO_TEMPLATE_IDS.has(t.id);
+            const selected = current === t.id;
+            const description = TEMPLATES.find((x) => x.id === t.id)?.description;
+            return (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  onClick={() => onPick(t.id)}
+                  aria-current={selected ? "true" : undefined}
+                  className={cn(
+                    "w-full min-h-[56px] flex items-center gap-3 px-5 py-2.5 text-left transition-colors",
+                    selected ? "bg-blue-600/15" : "hover:bg-[#21262d]"
+                  )}
+                >
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-center gap-2">
+                      <span className={cn("text-sm font-medium", selected ? "text-blue-400" : "text-[#e6edf3]")}>{t.label}</span>
+                      {pro && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                          {!isPro && <Lock className="w-2.5 h-2.5" />}Pro
+                        </span>
+                      )}
+                    </span>
+                    {description && <span className="block text-xs text-[#8b949e] truncate mt-0.5">{description}</span>}
+                  </span>
+                  {selected && <Check className="w-4 h-4 text-blue-400 flex-shrink-0" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   cv: CVDocument;
@@ -203,6 +261,19 @@ export function LeftPanel({
   const [titleValue, setTitleValue] = useState(cv.title);
   const [showAddModal, setShowAddModal] = useState(false);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const isTouch = useIsTouch();
+
+  const pickTemplate = (id: TemplateId) => {
+    if (!isPro && PRO_TEMPLATE_IDS.has(id)) {
+      setLimitMessage(
+        `'${id}' is a Pro template. Upgrade to Pro to use all 14 templates, or choose one of the 5 Free templates.`
+      );
+      return;
+    }
+    onUpdateCV({ template_id: id });
+  };
+  const currentTemplateLabel = TEMPLATE_OPTIONS.find((t) => t.id === cv.template_id)?.label ?? cv.template_id;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -260,6 +331,7 @@ export function LeftPanel({
               onChange={(data) => onSectionDataChange(activeSection, data)}
               templateId={cv.template_id}
               onOpenZeni={onOpenZeni}
+              mobile={mobile}
             />
           </div>
         </>
@@ -299,7 +371,7 @@ export function LeftPanel({
                 <span
                   className="flex-1 text-white text-sm font-semibold cursor-pointer hover:text-blue-300 transition-colors truncate"
                   onClick={() => setEditingTitle(true)}
-                  title="Click to rename"
+                  title={isTouch ? "Tap to rename" : "Click to rename"}
                 >
                   {cv.title}
                 </span>
@@ -307,12 +379,28 @@ export function LeftPanel({
               <UndoRedoButtons onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#8b949e] text-[11px]">Click title to rename</span>
+              <span className="text-[#8b949e] text-[11px]">{isTouch ? "Tap" : "Click"} title to rename</span>
               {saveIndicator}
             </div>
           </div>
 
-          {/* Template selector */}
+          {/* Template selector — phones get one "Template: X · Change" row instead of the grid */}
+          {mobile ? (
+            <div className="px-4 py-1 border-b border-[#30363d] flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowTemplatePicker(true)}
+                className="w-full min-h-[44px] flex items-center gap-2 text-left"
+              >
+                <Layers className="w-3.5 h-3.5 text-[#8b949e] flex-shrink-0" />
+                <span className="min-w-0 truncate text-sm text-[#e6edf3]">
+                  <span className="text-[#8b949e]">Template:</span> {currentTemplateLabel}
+                </span>
+                <span className="text-sm text-[#8b949e]" aria-hidden="true">·</span>
+                <span className="text-sm font-medium text-blue-400">Change</span>
+              </button>
+            </div>
+          ) : (
           <div className="px-4 py-3 border-b border-[#30363d] flex-shrink-0">
             <div className="flex items-center gap-2 mb-2">
               <Layers className="w-3.5 h-3.5 text-[#8b949e]" />
@@ -349,6 +437,16 @@ export function LeftPanel({
               })}
             </div>
           </div>
+          )}
+
+          {showTemplatePicker && (
+            <MobileTemplatePicker
+              current={cv.template_id}
+              isPro={isPro}
+              onPick={(id) => { setShowTemplatePicker(false); pickTemplate(id); }}
+              onClose={() => setShowTemplatePicker(false)}
+            />
+          )}
 
           <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Layers, Sparkles, X } from "lucide-react";
+import { Layers, Sparkles, X, PencilLine } from "lucide-react";
 import api from "@/lib/api";
 import type { CVDocument, CVSection, CVCustomization, SectionType, TemplateId, SaveStatus } from "@/types";
 import { DEFAULT_CUSTOMIZATION, mergeCustomization } from "@/types";
@@ -12,6 +12,8 @@ import { LeftPanel } from "@/components/cv-builder/LeftPanel";
 import { CentrePanel } from "@/components/cv-builder/CentrePanel";
 import { RightPanel } from "@/components/cv-builder/RightPanel";
 import { extractCVText } from "@/lib/cv-text";
+import { cvProgress } from "@/lib/cv-progress";
+import { useIsTouch } from "@/hooks/useIsTouch";
 
 interface HistorySnapshot {
   sections: CVSection[];
@@ -42,6 +44,8 @@ export default function CVEditorPage() {
   const [past, setPast] = useState<HistorySnapshot[]>([]);
   const [future, setFuture] = useState<HistorySnapshot[]>([]);
   const [isRestoringHistory, setIsRestoringHistory] = useState(false);
+  const [nextStepClosed, setNextStepClosed] = useState(false);
+  const isTouch = useIsTouch();
 
   const debounceTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const customizationTimer = useRef<NodeJS.Timeout | null>(null);
@@ -294,7 +298,7 @@ export default function CVEditorPage() {
     }
   }, [cv, pushHistory]);
 
-  const addSection = useCallback(async (type: SectionType) => {
+  const addSection = useCallback(async (type: SectionType): Promise<CVSection | undefined> => {
     if (!cv) return;
     pushHistory();
     try {
@@ -302,6 +306,7 @@ export default function CVEditorPage() {
       setSections((prev) => [...prev, res.data]);
       setActiveSection(res.data);
       toast.success("Section added");
+      return res.data;
     } catch {
       toast.error("Failed to add section");
     }
@@ -353,6 +358,33 @@ export default function CVEditorPage() {
       setLeftPanelMode("form");
     }
   }, [sections]);
+
+  // Mobile next-step card: opens that section's form in the Sections sheet,
+  // adding the section first if this CV doesn't have it (e.g. it was deleted).
+  const openSectionForm = useCallback(async (sectionType: SectionType) => {
+    const section = sections.find((s) => s.section_type === sectionType) ?? await addSection(sectionType);
+    if (!section) return;
+    setActiveSection(section);
+    setLeftPanelTab("sections");
+    setLeftPanelMode("form");
+    setAiPanelOpen(false);
+    setMobileSheet("sections");
+  }, [sections, addSection]);
+
+  // "Close" on the next-step card lasts for this browser session only.
+  useEffect(() => {
+    try {
+      setNextStepClosed(sessionStorage.getItem(`zh_next_step_closed_${id}`) === "1");
+    } catch {}
+  }, [id]);
+  const closeNextStep = useCallback(() => {
+    setNextStepClosed(true);
+    try { sessionStorage.setItem(`zh_next_step_closed_${id}`, "1"); } catch {}
+  }, [id]);
+
+  const progress = useMemo(() => cvProgress(sections), [sections]);
+  const progressDone = progress.filter((p) => p.done).length;
+  const nextStep = progress.find((p) => !p.done);
 
   // Single entry point for "open Zeni" — used by the floating button and by
   // the inline per-section hints, so both land on the ai tab focused on
@@ -440,26 +472,73 @@ export default function CVEditorPage() {
         />
       </div>
 
-      {/* Mobile layout */}
-      <div className="flex md:hidden flex-col overflow-hidden relative" style={{ height: "calc(100vh - 64px)" }}>
-        <CentrePanel
-          cv={cv}
-          sections={sections}
-          zoom={zoom}
-          customization={customization}
-          onZoomChange={setZoom}
-          onSendToATS={handleSendToATS}
-          onSectionDataChange={saveSectionData}
-          onReorder={reorderSections}
-        />
+      {/* Mobile layout: preview, then a bottom bar with the two main actions.
+          100dvh so the bar sits above the browser's own toolbar, not behind it. */}
+      <div className="flex md:hidden flex-col overflow-hidden relative" style={{ height: "calc(100dvh - 64px)" }}>
+        <div className="relative flex-1 min-h-0 flex flex-col">
+          <CentrePanel
+            cv={cv}
+            sections={sections}
+            zoom={zoom}
+            customization={customization}
+            onZoomChange={setZoom}
+            onSendToATS={handleSendToATS}
+            onSectionDataChange={saveSectionData}
+            onReorder={reorderSections}
+            toolbarExtra={
+              <span
+                className="text-[11px] font-medium text-[#e6edf3] bg-[#21262d] border border-[#30363d] rounded-full px-2.5 py-1 whitespace-nowrap"
+                aria-label={`${progressDone} of ${progress.length} parts of your CV done`}
+              >
+                {progressDone} of {progress.length} done
+              </span>
+            }
+          />
 
-        <div className="fixed bottom-6 right-4 z-40">
+          {nextStep && !nextStepClosed && (
+            <div className="absolute left-3 right-3 bottom-3 z-30 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl p-4">
+              <button
+                type="button"
+                onClick={closeNextStep}
+                aria-label="Close"
+                className="absolute top-1 right-1 w-11 h-11 flex items-center justify-center text-[#8b949e] hover:text-white rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <p className="text-white text-[15px] font-semibold pr-10">Next: add your {nextStep.label}</p>
+              <p className="text-[#8b949e] text-[13px] leading-snug mt-1 pr-2">{nextStep.help}</p>
+              <button
+                type="button"
+                onClick={() => openSectionForm(nextStep.sectionType)}
+                className="mt-3 w-full min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
+              >
+                Add {nextStep.label}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-shrink-0 grid grid-cols-2 gap-2 px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] border-t border-[#30363d] bg-[#0d1117]">
           <button
-            onClick={() => setMobileSheet(mobileSheet === "sections" ? "closed" : "sections")}
-            className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center transition-colors"
-            title="Sections"
+            type="button"
+            onClick={() => {
+              // "Edit CV" always lands on the Sections list, not whichever form was last open.
+              setLeftPanelMode("list");
+              setAiPanelOpen(false);
+              setMobileSheet(mobileSheet === "sections" ? "closed" : "sections");
+            }}
+            className="min-h-[52px] rounded-lg border border-[#30363d] bg-[#161b22] hover:bg-[#21262d] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition-colors"
           >
-            <Layers className="w-5 h-5" />
+            <PencilLine className="w-[18px] h-[18px]" />
+            Edit CV
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenZeni}
+            className="min-h-[52px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition-colors"
+          >
+            <Sparkles className="w-[18px] h-[18px]" />
+            Ask Zeni
           </button>
         </div>
 
@@ -491,11 +570,11 @@ export default function CVEditorPage() {
         )}
       </div>
 
-      {/* Floating Zeni AI entry point — visible on every viewport and section */}
+      {/* Floating Zeni AI entry point — desktop only; phones use the bottom bar's "Ask Zeni" */}
       {!aiPanelOpen && (
         <button
           onClick={handleOpenZeni}
-          className="fixed z-40 bottom-24 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
+          className="hidden md:flex fixed z-40 md:bottom-6 md:right-6 w-14 h-14 rounded-full items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
           style={{ backgroundColor: "#2563eb" }}
           title="Zeni"
           aria-label="Open Zeni AI assistant"
@@ -504,13 +583,15 @@ export default function CVEditorPage() {
         </button>
       )}
 
-      {/* One-time-per-CV intro tooltip pointing at the floating button above. */}
+      {/* One-time-per-CV intro tooltip pointing at the floating button above
+          (on phones, at the bottom bar's "Ask Zeni" button — but not while the
+          next-step card is up, since it would cover the card's button). */}
       {showZeniIntro && !aiPanelOpen && (
         <div
-          className="fixed z-40 bottom-[152px] right-4 md:bottom-[88px] md:right-6 max-w-[210px] bg-[#161b22] border border-blue-500/40 rounded-lg px-3 py-2.5 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200"
+          className={`${nextStep && !nextStepClosed ? "hidden md:block " : ""}fixed z-40 bottom-[76px] right-3 md:bottom-[88px] md:right-6 max-w-[210px] bg-[#161b22] border border-blue-500/40 rounded-lg px-3 py-2.5 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200`}
         >
           <p className="text-white text-xs font-semibold mb-0.5">This is Zeni ✨</p>
-          <p className="text-[#8b949e] text-[11px] leading-snug">Click anytime you want help writing your CV.</p>
+          <p className="text-[#8b949e] text-[11px] leading-snug">{isTouch ? "Tap" : "Click"} anytime you want help writing your CV.</p>
         </div>
       )}
 
