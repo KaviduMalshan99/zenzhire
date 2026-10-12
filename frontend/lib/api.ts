@@ -139,29 +139,47 @@ export const reviewsApi = {
     api.post<ReviewItem>("/reviews/", data),
 };
 
-// ── Career Mentor (conversational CV onboarding) ──────────────────────────────
+// ── Career Mentor quick-start (see PROJECT_CONTEXT.md section 38) ─────────────
+
+export type CareerMentorContext = Record<string, unknown>;
+/** str for text/buttons, string[] for "list", {field: value} for "fields". */
+export type CareerMentorAnswer = string | string[] | Record<string, string | boolean>;
+
+export interface CareerMentorField {
+  name: string;
+  label: string;
+  type: "text" | "checkbox";
+  required: boolean;
+  required_unless: string | null;
+}
 
 export interface CareerMentorStep {
-  cv_id: number;
+  cv_id: number | null;
   step: string;
   question: string;
-  input_type: "text" | "buttons" | "none";
-  options: string[] | null;
+  hint: string | null;
+  input_type: "text" | "buttons" | "fields" | "list" | "none";
+  options: { value: string; label: string }[] | null;
+  fields: CareerMentorField[] | null;
+  optional: boolean;
+  prefill: unknown;
+  can_go_back: boolean;
   progress: { current: number; total: number };
-  context: Record<string, string>;
+  context: CareerMentorContext;
   complete: boolean;
 }
 
 export const careerMentorApi = {
-  start: (template_id: TemplateId) =>
-    api.post<CareerMentorStep>("/career-mentor/start", { template_id }),
+  start: () => api.post<CareerMentorStep>("/career-mentor/start"),
 
-  answer: (data: {
-    cv_id: number;
-    step: string;
-    answer: string;
-    context: Record<string, string>;
-  }) => api.post<CareerMentorStep>("/career-mentor/answer", data),
+  answer: (data: { cv_id: number | null; step: string; answer: CareerMentorAnswer; context: CareerMentorContext }) =>
+    api.post<CareerMentorStep>("/career-mentor/answer", data),
+
+  back: (data: { cv_id: number | null; step: string; context: CareerMentorContext }) =>
+    api.post<CareerMentorStep>("/career-mentor/back", data),
+
+  finish: (data: { cv_id: number; context: CareerMentorContext }) =>
+    api.post<{ cv_id: number; template_id: TemplateId; complete: boolean }>("/career-mentor/finish", data),
 };
 
 // ── Career Tips API (public) ──────────────────────────────────────────────────

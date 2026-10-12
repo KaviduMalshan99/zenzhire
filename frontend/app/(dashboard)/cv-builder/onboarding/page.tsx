@@ -1,570 +1,424 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
-import { Sparkles, ArrowRight, Loader2, Check, CheckCircle2, Circle } from "lucide-react";
-import { careerMentorApi, type CareerMentorStep } from "@/lib/api";
-import type { TemplateId } from "@/types";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { careerMentorApi, type CareerMentorAnswer, type CareerMentorStep } from "@/lib/api";
+import {
+  ROLE_SUGGESTIONS,
+  apiErrorMessage,
+  clearQuickStart,
+  createBuilderCv,
+  getAck,
+  loadQuickStart,
+  saveQuickStart,
+  skillSuggestions,
+} from "@/lib/quickstart";
+import { cn } from "@/lib/utils";
+import { QuickStartShell, ZeniAvatar, focusRing, primaryButton } from "@/components/quickstart/QuickStartShell";
+import {
+  ChoiceCards,
+  DatesAnswer,
+  FieldsAnswer,
+  SkillsAnswer,
+  SuggestionChips,
+  TextAnswer,
+  isFieldRequired,
+  type FieldValues,
+} from "@/components/quickstart/QuestionInputs";
+import { WritingScreen } from "@/components/quickstart/WritingScreen";
+import { ReadyScreen } from "@/components/quickstart/ReadyScreen";
+import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 
-interface HistoryItem {
-  question: string;
-  answer: string;
+type Draft = string | string[] | FieldValues;
+
+interface FinishState {
+  cvId: number;
+  context: CareerMentorStep["context"];
+  hasExperience: boolean;
 }
 
-type RevealPhase = "typing" | "ack" | "question" | "complete";
+// Free-text steps that describe what the user did get the "numbers" nudge.
+const WORK_STEPS = new Set(["exp_work", "exp_work_followup", "project_work", "project_work_followup"]);
 
-const CHECKLIST_ITEMS: { key: string; label: string }[] = [
-  { key: "personal", label: "Personal Details" },
-  { key: "experience", label: "Experience" },
-  { key: "education", label: "Education" },
-  { key: "skills", label: "Skills" },
-  { key: "summary", label: "Summary" },
-];
+const TEXT_LABELS: Record<string, string> = {
+  target_role: "Job you want",
+  exp_work: "What you did",
+  exp_work_followup: "One more detail",
+  project_name: "Project name",
+  project_work: "What you did",
+  project_work_followup: "One more detail",
+  goal: "Your next step",
+};
 
-function computeDoneKeys(context: Record<string, string>): Set<string> {
-  const has = (k: string) => Boolean((context[k] ?? "").trim());
-  const done = new Set<string>();
-  if (has("target_role")) done.add("personal");
-  if (has("exp_work") || has("project_work")) done.add("experience");
-  if (has("edu_dates")) done.add("education");
-  if (has("skills")) done.add("skills");
-  if (has("summary_years")) done.add("summary");
-  return done;
-}
-
-function formatList(items: string[]): string {
-  if (items.length === 0) return "your CV";
-  if (items.length === 1) return items[0];
-  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
-}
-
-function pick(variants: string[]): string {
-  return variants[Math.floor(Math.random() * variants.length)];
-}
-
-// Short, warm reactions to the answer just given, shown before the next
-// question. Each step has a small set of natural variations so the flow
-// doesn't repeat the exact same phrase every time.
-const FOLLOWUP_ACKS = [
-  "Thanks for that — let's dig a little deeper.",
-  "Got it — one more quick thing.",
-  "Good start — let's add a bit more.",
-];
-
-function getAck(step: string, answer: string, nextStep?: string): string {
-  // Heading into the one-shot "tell me more" round — same reply regardless
-  // of whether it was triggered from Experience or Projects.
-  if (nextStep === "exp_work_followup" || nextStep === "project_work_followup") {
-    return pick(FOLLOWUP_ACKS);
-  }
-
-  const normalized = answer.trim().toLowerCase();
-  switch (step) {
-    case "target_role":
-      return pick([`${answer} — got it!`, `Nice, ${answer} it is.`, `Great, aiming for ${answer}.`]);
-    case "career_stage":
-      return pick(["Thanks, noted.", "Got it, that helps.", "Good to know."]);
-    case "has_experience":
-      return normalized === "yes"
-        ? pick(["Great, let's talk about it.", "Awesome, let's dig into that.", "Nice — let's hear more."])
-        : pick(["No worries — let's look at projects instead.", "That's fine, we'll cover projects instead.", "All good — let's talk projects."]);
-    case "exp_company":
-      return pick(["Nice, tell me more about that role.", "Got it — let's talk about your time there.", "Good, let's dig into that role."]);
-    case "exp_title":
-      return pick(["Got it.", "Noted.", "Good to know."]);
-    case "exp_start":
-      return pick(["Noted.", "Got it.", "Thanks."]);
-    case "exp_end":
-      return pick(["Got it.", "Noted.", "Thanks."]);
-    case "exp_work":
-    case "exp_work_followup":
-      return pick(["Sounds great!", "Nice, that's solid experience.", "Great — that's useful detail."]);
-    case "has_projects":
-      return normalized === "yes"
-        ? pick(["Love that — let's hear about it.", "Nice, let's dig in.", "Great, tell me more."])
-        : pick(["No problem, let's move to education.", "That's fine — let's cover education.", "All good, on to education."]);
-    case "project_name":
-      return pick(["Cool, tell me more.", "Nice, let's hear about it.", "Got it, tell me more."]);
-    case "project_work":
-    case "project_work_followup":
-      return pick(["Nice work!", "That sounds great.", "Great — that's helpful detail."]);
-    case "edu_institution":
-      return pick(["Got it.", "Noted.", "Thanks."]);
-    case "edu_degree":
-      return pick(["Nice.", "Good to know.", "Got it."]);
-    case "edu_dates":
-      return pick(["Noted.", "Got it.", "Thanks."]);
-    case "skills":
-      return pick(["Great skill set!", "Nice mix of skills.", "That's a solid set of skills."]);
-    case "has_certifications":
-      return normalized === "yes"
-        ? pick(["Nice, let's add those.", "Great, tell me about them."])
-        : pick(["No problem, moving on.", "That's fine — on we go."]);
-    case "certifications_list":
-      return pick(["Nice, that'll strengthen your CV.", "Great, noted."]);
-    case "languages":
-      return pick(["Good to know.", "Noted, thanks."]);
-    case "summary_intro":
-      return pick(["Love that.", "Great intro.", "Nice, that's a good start."]);
-    case "summary_enjoy":
-      return pick(["That's great to know.", "Nice, good to know.", "Great, noted."]);
-    case "summary_years":
-      return pick(["Perfect, almost done!", "Great, almost there!", "Nice, just about done!"]);
-    default:
-      return "Got it!";
-  }
-}
-
-function ZeniAvatar({ size = "sm" }: { size?: "sm" | "lg" }) {
-  const dims = size === "lg" ? "w-14 h-14" : "w-7 h-7";
-  const iconDims = size === "lg" ? "w-6 h-6" : "w-3.5 h-3.5";
-  return (
-    <div
-      className={`${dims} rounded-full flex items-center justify-center flex-shrink-0 text-white`}
-      style={{ backgroundColor: "#2563eb" }}
-    >
-      <Sparkles className={iconDims} />
-    </div>
-  );
-}
-
-function TypingBubble() {
-  return (
-    <div className="flex items-end gap-2 animate-in fade-in duration-200" aria-label="Zeni is typing">
-      <ZeniAvatar />
-      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
-        <span className="typing-dot" />
-        <span className="typing-dot" style={{ animationDelay: "0.2s" }} />
-        <span className="typing-dot" style={{ animationDelay: "0.4s" }} />
-      </div>
-    </div>
-  );
-}
-
-function MentorBubble({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-end gap-2 animate-in fade-in slide-in-from-bottom-1 duration-300">
-      <ZeniAvatar />
-      <div className="max-w-[85%] bg-[#161b22] border border-[#30363d] text-[#e6edf3] text-sm rounded-2xl rounded-bl-sm px-4 py-2.5">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function MentorAckBubble({ text }: { text: string }) {
-  return (
-    <div className="flex items-end gap-2 animate-in fade-in slide-in-from-bottom-1 duration-300">
-      <ZeniAvatar />
-      <div className="max-w-[85%] bg-[#161b22]/60 border border-[#30363d]/60 text-[#8b949e] text-xs italic rounded-2xl rounded-bl-sm px-3.5 py-2">
-        {text}
-      </div>
-    </div>
-  );
-}
-
-function ChecklistPanel({
-  doneKeys,
-  flashKeys,
-  className,
-}: {
-  doneKeys: Set<string>;
-  flashKeys: Set<string>;
-  className: string;
-}) {
-  return (
-    <div className={className}>
-      <p className="text-[10px] font-semibold text-[#8b949e] uppercase tracking-wider mb-2">
-        Building your CV
-      </p>
-      <div className="flex flex-col gap-2">
-        {CHECKLIST_ITEMS.map((item) => {
-          const done = doneKeys.has(item.key);
-          const flashing = flashKeys.has(item.key);
-          return (
-            <div
-              key={item.key}
-              className={`flex items-center gap-2 rounded-lg px-2.5 py-2 border transition-colors duration-500 ${
-                done ? "border-blue-600/30 bg-blue-600/5" : "border-[#30363d] bg-transparent"
-              } ${flashing ? "checklist-flash" : ""}`}
-            >
-              {done ? (
-                <CheckCircle2
-                  className={`w-4 h-4 text-blue-400 flex-shrink-0 ${flashing ? "animate-in zoom-in duration-300" : ""}`}
-                />
-              ) : (
-                <Circle className="w-4 h-4 text-[#484f58] flex-shrink-0" />
-              )}
-              <span className={`text-xs ${done ? "text-[#e6edf3]" : "text-[#8b949e]"}`}>{item.label}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function WelcomeScreen({
-  onStart,
-  starting,
-  error,
-}: {
-  onStart: () => void;
-  starting: boolean;
-  error: string | null;
-}) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center gap-7 px-4">
-      <div className="relative mx-auto w-32 sm:w-40 animate-in fade-in zoom-in-95 duration-700">
-        <div
-          className="pointer-events-none absolute inset-0 scale-150 rounded-full opacity-40"
-          style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)", filter: "blur(40px)" }}
-        />
-        <Image
-          src="/zeniai.png"
-          alt="Zeni, your AI Career Partner"
-          width={587}
-          height={949}
-          className="relative w-full h-auto drop-shadow-[0_15px_35px_rgba(37,99,235,0.35)]"
-          priority
-        />
-      </div>
-      <div className="space-y-3 max-w-sm animate-in fade-in slide-in-from-bottom-1 duration-500">
-        <p className="text-white font-semibold text-xl">👋 Welcome to ZenzHire!</p>
-        <p className="text-[#8b949e] text-sm leading-relaxed">
-          I&apos;m Zeni, your AI Career Partner. I&apos;ll help you build your CV in about 5 minutes.
-        </p>
-      </div>
-      {error && <p className="text-red-400 text-xs">{error}</p>}
-      <button
-        onClick={onStart}
-        disabled={starting}
-        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2"
-      >
-        {starting && <Loader2 className="w-4 h-4 animate-spin" />}
-        Let&apos;s start
-      </button>
-    </div>
-  );
-}
-
-function OnboardingFlow() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const templateId = (searchParams.get("template") ?? "classic") as TemplateId;
-
-  const [cvId, setCvId] = useState<number | null>(null);
-  const [step, setStep] = useState<string | null>(null);
-  const [question, setQuestion] = useState("");
-  const [inputType, setInputType] = useState<"text" | "buttons" | "none">("text");
-  const [options, setOptions] = useState<string[] | null>(null);
-  const [progress, setProgress] = useState({ current: 1, total: 18 });
-  const [context, setContext] = useState<Record<string, string>>({});
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [textValue, setTextValue] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [complete, setComplete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [started, setStarted] = useState(false);
-  const [awaitingStart, setAwaitingStart] = useState(false);
-  const [prefetched, setPrefetched] = useState<CareerMentorStep | null>(null);
-  const [revealPhase, setRevealPhase] = useState<RevealPhase>("question");
-  const [ackText, setAckText] = useState<string | null>(null);
-  const [mobileChecklistOpen, setMobileChecklistOpen] = useState(false);
-  const [flashKeys, setFlashKeys] = useState<Set<string>>(new Set());
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const startedRef = useRef(false);
-  const revealTimers = useRef<number[]>([]);
-  const prevDoneRef = useRef<Set<string>>(new Set());
-
-  const doneKeys = useMemo(() => computeDoneKeys(context), [context]);
-
-  useEffect(() => {
-    const newlyDone = [...doneKeys].filter((k) => !prevDoneRef.current.has(k));
-    prevDoneRef.current = doneKeys;
-    if (newlyDone.length > 0) {
-      setFlashKeys(new Set(newlyDone));
-      const t = window.setTimeout(() => setFlashKeys(new Set()), 1200);
-      return () => window.clearTimeout(t);
+function initialDraft(step: CareerMentorStep): Draft {
+  const prefill = step.prefill;
+  switch (step.input_type) {
+    case "list":
+      return Array.isArray(prefill) ? (prefill as string[]) : [];
+    case "fields": {
+      const values: FieldValues = {};
+      for (const f of step.fields ?? []) values[f.name] = f.type === "checkbox" ? false : "";
+      return prefill && typeof prefill === "object" ? { ...values, ...(prefill as FieldValues) } : values;
     }
-  }, [doneKeys]);
+    default:
+      return typeof prefill === "string" ? prefill : "";
+  }
+}
 
-  const clearRevealTimers = () => {
-    revealTimers.current.forEach((t) => window.clearTimeout(t));
-    revealTimers.current = [];
+function isEmpty(step: CareerMentorStep, draft: Draft): boolean {
+  if (Array.isArray(draft)) return draft.length === 0;
+  if (typeof draft === "string") return !draft.trim();
+  return (step.fields ?? []).every((f) => f.type === "checkbox" || !String(draft[f.name] ?? "").trim());
+}
+
+// Mirrors the backend's normalize_answer rules so Continue is only enabled when
+// the answer will be accepted (the backend still re-validates everything).
+function isValid(step: CareerMentorStep, draft: Draft): boolean {
+  if (step.input_type === "buttons") return (step.options ?? []).some((o) => o.value === draft);
+  if (step.input_type === "fields") {
+    const values = draft as FieldValues;
+    return (step.fields ?? []).every((f) => f.type === "checkbox" || !isFieldRequired(f, values) || String(values[f.name] ?? "").trim());
+  }
+  return !isEmpty(step, draft);
+}
+
+/** Optional steps (and steps whose fields are all optional) can be skipped. */
+function isSkippable(step: CareerMentorStep): boolean {
+  return step.optional || (step.input_type === "fields" && (step.fields ?? []).every((f) => !f.required));
+}
+
+function toAnswer(step: CareerMentorStep, draft: Draft): CareerMentorAnswer {
+  if (typeof draft === "string") return draft.trim();
+  return draft;
+}
+
+export default function QuickStartQuestionsPage() {
+  const router = useRouter();
+  const [phase, setPhase] = useState<"loading" | "question" | "writing" | "ready">("loading");
+  const [step, setStep] = useState<CareerMentorStep | null>(null);
+  const [draft, setDraft] = useState<Draft>("");
+  const [ack, setAck] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"answer" | "back" | "skip" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [finish, setFinish] = useState<FinishState | null>(null);
+  const [finishDone, setFinishDone] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [readyCvId, setReadyCvId] = useState<number | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const startedRef = useRef(false);
+
+  const showStep = (next: CareerMentorStep, nextAck: string | null) => {
+    setStep(next);
+    setDraft(initialDraft(next));
+    setAck(nextAck);
+    setError(null);
+    setPhase("question");
+    saveQuickStart({ phase: "question", step: next });
   };
 
-  useEffect(() => clearRevealTimers, []);
-
-  const finalizeReveal = (data: CareerMentorStep) => {
-    setStep(data.step);
-    setQuestion(data.question);
-    setInputType(data.input_type);
-    setOptions(data.options);
-    setComplete(data.complete);
-    setRevealPhase(data.complete ? "complete" : "question");
-  };
-
-  const revealNext = (data: CareerMentorStep, ack: string | null) => {
-    setCvId(data.cv_id);
-    setProgress(data.progress);
-    setContext(data.context ?? {});
-    setAckText(ack);
-    setRevealPhase("typing");
-    const t1 = window.setTimeout(() => {
-      if (ack) {
-        setRevealPhase("ack");
-        const t2 = window.setTimeout(() => finalizeReveal(data), 500);
-        revealTimers.current.push(t2);
-      } else {
-        finalizeReveal(data);
+  const runFinish = async (state: FinishState) => {
+    setFinish(state);
+    setFinishDone(false);
+    setPhase("writing");
+    saveQuickStart({ phase: "finish", ...state });
+    try {
+      await careerMentorApi.finish({ cv_id: state.cvId, context: state.context });
+    } catch (err) {
+      // 409 = already generated (e.g. a reload after it finished): the CV is done.
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status !== 409) {
+        setFinishError(apiErrorMessage(err, "Zeni couldn't finish writing right now."));
+        return;
       }
-    }, 750);
-    revealTimers.current.push(t1);
+    }
+    setFinishDone(true);
+    saveQuickStart({ phase: "ready", cvId: state.cvId });
+    window.setTimeout(() => {
+      setReadyCvId(state.cvId);
+      setPhase("ready");
+    }, 600);
   };
 
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+    const saved = loadQuickStart();
+    if (saved?.phase === "question") return showStep(saved.step, null);
+    if (saved?.phase === "finish") {
+      runFinish({ cvId: saved.cvId, context: saved.context, hasExperience: saved.hasExperience });
+      return;
+    }
+    if (saved?.phase === "ready") {
+      setReadyCvId(saved.cvId);
+      setPhase("ready");
+      return;
+    }
     careerMentorApi
-      .start(templateId)
-      .then((res) => {
-        setCvId(res.data.cv_id);
-        setPrefetched(res.data);
-      })
+      .start()
+      .then((res) => showStep(res.data, null))
       .catch((err) => {
-        setError(
-          (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-            "Couldn't start the conversation. Please try again."
-        );
+        setPhase("question");
+        setError(apiErrorMessage(err, "Couldn't start. Please check your connection and try again."));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Move focus to the new question so screen readers announce it.
   useEffect(() => {
-    if (awaitingStart && prefetched) {
-      setAwaitingStart(false);
-      setStarted(true);
-      revealNext(prefetched, null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [awaitingStart, prefetched]);
+    if (phase === "question" && step) headingRef.current?.focus({ preventScroll: true });
+  }, [phase, step?.step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [history, revealPhase, ackText, question, complete, mobileChecklistOpen]);
-
-  const handleStart = () => {
-    setError(null);
-    if (prefetched) {
-      setStarted(true);
-      revealNext(prefetched, null);
-    } else {
-      setAwaitingStart(true);
-    }
-  };
-
-  const submitAnswer = async (answerValue: string) => {
-    if (!cvId || !step || submitting || revealPhase !== "question") return;
-    const trimmed = answerValue.trim();
-    if (!trimmed) return;
-
-    const askedQuestion = question;
-    const answeredStep = step;
-    setHistory((prev) => [...prev, { question: askedQuestion, answer: trimmed }]);
-    setTextValue("");
-    setSubmitting(true);
+  const submit = async () => {
+    if (!step || busy) return;
+    const skipping = isSkippable(step) && isEmpty(step, draft);
+    if (!skipping && !isValid(step, draft)) return;
+    const answer = toAnswer(step, draft);
+    setBusy("answer");
     setError(null);
     try {
-      const res = await careerMentorApi.answer({ cv_id: cvId, step, answer: trimmed, context });
-      setSubmitting(false);
-      revealNext(res.data, getAck(answeredStep, trimmed, res.data.step));
-    } catch {
-      setError("Something went wrong saving that answer — please try again.");
-      setHistory((prev) => prev.slice(0, -1));
-      setSubmitting(false);
+      const res = await careerMentorApi.answer({ cv_id: step.cv_id, step: step.step, answer, context: step.context });
+      const next = res.data;
+      if (next.complete && next.cv_id) {
+        runFinish({ cvId: next.cv_id, context: next.context, hasExperience: next.context.has_experience !== "no" });
+      } else {
+        showStep(next, skipping ? null : getAck(step.step, answer, next.step));
+      }
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const message = apiErrorMessage(err, "Couldn't save that answer. Please try again.");
+      if (status === 403) setLimitMessage(message);
+      else setError(message);
+    } finally {
+      setBusy(null);
     }
   };
 
-  const handleSkip = () => router.push(cvId ? `/cv-builder/${cvId}` : "/cv-builder");
+  const goBack = async () => {
+    if (!step || busy) return;
+    if (!step.can_go_back) {
+      router.push("/cv-builder/start");
+      return;
+    }
+    setBusy("back");
+    setError(null);
+    try {
+      const res = await careerMentorApi.back({ cv_id: step.cv_id, step: step.step, context: step.context });
+      showStep(res.data, null);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Couldn't go back. Please try again."));
+    } finally {
+      setBusy(null);
+    }
+  };
 
-  const inputBusy = submitting || revealPhase !== "question";
-  const doneLabels = CHECKLIST_ITEMS.filter((i) => doneKeys.has(i.key)).map((i) => i.label);
+  // Skip: before the first answer there's no CV yet, so behave like "Fill it in
+  // myself"; afterwards open the CV the quick-start already created.
+  const skip = async () => {
+    if (busy) return;
+    if (step?.cv_id) {
+      clearQuickStart();
+      router.push(`/cv-builder/${step.cv_id}`);
+      return;
+    }
+    setBusy("skip");
+    try {
+      const id = await createBuilderCv();
+      clearQuickStart();
+      router.push(`/cv-builder/${id}`);
+    } catch (err) {
+      setLimitMessage(apiErrorMessage(err, "Couldn't create your CV. Please try again."));
+      setBusy(null);
+    }
+  };
+
+  if (phase === "writing" && finish) {
+    return (
+      <WritingScreen
+        hasExperience={finish.hasExperience}
+        done={finishDone}
+        error={finishError}
+        retrying={retrying}
+        onRetry={async () => {
+          setRetrying(true);
+          setFinishError(null);
+          await runFinish(finish);
+          setRetrying(false);
+        }}
+        onContinueWithout={() => {
+          clearQuickStart();
+          router.push(`/cv-builder/${finish.cvId}`);
+        }}
+      />
+    );
+  }
+
+  if (phase === "ready" && readyCvId) return <ReadyScreen cvId={readyCvId} />;
+
+  const skippable = step ? isSkippable(step) : false;
+  const empty = step ? isEmpty(step, draft) : true;
+  const showSkipLabel = skippable && empty;
+  const canContinue = !!step && !busy && (showSkipLabel || isValid(step, draft));
+  const progress = step?.progress ?? { current: 1, total: 11 };
 
   return (
-    <div className="flex flex-col overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden max-w-2xl w-full mx-auto px-4 sm:px-6">
-          {/* Header */}
-          <div className="flex items-center justify-between py-4 flex-shrink-0 gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <ZeniAvatar />
-              <span className="text-white font-semibold text-sm whitespace-nowrap">Zeni</span>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              {started && !complete && (
-                <button
-                  onClick={() => setMobileChecklistOpen((v) => !v)}
-                  className="md:hidden flex items-center gap-1 text-[11px] text-[#8b949e] hover:text-white border border-[#30363d] rounded-full px-2.5 py-1 transition-colors"
-                >
-                  <CheckCircle2 className="w-3 h-3" /> {doneKeys.size}/{CHECKLIST_ITEMS.length}
-                </button>
+    <QuickStartShell
+      header={
+        <>
+          <div className="flex items-center justify-between gap-2 px-2 pt-2">
+            <button
+              type="button"
+              aria-label="Back"
+              onClick={goBack}
+              disabled={!step || !!busy}
+              className={cn(
+                "w-11 h-11 rounded-lg flex items-center justify-center text-[#c9d1d9] hover:text-white hover:bg-[#21262d] disabled:opacity-40 transition-colors",
+                focusRing,
               )}
-              <button
-                onClick={handleSkip}
-                className="text-xs text-[#8b949e] hover:text-white transition-colors whitespace-nowrap"
-              >
-                <span className="hidden sm:inline">Skip for now — I&apos;ll fill this in myself</span>
-                <span className="sm:hidden">Skip</span>
-              </button>
-            </div>
+            >
+              {busy === "back" ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : <ArrowLeft className="w-5 h-5" aria-hidden="true" />}
+            </button>
+            <p className="text-sm text-[#8b949e] font-medium" aria-live="polite">
+              {step && `Step ${progress.current} of ${progress.total}`}
+            </p>
+            <button
+              type="button"
+              onClick={skip}
+              disabled={!!busy}
+              className={cn(
+                "min-h-[44px] px-3 rounded-lg text-sm font-medium text-[#c9d1d9] hover:text-white hover:bg-[#21262d] disabled:opacity-40 transition-colors inline-flex items-center gap-1.5",
+                focusRing,
+              )}
+            >
+              {busy === "skip" && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+              Skip
+            </button>
+          </div>
+          <div
+            role="progressbar"
+            aria-label="Progress"
+            aria-valuemin={0}
+            aria-valuemax={progress.total}
+            aria-valuenow={progress.current}
+            className="h-1 bg-[#21262d] mt-1"
+          >
+            <div
+              className="h-full bg-[#2563eb] transition-[width] duration-300"
+              style={{ width: `${Math.min(100, (progress.current / progress.total) * 100)}%` }}
+            />
+          </div>
+        </>
+      }
+      footer={
+        <div>
+          {error && (
+            <p role="alert" className="text-sm text-red-400 mb-2.5">
+              {error}
+            </p>
+          )}
+          <button type="button" onClick={submit} disabled={!canContinue} className={primaryButton} data-qs-continue>
+            {busy === "answer" && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+            {showSkipLabel ? "Skip this question" : "Continue"}
+          </button>
+        </div>
+      }
+      mainClassName="pt-5 pb-6"
+    >
+      {phase === "loading" || !step ? (
+        <div className="flex items-center justify-center py-20">
+          {!error && <Loader2 className="w-6 h-6 text-blue-400 animate-spin" aria-label="Loading" />}
+        </div>
+      ) : (
+        <div key={step.step} data-step={step.step} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+          {ack && (
+            <p className="flex items-center gap-1.5 text-sm text-emerald-300 mb-4">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+              {ack}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            <ZeniAvatar />
+            <span className="text-sm font-medium text-[#8b949e]">Zeni</span>
+          </div>
+          <h1 ref={headingRef} tabIndex={-1} className="text-white text-[22px] leading-snug font-bold mt-3 focus:outline-none">
+            {step.question}
+          </h1>
+          {step.hint && <p className="text-[#8b949e] text-[15px] mt-2">{step.hint}</p>}
+
+          <div className="mt-6">
+            <StepInput step={step} draft={draft} setDraft={setDraft} onEnter={submit} />
           </div>
 
-          {!started ? (
-            <WelcomeScreen onStart={handleStart} starting={awaitingStart} error={error} />
-          ) : (
-            <>
-              {/* Mobile collapsible checklist */}
-              {mobileChecklistOpen && !complete && (
-                <div className="md:hidden mb-3 animate-in slide-in-from-top-1 fade-in duration-200 flex-shrink-0">
-                  <ChecklistPanel
-                    doneKeys={doneKeys}
-                    flashKeys={flashKeys}
-                    className="bg-[#161b22] border border-[#30363d] rounded-lg p-3"
-                  />
-                </div>
-              )}
-
-              {/* Progress */}
-              {!complete && !error && (
-                <div className="flex-shrink-0 mb-4">
-                  <p className="text-[11px] text-[#8b949e] mb-1.5">
-                    Step {Math.min(progress.current, progress.total)} of {progress.total}
-                  </p>
-                  <div className="h-1.5 bg-[#21262d] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, (progress.current / progress.total) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Chat history */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pb-4">
-                {history.map((h, i) => (
-                  <div key={i} className="space-y-2">
-                    <MentorBubble>{h.question}</MentorBubble>
-                    <div className="flex justify-end">
-                      <div className="max-w-[85%] bg-blue-600 text-white text-sm rounded-2xl rounded-br-sm px-4 py-2.5">
-                        {h.answer}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {revealPhase === "typing" && <TypingBubble />}
-                {revealPhase === "ack" && ackText && <MentorAckBubble text={ackText} />}
-                {revealPhase === "question" && !complete && question && <MentorBubble>{question}</MentorBubble>}
-
-                {complete && (
-                  <div className="flex flex-col items-center text-center gap-3 py-10 animate-in fade-in duration-500">
-                    <div className="relative w-16 h-16 flex items-center justify-center">
-                      <div className="absolute inset-0 rounded-full bg-blue-600/20 animate-ping" />
-                      <div className="relative w-16 h-16 rounded-full bg-blue-600/10 border border-blue-600/30 flex items-center justify-center animate-in zoom-in duration-500">
-                        <Check className="w-7 h-7 text-blue-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold text-base">🎉 Your CV is ready!</p>
-                      <p className="text-[#8b949e] text-sm mt-1.5 max-w-sm">
-                        Here&apos;s what I built for you — {formatList(doneLabels)}, all ready to review.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => cvId && router.push(`/cv-builder/${cvId}`)}
-                      className="mt-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
-                    >
-                      View My CV
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Input area */}
-              {!complete && (
-                <div className="flex-shrink-0 border-t border-[#30363d] py-4">
-                  {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
-
-                  {inputBusy ? (
-                    <div className="flex items-center gap-2 text-[#8b949e] text-sm py-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> {submitting ? "Saving..." : "Zeni is responding..."}
-                    </div>
-                  ) : inputType === "buttons" && options ? (
-                    <div className="flex flex-wrap gap-2">
-                      {options.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => submitAnswer(opt)}
-                          className="px-4 py-2 rounded-full border border-[#30363d] text-[#e6edf3] text-sm hover:border-blue-500 hover:bg-blue-600/10 hover:text-blue-400 transition-colors"
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  ) : inputType === "text" ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        autoFocus
-                        value={textValue}
-                        onChange={(e) => setTextValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && textValue.trim()) submitAnswer(textValue);
-                        }}
-                        placeholder="Type your answer..."
-                        className="flex-1 bg-[#161b22] border border-[#30363d] rounded-full px-4 py-2.5 text-sm text-[#e6edf3] placeholder:text-[#484f58] focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                      <button
-                        onClick={() => textValue.trim() && submitAnswer(textValue)}
-                        disabled={!textValue.trim()}
-                        className="w-10 h-10 flex-shrink-0 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors"
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </>
+          {WORK_STEPS.has(step.step) && (
+            <p className="text-[13px] text-[#8b949e] mt-3">Know any numbers? Add them. If not, that&apos;s okay.</p>
           )}
         </div>
+      )}
 
-        {/* Desktop live checklist sidebar */}
-        {started && !complete && (
-          <ChecklistPanel
-            doneKeys={doneKeys}
-            flashKeys={flashKeys}
-            className="hidden md:block w-56 flex-shrink-0 border-l border-[#30363d] p-4 overflow-y-auto"
-          />
-        )}
-      </div>
-    </div>
+      <PlanLimitDialog message={limitMessage} onClose={() => setLimitMessage(null)} />
+    </QuickStartShell>
   );
 }
 
-export default function OnboardingPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center" style={{ height: "calc(100vh - 64px)" }}>
-          <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+function StepInput({
+  step,
+  draft,
+  setDraft,
+  onEnter,
+}: {
+  step: CareerMentorStep;
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+  onEnter: () => void;
+}) {
+  switch (step.input_type) {
+    case "buttons":
+      return (
+        <ChoiceCards
+          label={step.question}
+          options={step.options ?? []}
+          value={typeof draft === "string" ? draft : ""}
+          onChange={setDraft}
+          layout={step.step === "has_experience" ? "pair" : "list"}
+        />
+      );
+    case "list":
+      return (
+        <SkillsAnswer
+          suggestions={skillSuggestions(String(step.context.target_role ?? ""))}
+          value={Array.isArray(draft) ? draft : []}
+          onChange={setDraft}
+        />
+      );
+    case "fields":
+      if (step.step === "exp_dates") return <DatesAnswer values={draft as FieldValues} onChange={setDraft} />;
+      return <FieldsAnswer fields={step.fields ?? []} values={draft as FieldValues} onChange={setDraft} onEnter={onEnter} />;
+    default: {
+      const value = typeof draft === "string" ? draft : "";
+      const long = WORK_STEPS.has(step.step) || step.step === "goal";
+      return (
+        <div className="flex flex-col gap-4">
+          <TextAnswer
+            label={TEXT_LABELS[step.step] ?? "Your answer"}
+            value={value}
+            onChange={setDraft}
+            onEnter={onEnter}
+            multiline={long}
+            maxLength={long ? (step.step === "goal" ? 300 : 1000) : 200}
+            placeholder={step.step === "target_role" ? "e.g. Accountant" : undefined}
+          />
+          {step.step === "target_role" && (
+            <SuggestionChips
+              label="Popular jobs"
+              options={ROLE_SUGGESTIONS}
+              isSelected={(role) => value.trim().toLowerCase() === role.toLowerCase()}
+              onPick={setDraft}
+            />
+          )}
         </div>
-      }
-    >
-      <OnboardingFlow />
-    </Suspense>
-  );
+      );
+    }
+  }
 }

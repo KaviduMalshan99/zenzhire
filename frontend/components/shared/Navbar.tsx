@@ -17,6 +17,10 @@ const navLinks = [
   { href: "/profile", label: "Profile", icon: UserIcon },
 ];
 
+// The quick-start covers the whole phone screen (see QuickStartShell), so the
+// navbar is hidden there below md; on desktop it stays.
+const FULL_SCREEN_MOBILE_ROUTES = ["/cv-builder/start", "/cv-builder/onboarding"];
+
 export function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -39,7 +43,13 @@ export function Navbar() {
   }, [menuOpen]);
 
   return (
-    <nav ref={menuRef} className="border-b border-[#30363d] bg-[#0d1117] sticky top-0 z-50">
+    <nav
+      ref={menuRef}
+      className={cn(
+        "border-b border-[#30363d] bg-[#0d1117] sticky top-0 z-50",
+        FULL_SCREEN_MOBILE_ROUTES.includes(pathname) && "hidden md:block"
+      )}
+    >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link href="/dashboard" className="flex items-center">
