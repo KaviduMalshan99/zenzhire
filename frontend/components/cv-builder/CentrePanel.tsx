@@ -27,6 +27,7 @@ import { AuroraTemplate, AURORA_SIDEBAR_TYPES, AURORA_GRAY_ZONE_HEIGHT, AURORA_G
 import { NovaTemplate, NOVA_FOOTER_HEIGHT } from "./templates/NovaTemplate";
 import { cn } from "@/lib/utils";
 import { DownloadSuccessDialog } from "@/components/shared/DownloadSuccessDialog";
+import { exportCvPdf } from "@/lib/pdf-export";
 
 interface Props {
   cv: CVDocument;
@@ -37,6 +38,8 @@ interface Props {
   onSendToATS?: () => void;
   onSectionDataChange?: (section: CVSection, data: Record<string, any>) => void;
   onReorder?: (sections: CVSection[]) => void;
+  /** false = preview only (quick-start Ready screen): no zoom/ATS/download toolbar. */
+  showToolbar?: boolean;
 }
 
 const A4_W = 794;
@@ -207,7 +210,7 @@ function calcPageLayout(el: HTMLElement): PageLayout {
   return { starts, sidebarStarts, bodyTop, sidebarBottom, sectionPage };
 }
 
-export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS, onSectionDataChange, onReorder }: Props) {
+export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, onSendToATS, onSectionDataChange, onReorder, showToolbar = true }: Props) {
   const hiddenRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [showDownloadSuccess, setShowDownloadSuccess] = useState(false);
@@ -274,38 +277,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
   const handleExportPDF = async () => {
     setExporting(true);
     try {
-      const token = document.cookie
-        .split(";")
-        .find((c) => c.trim().startsWith("token="))
-        ?.split("=")[1];
-
-      if (!token) throw new Error("Not authenticated");
-
-      const personalSection = sections.find((s) => s.section_type === "personal_details");
-      const name = personalSection?.data?.full_name || "cv";
-
-      const fileName = `${name}-zenzhire`;
-
-      const response = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cvId: cv.id, token, fileName, templateId: cv.template_id }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.details || err.error || "PDF export failed");
-      }
-
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `${fileName}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
+      await exportCvPdf(cv, sections);
       setShowDownloadSuccess(true);
     } catch (e) {
       console.error("PDF export error:", e);
@@ -436,6 +408,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
           instead of one solid color. */}
       <style>{`.cv-page-card .aurora-sidebar { background: none; }`}</style>
       {/* Toolbar */}
+      {showToolbar && (
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] flex-shrink-0 bg-[#0d1117]">
         <div className="flex items-center gap-1">
           <button
@@ -493,6 +466,7 @@ export function CentrePanel({ cv, sections, zoom, customization, onZoomChange, o
           </button>
         </div>
       </div>
+      )}
 
       {/* Hidden off-screen div â€” single continuous render for measurement + PDF export */}
       <div
