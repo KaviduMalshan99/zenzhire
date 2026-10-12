@@ -73,6 +73,7 @@ def test_no_experience_branch_reaches_the_end():
     assert content["experience"]["entries"] == []
     assert content["projects"]["entries"][0]["title"] == "Library app"
     assert [e["skill_name"] for e in content["skills"]["entries"]] == ["React", "JavaScript", "git"]
+    assert content["skills"]["_title"] == "Skills"
     assert content["education"]["entries"][0]["end_date"] == "Expected 2027"
 
 

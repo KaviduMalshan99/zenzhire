@@ -526,6 +526,9 @@ def cv_content(context: dict, polished: dict | None = None) -> dict[str, Any]:
     content["education"] = {"entries": education_entries}
 
     content["skills"] = {
+        # Plain "Skills", not the templates' default "Technical Skills": quick-start
+        # skills are often things like "Cash handling". Same _title key a user rename uses.
+        "_title": "Skills",
         "display_style": "text",
         "entries": [
             {"id": f"onboarding-skill-{i}", "skill_name": name, "level": "", "subskills": ""}
