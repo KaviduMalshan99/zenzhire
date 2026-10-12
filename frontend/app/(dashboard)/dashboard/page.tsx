@@ -26,6 +26,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
+import { CAREER_MENTOR_ENABLED } from "@/lib/feature-flags";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 
 // ── CV card with inline rename + dropdown menu ─────────────────────────────────
@@ -239,6 +240,7 @@ export default function DashboardPage() {
   }
 
   const latestScore = atsHistory[0]?.overall_score;
+  const hasNoCvs = !loading && cvs.length === 0;
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 w-full">
@@ -246,7 +248,7 @@ export default function DashboardPage() {
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-white">
-            Welcome back, {user?.full_name?.split(" ")[0] ?? "there"} 👋
+            {loading ? " " : `${hasNoCvs ? "Welcome" : "Welcome back"}, ${user?.full_name?.split(" ")[0] ?? "there"} 👋`}
           </h1>
           <p className="text-[#8b949e] mt-1">Here&apos;s an overview of your career toolkit.</p>
         </div>
@@ -281,7 +283,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
-            href="/dashboard/templates"
+            href={CAREER_MENTOR_ENABLED && hasNoCvs ? "/cv-builder/start" : "/dashboard/templates"}
             className="bg-[#161b22] border border-[#30363d] hover:border-blue-600/50 rounded-lg p-6 flex items-center justify-between group transition-colors"
           >
             <div className="flex items-center gap-4">

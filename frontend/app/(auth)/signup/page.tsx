@@ -13,6 +13,7 @@ import { signup } from "@/lib/auth";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { PasswordStrengthMeter } from "@/components/shared/PasswordStrengthMeter";
 import { PASSWORD_MIN_LENGTH, isPasswordValid, getPasswordHints } from "@/lib/password";
+import { CAREER_MENTOR_ENABLED } from "@/lib/feature-flags";
 
 const schema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -49,7 +50,8 @@ export default function SignupPage() {
     try {
       await signup(values.email, values.password, values.full_name);
       toast.success("Account created! Welcome to ZenzHire.");
-      router.push("/dashboard");
+      // A brand-new account has no CVs yet, so it starts on the quick-start welcome.
+      router.push(CAREER_MENTOR_ENABLED ? "/cv-builder/start" : "/dashboard");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||

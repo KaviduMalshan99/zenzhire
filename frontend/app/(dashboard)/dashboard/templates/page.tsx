@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import type { CVDocument } from "@/types";
-import { DEFAULT_CUSTOMIZATION, TEMPLATE_DEFAULT_CUSTOMIZATION } from "@/types";
-import { CAREER_MENTOR_ENABLED } from "@/lib/feature-flags";
+import { templatePickerCustomization } from "@/lib/quickstart";
 import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 import { Lock, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -97,31 +96,21 @@ export default function TemplatesPage() {
       return;
     }
 
-    if (!CAREER_MENTOR_ENABLED) {
-      setCreating(template.id);
-      try {
-        const templateDefaults = TEMPLATE_DEFAULT_CUSTOMIZATION[template.id] ?? {};
-        const res = await api.post<CVDocument>("/cv/", {
-          title: "My CV",
-          template_id: template.id,
-          customization: {
-            ...DEFAULT_CUSTOMIZATION,
-            ...templateDefaults,
-            spacing: "normal",
-            skillStyle: "classic",
-            skillColumns: 2,
-          },
-        });
-        router.push(`/cv-builder/${res.data.id}`);
-      } catch (err: any) {
-        setLimitMessage(err?.response?.data?.detail || "Failed to create CV. Please try again.");
-      } finally {
-        setCreating(null);
-      }
-      return;
+    // The user picked a specific template, so create the CV with it directly (the
+    // quick-start chooses its own template from the career stage, see section 38).
+    setCreating(template.id);
+    try {
+      const res = await api.post<CVDocument>("/cv/", {
+        title: "My CV",
+        template_id: template.id,
+        customization: templatePickerCustomization(template.id),
+      });
+      router.push(`/cv-builder/${res.data.id}`);
+    } catch (err: any) {
+      setLimitMessage(err?.response?.data?.detail || "Failed to create CV. Please try again.");
+    } finally {
+      setCreating(null);
     }
-
-    router.push(`/cv-builder/onboarding?template=${template.id}`);
   };
 
   return (

@@ -1,11 +1,11 @@
 // Temporary launch-day flags. Flip back and remove once no longer needed.
 
-// Career Mentor conversational onboarding (the "New CV" -> chat wizard flow)
-// is disabled for launch to reduce risk; it needs more real-world testing.
-// Re-enable by flipping this to true — no other code changes required.
-// The Career Mentor backend routes, DB usage, and UI code are untouched and
-// still fully functional; this only controls the "New CV" entry point.
-export const CAREER_MENTOR_ENABLED = false;
+// Career Mentor quick-start (PROJECT_CONTEXT.md section 38). When true, users
+// with 0 CVs land on the /cv-builder/start welcome screen after signup (email
+// and Google) and from the dashboard's "Create New CV" / My CVs "New CV".
+// When false those entry points go to the dashboard / template picker as before.
+// The template picker always creates a CV directly with the chosen template.
+export const CAREER_MENTOR_ENABLED = true;
 
 // 2-week promotional "50% OFF" display on the Pricing page's 7-Day Pass
 // card (started 2026-07-25). Display-only — the actual PAYable checkout

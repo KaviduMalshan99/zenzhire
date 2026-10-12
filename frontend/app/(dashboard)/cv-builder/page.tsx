@@ -9,6 +9,7 @@ import { Plus, Loader2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlanLimitDialog } from "@/components/shared/PlanLimitDialog";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
+import { CAREER_MENTOR_ENABLED } from "@/lib/feature-flags";
 
 const TEMPLATE_LABELS: Record<string, string> = {
   classic: "Classic",
@@ -197,7 +198,7 @@ export default function CVBuilderPage() {
   }, []);
 
   const handleCreate = () => {
-    router.push("/dashboard/templates");
+    router.push(CAREER_MENTOR_ENABLED && cvs.length === 0 ? "/cv-builder/start" : "/dashboard/templates");
   };
 
   const handleDeleteConfirm = async () => {

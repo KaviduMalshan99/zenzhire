@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import api from "@/lib/api";
+import { CAREER_MENTOR_ENABLED } from "@/lib/feature-flags";
 
 export default function GoogleAuthCallbackPage() {
   const router = useRouter();
@@ -21,7 +23,16 @@ export default function GoogleAuthCallbackPage() {
 
     Cookies.set("token", token, { expires: 7, sameSite: "lax" });
     toast.success("Welcome!");
-    router.replace("/dashboard");
+    // Google is both sign-up and sign-in, so decide by CV count: users with no
+    // CV yet (new accounts) start on the quick-start welcome screen.
+    if (!CAREER_MENTOR_ENABLED) {
+      router.replace("/dashboard");
+      return;
+    }
+    api
+      .get<unknown[]>("/cv/")
+      .then((res) => router.replace(res.data.length === 0 ? "/cv-builder/start" : "/dashboard"))
+      .catch(() => router.replace("/dashboard"));
   }, [router]);
 
   return (
