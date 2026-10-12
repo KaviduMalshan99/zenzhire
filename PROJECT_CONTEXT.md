@@ -1245,6 +1245,8 @@ The redesign was **deliberately scoped to two sprints only** — Sprint 1 (a flo
 
 ### 24.3 Sprint 2 — Career Mentor conversational onboarding
 
+> ⚠️ **Superseded 2026-10-11 by the mobile quick-start rework — see section 38.** The 23-step flow, `/start` creating the CV, per-step AI calls, and the chat-style frontend (history bubbles, checklist sidebar, typing indicator) described below no longer exist. Kept for history only.
+
 **Backend** — new `backend/app/services/career_mentor.py`: a pure, DB-free step engine (no ORM/DB calls in this file) describing the conversation flow. ⚠️ **Grown since session 10 and never re-documented — corrected session 12.** `FLOW` currently has **24 nodes (23 real questions + a terminal `"complete"` node)**, up from the 19/18 originally logged — confirmed by direct read of the current file, not the old count. Three branch points now, not two:
 - `has_experience` (Yes → Branch A: `exp_company/exp_title/exp_start/exp_end/exp_work`, with an `exp_work_followup` re-ask if the answer comes back too vague/short; No → falls into `has_projects`)
 - `has_projects` (Yes → `project_name/project_work`, same `project_work_followup` vague-answer re-ask pattern; No → skips straight to education, so no phantom empty Experience/Projects section is ever created)
@@ -1288,7 +1290,9 @@ Logged here for future reference, not implemented: **Context Manager** (shared c
 
 No trace of "Career Mentor" remains in any of these three user-facing surfaces (confirmed by direct grep, not just a spot-check). It's unclear which session actually did this rename — it wasn't logged anywhere in this file until now — but the code is unambiguous that it's done. Nothing further needed here; if a future session finds "Career Mentor" copy anywhere else in the product (it shouldn't, based on this grep), treat that as a newly-discovered miss, not a reversion of this note.
 
-### 24.7 ⚠️ Temporarily DISABLED for launch (session 14, 2026-07-21)
+### 24.7 ⚠️ Temporarily DISABLED for launch (session 14, 2026-07-21) — re-enabled 2026-10-11, see 38.6
+
+> The flag is now `true` and its meaning changed: it gates the 0-CV entry points to the quick-start, and the template picker no longer routes into onboarding at all (see 38.6).
 
 Deliberate, temporary, fully reversible — **not** a removal, and not because anything was found broken. A single feature flag, `CAREER_MENTOR_ENABLED` (`frontend/lib/feature-flags.ts`, currently `false`), controls whether `/dashboard/templates`' `handleSelect()` routes into the onboarding chat (`/cv-builder/onboarding?template=...`) or straight to the normal CV Builder editor. With the flag off, `handleSelect()` falls back to the pre-Sprint-2 direct-create behavior (`POST /cv/` then `router.push(/cv-builder/{id})`) — exactly how "New CV" worked before this feature existed.
 
@@ -1754,3 +1758,70 @@ Added `{ label: "CV Builder", href: "/features/cv-builder" }` to `PRODUCT_LINKS`
 - New 6-item header nav order confirmed correct via both rendered screenshot and a grep of the real HTML response's link order; confirmed About/Contact appear exactly once each (footer only, not header) via `grep -c` on the rendered HTML.
 
 ---
+## 38. Career Mentor Quick-Start (2026-10-11 — step 2a backend, step 2b frontend)
+
+Rework of the Career Mentor onboarding into a short mobile quick-start. Backend = step 2a (below), frontend = step 2b (38.1–38.8). Live: `CAREER_MENTOR_ENABLED = true`.
+
+**Idea:** questions are fixed (no AI per question). AI runs once, at the end, to polish the job/project text and write the summary.
+
+**Steps** (`backend/app/services/career_mentor.py`, pure logic, no DB):
+`target_role` → `career_stage` (student / graduate / junior 1-3y / experienced 3+y / career_change) → `has_experience` (wording mentions internships + part-time jobs for students/graduates) → **yes:** `exp_role` (title + company), `exp_dates` (start, end, "I still work here"), `exp_work` / **no:** `project_name`, `project_work` → `education` (qualification + institute) → `edu_year` (year or "still studying") → `skills` (list) → `contact` (phone + city, both optional) → `goal` (optional). 11 steps with experience, 10 without. One optional follow-up (`exp_work_followup` / `project_work_followup`) only for answers under 3 words; it shares its base step's progress number. Languages, certifications and the old 3 summary questions were removed (added later in the builder).
+
+**State:** answers live in a `context` dict the client sends back each time; the server re-validates all of it (`clean_context`) and drops answers that are off the current path (`prune_context`). CV sections are always rebuilt from the whole context (`cv_content`), so re-answering or switching yes→no leaves no stale entries. Entries use fixed ids (`onboarding-experience` etc.) and the builder's editable `description` HTML field (the old flow wrote `bullets` with no ids).
+
+**Endpoints** (`backend/app/api/routes/career_mentor.py`):
+- `POST /career-mentor/start` — returns step 1 only. **Creates nothing.**
+- `POST /career-mentor/answer {cv_id|null, step, answer, context}` — the CV is created on the first valid answer (`created_via="onboarding"`, same Free-plan limit as New CV). `answer` is a string, a list (skills) or a dict (multi-field steps).
+- `POST /career-mentor/back {cv_id, step, context}` — returns the previous step with `prefill` = the earlier answer. Re-answering goes through `/answer` and replaces it.
+- `POST /career-mentor/finish {cv_id, context}` — the one free AI generation. Allowed only if the CV belongs to the user, `created_via == "onboarding"` and `onboarding_generated_at IS NULL` (403/409 with a clear message otherwise). The flag is claimed with an atomic `UPDATE ... WHERE onboarding_generated_at IS NULL` before the AI call (stops double-taps) and reset to NULL if the AI fails (502, user can retry). `/answer` and `/back` return 409 once finished.
+
+**DB:** migration `023_add_onboarding_fields` adds `cv_documents.created_via` (`"onboarding"` / `"builder"` / NULL for old rows) and `onboarding_generated_at`. Builder New CV and Duplicate set `"builder"` (via the new shared `cv_routes.create_cv_document()`).
+
+**Template:** picked from `career_stage` (`STAGE_TEMPLATES`): student→nova, graduate→academic, junior→corporate, experienced→classic, career_change→corporate (classic until the stage is answered). Styles = exactly what the template picker sends (`cv_routes.template_picker_customization()`, which needs `TEMPLATE_DEFAULT_CUSTOMIZATION` in `cv.py` — a manual mirror of `frontend/types/index.ts`, keep in sync).
+
+**AI** (`ai_service.polish_onboarding_experience / polish_onboarding_project / write_onboarding_summary`): async client, `settings.anthropic_model`, shared `ONBOARDING_HONESTY_RULES` system prompt (only the user's facts; no invented numbers, results, tools, team sizes or personal qualities). Extra safety net: if the output contains a number the user never typed (`adds_new_numbers`), the user's own text is used instead (summary is left empty).
+
+**Events:** `onboarding_started` (first answer), `onboarding_step_completed` (`metadata.step`, also fired on re-answers), `onboarding_completed`. Written after the main commit; failures are logged and never break the flow.
+
+**Tests:** `backend/tests/test_career_mentor_flow.py` (engine only). Run from `backend/`: `pip install -r requirements-dev.txt` then `python -m pytest`.
+
+### 38.1 Frontend screens (step 2b)
+
+- **Welcome** — `app/(dashboard)/cv-builder/start/page.tsx`. "Hi {first name}", three cards: *Build it with Zeni* (Recommended, accent border → `/cv-builder/onboarding`, clears saved progress), *Fill it in myself* (`createBuilderCv()` → Classic template with picker styles → builder), *Upload my old CV* (Coming soon, dashed, `aria-disabled`, not a button). Shield note at the bottom. Close (X) → dashboard.
+- **Questions / Writing / Ready** — `app/(dashboard)/cv-builder/onboarding/page.tsx` (old chat page fully replaced). One question per screen; inputs in `components/quickstart/QuestionInputs.tsx` (labelled text input + 6 role chips for `target_role`; radio cards with arrow-key support; big Yes/No pair for `has_experience`; labelled two-field steps; month/year selects + "I still work here" switch for `exp_dates`, stored like the builder's own dates, e.g. `"Mar 2023"`; skill suggestion chips picked from the target role + "Add your own"). Continue is disabled until the answer passes the same rules as the backend's `normalize_answer`; optional steps (and `contact`, whose fields are all optional) show "Skip this question" when empty. The "Know any numbers?" hint only shows on the job/project description steps. `getAck()` (`lib/quickstart.ts`) shows a short confirmation of the previous answer above the next question (not after Back).
+- **Top bar**: Back (44px, `aria-label="Back"`) → `/back` (prefill shown; on step 1 it returns to the welcome screen), "Step X of Y" from the API, Skip → builder for the existing CV, or the same as "Fill it in myself" if no CV exists yet.
+- **Writing** — `components/quickstart/WritingScreen.tsx`. Checklist advances on a 2.5s timer while the single `/finish` request runs (no percentage). On error: "Zeni couldn't finish writing right now." + *Try again* (calls `/finish` again) + *Continue without Zeni* (opens the builder; the CV already holds the user's own words). A 409 from `/finish` is treated as "already done".
+- **Ready** — `components/quickstart/ReadyScreen.tsx`. Real preview = the builder's `CentrePanel` with the new `showToolbar={false}` prop, zoom computed to fit the width, marked `inert` (no tiny tappable links). 5 free templates as chips (`FREE_TEMPLATES`); switching saves `template_id` + that template's picker styles via `PUT /cv/{id}`. *Download PDF* = shared `exportCvPdf()` → `/api/generate-pdf`, which records `pdf_downloaded` server-side (same as the builder). *Edit details* → builder. *Check ATS score* → same sessionStorage hand-off as the builder's "Send to ATS".
+
+### 38.2 Layout / mobile keyboard
+
+`components/quickstart/QuickStartShell.tsx`. Below `md` the screen is a `fixed` layer sized to `window.visualViewport` (height + offsetTop), so the footer (Continue) always sits just above the on-screen keyboard; `h-[100dvh]` is the fallback before JS runs. The app Navbar is hidden below `md` on `/cv-builder/start` and `/cv-builder/onboarding` (`FULL_SCREEN_MOBILE_ROUTES` in `Navbar.tsx`). On desktop the same screens are a centred 480px card under the normal Navbar. The layer is `z-40` so Radix dialogs (z-50, e.g. `PlanLimitDialog`) still show on top.
+
+### 38.3 State
+
+Answers live in the API's `context`. The current step (or the finish / ready phase) is also saved in `sessionStorage` (`zh_quickstart`, `lib/quickstart.ts`), so a reload resumes; it's cleared when the user leaves via Skip, Continue without Zeni, Edit details or Check ATS, and when starting fresh from the welcome card.
+
+### 38.4 Shared code pulled out (behaviour unchanged)
+
+- `lib/pdf-export.ts` — `exportCvPdf()`, moved out of `CentrePanel.handleExportPDF` (builder still shows the same success dialog).
+- `lib/cv-text.ts` — `extractCVText()`, moved out of `cv-builder/[id]/page.tsx`. **Fix:** it now also reads the HTML `description` of experience entries (and strips HTML from project descriptions). Before, it only read the legacy `bullets` field, so the ATS checker got no job text for any CV whose experience used the editor's description field — including every quick-start CV.
+- `lib/quickstart.ts` — `templatePickerCustomization()` is now also used by `/dashboard/templates`.
+
+### 38.5 Entry points
+
+With the flag on: email signup → `/cv-builder/start`; Google callback → `/cv-builder/start` if the user has 0 CVs (Google can't tell sign-up from sign-in), else `/dashboard`; dashboard "Create New CV" and My CVs "New CV" → `/cv-builder/start` when the user has 0 CVs, else the template picker as before. Dashboard heading: "Welcome, {name}" with 0 CVs, "Welcome back, {name}" otherwise.
+
+### 38.6 `CAREER_MENTOR_ENABLED` (now `true`)
+
+It now only gates the 0-CV entry points above (off = dashboard / template picker, exactly as before). `/dashboard/templates` no longer routes into onboarding when the flag is on: a user who picks a specific template gets a CV with that template directly, since the quick-start picks its own template from `career_stage`.
+
+### 38.7 Template check (2026-10-11, one real run per stage)
+
+All 5 stage templates rendered cleanly with short answers: no empty headings (the empty Experience/Projects/Languages sections are hidden by the templates), nothing broken, 1 page each, about 40% of the page used. Notes, mapping **not** changed:
+- Classic (experienced) and Inline (graduate) title the skills section "Technical skills" even for soft skills (e.g. HR: Communication / Recruitment). Worth changing the default heading or setting a "Skills" title for quick-start CVs.
+- Nova (student) — its footer bar sits right under the content in the un-paginated `/cv-print` view (dashboard thumbnails); in the editor preview and the real PDF it's correctly at the page bottom. Pre-existing, not quick-start specific.
+- AI honesty slips seen in the 5 runs (backend prompt, step 2a): the career-change summary added "a clear passion for language", and a bullet added "to help them make informed decisions"; small additions like "inbound" calls. Numbers were never invented. Consider tightening `ONBOARDING_HONESTY_RULES`.
+
+### 38.8 Tests (step 2b)
+
+Headless Playwright scripts (kept outside the repo) at 390x844 and 1280x800: both branches to Ready; Back on 3 steps incl. yes→no (DB: `experience.entries = []`, no stale text); Skip before the first answer (exactly 1 CV, `created_via='builder'`) and after (opens the quick-start CV, still 1 CV); `/finish` failing for real (backend started with an invalid Anthropic key → 502 → error screen; flag stays NULL; Continue without Zeni opens the CV with the user's words); Continue fully visible on every question at 390x844, with the viewport resized to 390x500, and with `visualViewport` shrunk to 500 (keyboard); PDF download from Ready → 1 `pdf_downloaded` event row. Screenshots: `C:\zenzhire-reports\quickstart\`.
