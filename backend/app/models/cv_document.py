@@ -62,6 +62,11 @@ class CVDocument(Base):
     is_primary = Column(Boolean, default=False)
     customization = Column(JSONB, nullable=True, default=None)
     target_role = Column(String, nullable=True)
+    # "onboarding" (quick-start chat) / "builder" (normal New CV, duplicate) / NULL (rows
+    # created before this column existed).
+    created_via = Column(String(32), nullable=True)
+    # Set once the quick-start's one free AI generation has run for this CV.
+    onboarding_generated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

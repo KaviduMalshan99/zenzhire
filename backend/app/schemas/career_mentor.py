@@ -1,16 +1,25 @@
+from typing import Any
 from pydantic import BaseModel
-from app.models.cv_document import TemplateId
-
-
-class CareerMentorStartRequest(BaseModel):
-    template_id: TemplateId = TemplateId.classic
 
 
 class CareerMentorAnswerRequest(BaseModel):
-    cv_id: int
+    # None until the first answer — the CV is only created then.
+    cv_id: int | None = None
     step: str
-    answer: str
-    context: dict = {}
+    # str for text/buttons, list[str] for "list", {field: value} for "fields".
+    answer: Any = None
+    context: dict[str, Any] = {}
+
+
+class CareerMentorBackRequest(BaseModel):
+    cv_id: int | None = None
+    step: str
+    context: dict[str, Any] = {}
+
+
+class CareerMentorFinishRequest(BaseModel):
+    cv_id: int
+    context: dict[str, Any]
 
 
 class Progress(BaseModel):
@@ -18,12 +27,36 @@ class Progress(BaseModel):
     total: int
 
 
+class StepOption(BaseModel):
+    value: str
+    label: str
+
+
+class StepField(BaseModel):
+    name: str
+    label: str
+    type: str  # "text" | "checkbox"
+    required: bool = False
+    required_unless: str | None = None
+
+
 class CareerMentorStepResponse(BaseModel):
-    cv_id: int
+    cv_id: int | None = None
     step: str
     question: str
-    input_type: str  # "text" | "buttons"
-    options: list[str] | None = None
+    hint: str | None = None
+    input_type: str  # "text" | "buttons" | "fields" | "list" | "none"
+    options: list[StepOption] | None = None
+    fields: list[StepField] | None = None
+    optional: bool = False
+    prefill: Any = None
+    can_go_back: bool = False
     progress: Progress
-    context: dict = {}
+    context: dict[str, Any] = {}
     complete: bool = False
+
+
+class CareerMentorFinishResponse(BaseModel):
+    cv_id: int
+    template_id: str
+    complete: bool = True

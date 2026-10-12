@@ -42,6 +42,37 @@ DEFAULT_CUSTOMIZATION: dict = {
     "skillColumns": 2,
 }
 
+# Mirrors frontend/types/index.ts's TEMPLATE_DEFAULT_CUSTOMIZATION exactly (kept in
+# sync manually, like DEFAULT_CUSTOMIZATION above).
+TEMPLATE_DEFAULT_CUSTOMIZATION: dict[str, dict] = {
+    "classic":   {"accentColor": "#111827", "fontFamily": "Arial",   "headerStyle": "centered", "headingStyle": "fullline",  "skillStyle": "chips", "lineHeight": 1.5, "sectionSpacing": 8},
+    "modern":    {"accentColor": "#2563eb", "fontFamily": "Roboto",  "headerStyle": "left",     "headingStyle": "underline", "lineHeight": 1.5, "sectionSpacing": 14},
+    "minimal":   {"accentColor": "#111827", "fontFamily": "Lato",    "headerStyle": "centered", "headingStyle": "fullline",  "skillStyle": "chips", "lineHeight": 1.6, "sectionSpacing": 14},
+    "executive": {"accentColor": "#111827", "fontFamily": "Georgia", "headerStyle": "centered", "headingStyle": "fullline",  "skillStyle": "chips", "lineHeight": 1.6, "sectionSpacing": 14},
+    "tech":      {"accentColor": "#2563eb", "fontFamily": "Arial",   "headerStyle": "left",     "headingStyle": "fullline",  "skillStyle": "chips", "lineHeight": 1.5, "sectionSpacing": 14},
+    "creative":  {"accentColor": "#7c3aed", "fontFamily": "Lato",    "headerStyle": "left",     "headingStyle": "underline", "skillStyle": "chips", "lineHeight": 1.5, "sectionSpacing": 20},
+    "academic":  {"accentColor": "#2563eb", "fontFamily": "Georgia", "headerStyle": "centered", "headingStyle": "fullline",  "skillStyle": "chips", "lineHeight": 1.6, "sectionSpacing": 7},
+    "gcc":       {"accentColor": "#2563eb", "fontFamily": "Arial",   "headerStyle": "left",     "headingStyle": "fullline",  "skillStyle": "chips", "lineHeight": 1.6, "sectionSpacing": 10},
+    "portrait":  {"accentColor": "#8a6fae", "fontFamily": "Lato",    "headerStyle": "left",     "headingStyle": "fullline",  "skillStyle": "classic", "lineHeight": 1.6, "sectionSpacing": 10},
+    "milestone": {"accentColor": "#111827", "fontFamily": "Roboto",  "headerStyle": "left",     "headingStyle": "fullline",  "skillStyle": "nameonly", "lineHeight": 1.6, "sectionSpacing": 10},
+    "corporate": {"accentColor": "#111827", "fontFamily": "Arial",   "headerStyle": "left",     "headingStyle": "plain",     "skillStyle": "nameonly", "lineHeight": 1.6, "sectionSpacing": 16},
+    "vega":      {"accentColor": "#2c3e50", "fontFamily": "Arial",   "headerStyle": "left",     "headingStyle": "plain",     "skillStyle": "nameonly", "lineHeight": 1.6, "sectionSpacing": 16},
+    "aurora":    {"accentColor": "#111827", "fontFamily": "Lato",    "headerStyle": "left",     "headingStyle": "fullline",  "skillStyle": "nameonly", "lineHeight": 1.6, "sectionSpacing": 10},
+    "nova":      {"accentColor": "#111827", "fontFamily": "Arial",   "headerStyle": "left",     "headingStyle": "fullline",  "skillStyle": "chips", "lineHeight": 1.6, "sectionSpacing": 10},
+}
+
+
+def template_picker_customization(template_id: str) -> dict:
+    """The exact customization the template picker sends when it creates a CV
+    (frontend/app/(dashboard)/dashboard/templates/page.tsx handleSelect)."""
+    return {
+        **DEFAULT_CUSTOMIZATION,
+        **TEMPLATE_DEFAULT_CUSTOMIZATION.get(template_id, {}),
+        "spacing": "normal",
+        "skillStyle": "classic",
+        "skillColumns": 2,
+    }
+
 
 # Mirrors frontend/types/index.ts's LEGACY_SPACING_MAP (generic fallback) and
 # TEMPLATE_LEGACY_SPACING (per-template ground truth, audited from each
@@ -373,6 +404,12 @@ def create_cv(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    return create_cv_document(payload, current_user, db, created_via="builder")
+
+
+def create_cv_document(payload: CVDocumentCreate, current_user: User, db: Session, created_via: str) -> CVDocument:
+    """Shared by the builder's New CV route and the quick-start onboarding, so
+    both go through the same Free-plan limits and default sections."""
     if not current_user.is_pro:
         count = db.query(CVDocument).filter(CVDocument.user_id == current_user.id).count()
         if count >= FREE_CV_LIMIT:
@@ -393,6 +430,7 @@ def create_cv(
         customization=_merge_customization(None, payload.customization, template_id=payload.template_id.value),
         target_role=payload.target_role,
         is_primary=False,
+        created_via=created_via,
     )
     db.add(cv)
     db.flush()
@@ -517,6 +555,8 @@ def duplicate_cv(
         template_id=source.template_id,
         target_role=source.target_role,
         is_primary=False,
+        # A copy never inherits the quick-start's one free AI generation.
+        created_via="builder",
     )
     db.add(new_cv)
     db.flush()
