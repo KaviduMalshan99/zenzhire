@@ -1,0 +1,193 @@
+[
+  {
+    "name": "Cashier, 1-3 years",
+    "context": {
+      "target_role": "Cashier",
+      "career_stage": "junior",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Cashier", "company": "Keells Super"},
+      "exp_dates": {"start_date": "Mar 2023", "end_date": "", "current": true},
+      "exp_work": "handled the cash counter, gave change and balanced the till at end of day",
+      "education": {"qualification": "G.C.E. A/L (Commerce)", "institute": "Ananda College"},
+      "edu_year": {"year": "2021", "still_studying": false},
+      "skills": ["Cash handling", "Customer service"],
+      "contact": {"phone": "0771234567", "city": "Colombo"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Accounts assistant, graduate",
+    "context": {
+      "target_role": "Accounts Assistant",
+      "career_stage": "graduate",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Accounts Trainee", "company": "Hayleys PLC"},
+      "exp_dates": {"start_date": "Jan 2024", "end_date": "Dec 2024", "current": false},
+      "exp_work": "entered invoices into the system and did bank reconciliations",
+      "education": {"qualification": "BSc in Accounting", "institute": "University of Sri Jayewardenepura"},
+      "edu_year": {"year": "2024", "still_studying": false},
+      "skills": ["Excel", "QuickBooks", "Bank reconciliation"],
+      "contact": {"phone": "0712345678", "city": "Nugegoda"},
+      "goal": "become a chartered accountant"
+    }
+  },
+  {
+    "name": "Teacher, experienced",
+    "context": {
+      "target_role": "English Teacher",
+      "career_stage": "experienced",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "English Teacher", "company": "Royal Institute"},
+      "exp_dates": {"start_date": "2018", "end_date": "", "current": true},
+      "exp_work": "teach English to grade 6 to 9 students and prepare exam papers",
+      "education": {"qualification": "BA in English", "institute": "University of Kelaniya"},
+      "edu_year": {"year": "2017", "still_studying": false},
+      "skills": ["Lesson planning", "Classroom management"],
+      "contact": {"phone": "0779876543", "city": "Kandy"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Software intern, student, project only",
+    "context": {
+      "target_role": "Software Engineering Intern",
+      "career_stage": "student",
+      "has_experience": "no",
+      "project_name": "Bus booking app",
+      "project_work": "made a web app with React and Firebase where people can book bus seats",
+      "education": {"qualification": "BSc in Information Technology", "institute": "SLIIT"},
+      "edu_year": {"year": "2027", "still_studying": true},
+      "skills": ["React", "JavaScript", "Firebase"],
+      "contact": {"phone": "0761112233", "city": "Malabe"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Customer service, call centre",
+    "context": {
+      "target_role": "Customer Service Executive",
+      "career_stage": "junior",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Call Centre Agent", "company": "Dialog Axiata"},
+      "exp_dates": {"start_date": "Jun 2022", "end_date": "Aug 2024", "current": false},
+      "exp_work": "answered customer calls and solved billing problems",
+      "education": {"qualification": "G.C.E. A/L", "institute": "Visakha Vidyalaya"},
+      "edu_year": {"year": "2020", "still_studying": false},
+      "skills": ["Communication", "Sinhala", "English"],
+      "contact": {"phone": "0705556677", "city": "Dehiwala"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Very thin answer, sales",
+    "context": {
+      "target_role": "Sales Assistant",
+      "career_stage": "junior",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Sales Assistant", "company": "Fashion Bug"},
+      "exp_dates": {"start_date": "2023", "end_date": "", "current": true},
+      "exp_work": "sales",
+      "exp_work_followup": "helped customers find clothes",
+      "education": {"qualification": "G.C.E. O/L", "institute": "Maliyadeva College"},
+      "edu_year": {"year": "2019", "still_studying": false},
+      "skills": ["Selling"],
+      "contact": {"phone": "0723334455", "city": "Kurunegala"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Graduate, no experience, data project",
+    "context": {
+      "target_role": "Data Analyst",
+      "career_stage": "graduate",
+      "has_experience": "no",
+      "project_name": "Rainfall analysis",
+      "project_work": "cleaned rainfall data for Sri Lanka in Python and made charts",
+      "education": {"qualification": "BSc in Statistics", "institute": "University of Peradeniya"},
+      "edu_year": {"year": "2025", "still_studying": false},
+      "skills": ["Python", "Pandas", "Excel"],
+      "contact": {"phone": "0758889900", "city": "Peradeniya"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Driver, experienced",
+    "context": {
+      "target_role": "Driver",
+      "career_stage": "experienced",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Van Driver", "company": "Cargills"},
+      "exp_dates": {"start_date": "2015", "end_date": "", "current": true},
+      "exp_work": "deliver goods to shops around the Gampaha area",
+      "education": {"qualification": "G.C.E. O/L", "institute": "Gampaha Central College"},
+      "edu_year": {"year": "2008", "still_studying": false},
+      "skills": ["Heavy vehicle licence", "Route planning"],
+      "contact": {"phone": "0714445566", "city": "Gampaha"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Nurse, career change to admin",
+    "context": {
+      "target_role": "Office Administrator",
+      "career_stage": "career_change",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Nurse", "company": "Asiri Hospital"},
+      "exp_dates": {"start_date": "2019", "end_date": "2025", "current": false},
+      "exp_work": "looked after patients and kept patient records",
+      "education": {"qualification": "Diploma in Nursing", "institute": "Nurses Training School Colombo"},
+      "edu_year": {"year": "2018", "still_studying": false},
+      "skills": ["Record keeping", "MS Word"],
+      "contact": {"phone": "0776667788", "city": "Battaramulla"},
+      "goal": "move into office administration"
+    }
+  },
+  {
+    "name": "HR intern, student",
+    "context": {
+      "target_role": "HR Intern",
+      "career_stage": "student",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Part-time Office Assistant", "company": "Lanka Tiles"},
+      "exp_dates": {"start_date": "2025", "end_date": "", "current": true},
+      "exp_work": "filed documents and booked meeting rooms",
+      "education": {"qualification": "BBA in Human Resource Management", "institute": "NSBM Green University"},
+      "edu_year": {"year": "2027", "still_studying": true},
+      "skills": ["MS Office", "Filing"],
+      "contact": {"phone": "0767778899", "city": "Homagama"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Waiter, hospitality",
+    "context": {
+      "target_role": "Hotel Steward",
+      "career_stage": "junior",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Waiter", "company": "Cinnamon Grand"},
+      "exp_dates": {"start_date": "2022", "end_date": "2024", "current": false},
+      "exp_work": "took orders and served food in the restaurant",
+      "education": {"qualification": "Certificate in Hotel Management", "institute": "SLITHM"},
+      "edu_year": {"year": "2022", "still_studying": false},
+      "skills": ["Food service", "English"],
+      "contact": {"phone": "0711239876", "city": "Negombo"},
+      "goal": ""
+    }
+  },
+  {
+    "name": "Graphic designer, freelance",
+    "context": {
+      "target_role": "Graphic Designer",
+      "career_stage": "junior",
+      "has_experience": "yes",
+      "exp_role": {"job_title": "Freelance Graphic Designer", "company": "Self-employed"},
+      "exp_dates": {"start_date": "2023", "end_date": "", "current": true},
+      "exp_work": "design posters and social media posts for small shops",
+      "education": {"qualification": "Diploma in Graphic Design", "institute": "AOD Colombo"},
+      "edu_year": {"year": "2023", "still_studying": false},
+      "skills": ["Photoshop", "Illustrator", "Canva"],
+      "contact": {"phone": "0784561230", "city": "Maharagama"},
+      "goal": ""
+    }
+  }
+]
